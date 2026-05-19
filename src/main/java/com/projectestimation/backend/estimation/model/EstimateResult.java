@@ -54,6 +54,9 @@ public class EstimateResult {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String breakdown;
 
+    @Column(columnDefinition = "TEXT")
+    private String reasoning;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "calculated_by")
     private User calculatedBy;
@@ -113,6 +116,8 @@ public class EstimateResult {
     public void setConfidenceScore(double confidenceScore) { this.confidenceScore = confidenceScore; }
     public String getBreakdown() { return breakdown; }
     public void setBreakdown(String breakdown) { this.breakdown = breakdown; }
+    public String getReasoning() { return reasoning; }
+    public void setReasoning(String reasoning) { this.reasoning = reasoning; }
     public User getCalculatedBy() { return calculatedBy; }
     public void setCalculatedBy(User calculatedBy) { this.calculatedBy = calculatedBy; }
     public LocalDateTime getCreatedAt() { return createdAt; }

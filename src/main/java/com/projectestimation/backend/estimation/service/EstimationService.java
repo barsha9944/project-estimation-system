@@ -2,11 +2,10 @@ package com.projectestimation.backend.estimation.service;
 
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.estimation.ai.AiEstimationResult;
+import com.projectestimation.backend.estimation.ai.GeminiEstimationOrchestrator;
 import com.projectestimation.backend.estimation.dto.EstimateCalculationRequest;
 import com.projectestimation.backend.estimation.dto.EstimateCalculationResponse;
-import com.projectestimation.backend.estimation.engine.EstimationEngine;
-import com.projectestimation.backend.estimation.engine.EstimationInput;
-import com.projectestimation.backend.estimation.engine.EstimationOutput;
 import com.projectestimation.backend.estimation.engine.OpportunityEstimationInputResolver;
 import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.estimation.repository.EstimateResultRepository;
@@ -21,26 +20,27 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EstimationService {
 
-    private final EstimationEngine estimationEngine;
+    private final GeminiEstimationOrchestrator geminiEstimationOrchestrator;
     private final EstimateResultRepository estimateResultRepository;
     private final OpportunityRepository opportunityRepository;
     private final ParametersRepository parametersRepository;
 
-    public EstimationService(EstimationEngine estimationEngine,
+    public EstimationService(GeminiEstimationOrchestrator geminiEstimationOrchestrator,
                              EstimateResultRepository estimateResultRepository,
                              OpportunityRepository opportunityRepository,
                              ParametersRepository parametersRepository) {
-        this.estimationEngine = estimationEngine;
+        this.geminiEstimationOrchestrator = geminiEstimationOrchestrator;
         this.estimateResultRepository = estimateResultRepository;
         this.opportunityRepository = opportunityRepository;
         this.parametersRepository = parametersRepository;
     }
 
     /**
-     * Legacy frontend-driven calculation (backward compatibility).
+     * Legacy frontend-driven calculation (backward compatibility) — powered by Gemini AI.
      */
     public EstimateCalculationResponse calculate(EstimateCalculationRequest request, User user) {
-        EstimationInput input = new EstimationInput(
+        AiEstimationResult aiResult = geminiEstimationOrchestrator.estimateFromLegacyPayload(
+                request.projectName(),
                 request.requirementSummary(),
                 request.parameters().complexityFactor(),
                 request.parameters().riskFactor(),
@@ -48,7 +48,6 @@ public class EstimationService {
                 request.parameters().hourlyRate(),
                 request.parameters().teamSize()
         );
-        EstimationOutput output = estimationEngine.compute(input);
 
         EstimateResult result = new EstimateResult();
         result.setProjectName(request.projectName());
@@ -58,25 +57,21 @@ public class EstimationService {
         result.setProductivityFactor(request.parameters().productivityFactor());
         result.setHourlyRate(request.parameters().hourlyRate());
         result.setTeamSize(request.parameters().teamSize());
-        applyOutput(result, output);
+        applyAiOutput(result, aiResult);
         result.setCalculatedBy(user);
 
         return persistAndRespond(result);
     }
 
     /**
-     * Primary opportunity-driven estimation workflow.
+     * Primary opportunity-driven AI estimation workflow.
      */
     @Transactional
     public EstimateCalculationResponse calculateForOpportunity(Long opportunityId, User user) {
-        Opportunity opportunity = opportunityRepository.findById(opportunityId)
-                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+        Opportunity opportunity = loadOpportunity(opportunityId);
+        Parameters parameters = loadParameters(opportunityId);
 
-        Parameters parameters = parametersRepository.findByOpportunityId(opportunityId)
-                .orElseThrow(() -> new ResourceNotFoundException("Parameters not found for this opportunity"));
-
-        EstimationInput input = OpportunityEstimationInputResolver.resolve(opportunity, parameters);
-        EstimationOutput output = estimationEngine.compute(input);
+        AiEstimationResult aiResult = geminiEstimationOrchestrator.estimate(opportunity, parameters);
 
         double complexityFactor = OpportunityEstimationInputResolver.resolveComplexityFactor(
                 parameters.getComplexity(), opportunity);
@@ -90,7 +85,7 @@ public class EstimationService {
         result.setProductivityFactor(parameters.getProductivityFactor());
         result.setHourlyRate(parameters.getHourlyRate());
         result.setTeamSize(parameters.getTeamSize());
-        applyOutput(result, output);
+        applyAiOutput(result, aiResult);
         result.setCalculatedBy(user);
 
         opportunity.setStatus(OpportunityStatus.ESTIMATED);
@@ -110,12 +105,23 @@ public class EstimationService {
         return toResponse(estimate);
     }
 
-    private void applyOutput(EstimateResult result, EstimationOutput output) {
-        result.setTotalEffortHours(output.totalEffortHours());
-        result.setEstimatedCost(output.estimatedCost());
-        result.setTimelineWeeks(output.timelineWeeks());
-        result.setConfidenceScore(output.confidenceScore());
-        result.setBreakdown(output.breakdown());
+    private Opportunity loadOpportunity(Long opportunityId) {
+        return opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+    }
+
+    private Parameters loadParameters(Long opportunityId) {
+        return parametersRepository.findByOpportunityId(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parameters not found for this opportunity"));
+    }
+
+    private void applyAiOutput(EstimateResult result, AiEstimationResult aiResult) {
+        result.setTotalEffortHours(aiResult.totalEffortHours());
+        result.setEstimatedCost(aiResult.estimatedCost());
+        result.setTimelineWeeks(aiResult.timelineWeeks());
+        result.setConfidenceScore(aiResult.confidenceScore());
+        result.setBreakdown(aiResult.breakdown());
+        result.setReasoning(aiResult.reasoning());
     }
 
     private EstimateCalculationResponse persistAndRespond(EstimateResult result) {
