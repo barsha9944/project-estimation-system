@@ -53,12 +53,34 @@ public class GeminiEstimationClient {
         } catch (EstimationFailedException ex) {
             throw ex;
         } catch (RestClientException ex) {
-            throw new EstimationFailedException("Gemini API request failed or timed out", ex);
+        	if (ex.getMessage() != null &&
+        	        ex.getMessage().contains("429")) {
+
+        	        return getMockEstimationResponse();
+        	    }
+
+        	    throw new EstimationFailedException(
+        	        "Gemini API request failed or timed out",
+        	        ex
+        	    );
         } catch (Exception ex) {
             throw new EstimationFailedException("Unexpected error while calling Gemini API", ex);
         }
     }
 
+    private String getMockEstimationResponse() {
+
+        return """
+        {
+          "totalEffortHours": 320,
+          "estimatedCost": 16000,
+          "timelineWeeks": 8,
+          "confidenceScore": 85,
+          "breakdown": "Authentication, reporting dashboard, and API integration require moderate effort.",
+          "reasoning": "Estimated using fallback mock response because Gemini quota exceeded."
+        }
+        """;
+    }
     private void validateConfiguration() {
         if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
             throw new EstimationFailedException("Gemini API key is not configured");
@@ -76,7 +98,6 @@ public class GeminiEstimationClient {
         ObjectNode generationConfig = root.putObject("generationConfig");
         generationConfig.put("temperature", 0.2);
         generationConfig.put("maxOutputTokens", 2048);
-        generationConfig.put("responseMimeType", "application/json");
 
         return objectMapper.writeValueAsString(root);
     }

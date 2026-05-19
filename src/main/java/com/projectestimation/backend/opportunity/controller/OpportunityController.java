@@ -1,11 +1,13 @@
 package com.projectestimation.backend.opportunity.controller;
 
+import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.response.ApiResponse;
 import com.projectestimation.backend.opportunity.dto.*;
 import com.projectestimation.backend.opportunity.service.OpportunityService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,7 +24,8 @@ public class OpportunityController {
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<OpportunityResponse>> create(
-            @Valid @RequestBody OpportunityCreateRequest request
+            @Valid @RequestBody OpportunityCreateRequest request,
+            @AuthenticationPrincipal User user
     ) {
         OpportunityResponse response = opportunityService.createOpportunity(request);
         return ResponseEntity.status(HttpStatus.CREATED)

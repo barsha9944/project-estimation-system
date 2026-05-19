@@ -25,19 +25,19 @@ public class Opportunity {
     @Column(nullable = false)
     private ImplementationType implementationType;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "opportunity_platforms", joinColumns = @JoinColumn(name = "opportunity_id"))
     @Column(name = "platform", nullable = false)
     @Builder.Default
     private List<String> platforms = new ArrayList<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "opportunity_technology_categories", joinColumns = @JoinColumn(name = "opportunity_id"))
     @Column(name = "technology_category", nullable = false)
     @Builder.Default
     private List<String> technologyCategories = new ArrayList<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "opportunity_enterprise_contexts", joinColumns = @JoinColumn(name = "opportunity_id"))
     @Column(name = "enterprise_context", nullable = false)
     @Builder.Default
@@ -58,7 +58,7 @@ public class Opportunity {
 
     private LocalDate expectedDeliveryDate;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "opportunity_components", joinColumns = @JoinColumn(name = "opportunity_id"))
     @Column(name = "component", nullable = false)
     @Builder.Default

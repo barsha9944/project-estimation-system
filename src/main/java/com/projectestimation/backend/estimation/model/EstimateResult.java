@@ -61,13 +61,11 @@ public class EstimateResult {
     @JoinColumn(name = "calculated_by")
     private User calculatedBy;
 
-    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(nullable = false, updatable = false)
     private LocalDateTime calculatedAt;
 
     @PrePersist
