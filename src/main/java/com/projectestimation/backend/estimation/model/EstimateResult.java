@@ -1,6 +1,7 @@
 package com.projectestimation.backend.estimation.model;
 
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.opportunity.model.Opportunity;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,10 @@ public class EstimateResult {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "opportunity_id")
+    private Opportunity opportunity;
 
     @Column(nullable = false)
     private String projectName;
@@ -49,14 +54,41 @@ public class EstimateResult {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String breakdown;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "calculated_by", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "calculated_by")
     private User calculatedBy;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime calculatedAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
+
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime calculatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (calculatedAt == null) {
+            calculatedAt = createdAt;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     public Long getId() { return id; }
+    public Opportunity getOpportunity() { return opportunity; }
+    public void setOpportunity(Opportunity opportunity) { this.opportunity = opportunity; }
     public String getProjectName() { return projectName; }
     public void setProjectName(String projectName) { this.projectName = projectName; }
     public String getRequirementSummary() { return requirementSummary; }
@@ -83,5 +115,7 @@ public class EstimateResult {
     public void setBreakdown(String breakdown) { this.breakdown = breakdown; }
     public User getCalculatedBy() { return calculatedBy; }
     public void setCalculatedBy(User calculatedBy) { this.calculatedBy = calculatedBy; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
     public LocalDateTime getCalculatedAt() { return calculatedAt; }
 }
