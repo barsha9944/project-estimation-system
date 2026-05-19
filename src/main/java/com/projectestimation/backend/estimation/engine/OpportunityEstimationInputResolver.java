@@ -25,7 +25,7 @@ public final class OpportunityEstimationInputResolver {
         );
     }
 
-    static double resolveComplexityFactor(ComplexityLevel complexity, Opportunity opportunity) {
+    public static double resolveComplexityFactor(ComplexityLevel complexity, Opportunity opportunity) {
         double factor = switch (complexity) {
             case LOW -> 1.0;
             case MEDIUM -> 1.2;
