@@ -30,7 +30,7 @@ public class GeminiProposalOrchestrator {
                                              EstimateResult estimate) {
         String prompt = promptBuilder.build(opportunity, parameters, estimate);
         try {
-            String rawResponse = geminiClient.generateJsonContent(prompt, PROPOSAL_MAX_OUTPUT_TOKENS);
+            String rawResponse = geminiClient.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
             return responseParser.parse(rawResponse);
         } catch (AiGenerationFailedException ex) {
             throw new ProposalFailedException(ex.getMessage(), ex);

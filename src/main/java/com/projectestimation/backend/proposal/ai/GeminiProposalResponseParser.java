@@ -1,166 +1,75 @@
 package com.projectestimation.backend.proposal.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import org.springframework.stereotype.Component;
 
-import java.util.regex.Matcher;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Component
 public class GeminiProposalResponseParser {
 
-    private static final Pattern JSON_BLOCK = Pattern.compile("\\{[\\s\\S]*}", Pattern.DOTALL);
+    private static final Pattern MARKDOWN_FENCE = Pattern.compile(
+            "^```(?:markdown)?\\s*\\n?([\\s\\S]*?)\\n?```\\s*$",
+            Pattern.CASE_INSENSITIVE
+    );
 
-    private final ObjectMapper objectMapper;
-
-    public GeminiProposalResponseParser(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
+    private static final List<String> REQUIRED_SECTIONS = List.of(
+            "Introduction",
+            "Scope of Work",
+            "Solution Architecture",
+            "Technology Stack",
+            "Quality Assurance",
+            "Project Governance",
+            "Commercials",
+            "Organization Capabilities"
+    );
 
     public AiProposalResult parse(String rawResponse) {
         if (rawResponse == null || rawResponse.isBlank()) {
             throw new ProposalFailedException("Gemini returned an empty proposal response");
         }
 
-        try {
-            String jsonPayload = extractJson(rawResponse);
-            JsonNode root = objectMapper.readTree(jsonPayload);
-
-            String executiveSummary = requireText(root, "executiveSummary");
-            String projectOverview = requireText(root, "projectOverview");
-            String scopeOfWork = requireText(root, "scopeOfWork");
-            String technologyStack = requireText(root, "technologyStack");
-            String componentsAndFeatures = requireText(root, "componentsAndFeatures");
-            String deliveryApproach = requireText(root, "deliveryApproach");
-            String teamStructure = requireText(root, "teamStructure");
-            String timelineEstimate = requireText(root, "timelineEstimate");
-            String costEstimate = requireText(root, "costEstimate");
-            String risksAndAssumptions = requireText(root, "risksAndAssumptions");
-            String supportAndMaintenance = requireText(root, "supportAndMaintenance");
-            String conclusion = requireText(root, "conclusion");
-
-            String proposalContent = buildProposalContent(
-                    executiveSummary,
-                    projectOverview,
-                    scopeOfWork,
-                    technologyStack,
-                    componentsAndFeatures,
-                    deliveryApproach,
-                    teamStructure,
-                    timelineEstimate,
-                    costEstimate,
-                    risksAndAssumptions,
-                    supportAndMaintenance,
-                    conclusion
-            );
-
-            return new AiProposalResult(
-                    executiveSummary,
-                    projectOverview,
-                    scopeOfWork,
-                    technologyStack,
-                    componentsAndFeatures,
-                    deliveryApproach,
-                    teamStructure,
-                    timelineEstimate,
-                    costEstimate,
-                    risksAndAssumptions,
-                    supportAndMaintenance,
-                    conclusion,
-                    proposalContent
-            );
-        } catch (ProposalFailedException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new ProposalFailedException("Failed to parse Gemini proposal response", ex);
-        }
+        String markdown = normalizeMarkdown(rawResponse);
+        validateMarkdown(markdown);
+        return new AiProposalResult(markdown);
     }
 
-    private String extractJson(String rawResponse) {
+    private String normalizeMarkdown(String rawResponse) {
         String trimmed = rawResponse.trim();
-        if (trimmed.startsWith("{")) {
-            return trimmed;
+
+        var fenceMatcher = MARKDOWN_FENCE.matcher(trimmed);
+        if (fenceMatcher.matches()) {
+            trimmed = fenceMatcher.group(1).trim();
+        } else if (trimmed.startsWith("```")) {
+            trimmed = trimmed.replaceFirst("^```(?:markdown)?\\s*\\n?", "");
+            trimmed = trimmed.replaceFirst("\\n?```\\s*$", "");
         }
 
-        Matcher matcher = JSON_BLOCK.matcher(trimmed);
-        if (matcher.find()) {
-            return matcher.group();
-        }
-
-        throw new ProposalFailedException("Gemini response did not contain valid JSON");
+        return trimmed.trim();
     }
 
-    private String requireText(JsonNode root, String field) {
-        JsonNode node = root.get(field);
-        if (node == null || node.asText().isBlank()) {
-            throw new ProposalFailedException("Gemini response is missing required field: " + field);
+    private void validateMarkdown(String markdown) {
+        if (!markdown.contains("#")) {
+            throw new ProposalFailedException("Gemini response is not valid Markdown: missing headings");
         }
-        return node.asText().trim();
+
+        for (String section : REQUIRED_SECTIONS) {
+            if (!containsSection(markdown, section)) {
+                throw new ProposalFailedException("Gemini Markdown response is missing required section: " + section);
+            }
+        }
+
+        if (!containsTable(markdown)) {
+            throw new ProposalFailedException("Gemini Markdown response must include at least one Markdown table");
+        }
     }
 
-    private String buildProposalContent(String executiveSummary,
-                                        String projectOverview,
-                                        String scopeOfWork,
-                                        String technologyStack,
-                                        String componentsAndFeatures,
-                                        String deliveryApproach,
-                                        String teamStructure,
-                                        String timelineEstimate,
-                                        String costEstimate,
-                                        String risksAndAssumptions,
-                                        String supportAndMaintenance,
-                                        String conclusion) {
-        return """
-                EXECUTIVE SUMMARY
-                %s
+    private boolean containsSection(String markdown, String sectionName) {
+        return markdown.toLowerCase().contains(sectionName.toLowerCase());
+    }
 
-                PROJECT OVERVIEW
-                %s
-
-                SCOPE OF WORK
-                %s
-
-                TECHNOLOGY STACK
-                %s
-
-                COMPONENTS & FEATURES
-                %s
-
-                DELIVERY APPROACH
-                %s
-
-                TEAM STRUCTURE
-                %s
-
-                TIMELINE ESTIMATE
-                %s
-
-                COST ESTIMATE
-                %s
-
-                RISKS & ASSUMPTIONS
-                %s
-
-                SUPPORT & MAINTENANCE
-                %s
-
-                CONCLUSION
-                %s
-                """.formatted(
-                executiveSummary,
-                projectOverview,
-                scopeOfWork,
-                technologyStack,
-                componentsAndFeatures,
-                deliveryApproach,
-                teamStructure,
-                timelineEstimate,
-                costEstimate,
-                risksAndAssumptions,
-                supportAndMaintenance,
-                conclusion
-        );
+    private boolean containsTable(String markdown) {
+        return markdown.lines().anyMatch(line -> line.trim().startsWith("|") && line.trim().contains("|"));
     }
 }

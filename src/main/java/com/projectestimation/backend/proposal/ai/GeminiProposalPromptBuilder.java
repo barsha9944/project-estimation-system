@@ -13,11 +13,20 @@ public class GeminiProposalPromptBuilder {
     public String build(Opportunity opportunity, Parameters parameters, EstimateResult estimate) {
         return """
                 You are an expert enterprise software consulting proposal writer.
-                Generate a professional client-facing project proposal using the context below.
+                Generate a complete client-facing project proposal as VALID STRUCTURED MARKDOWN ONLY.
 
-                OPPORTUNITY
-                - Name: %s
-                - Client: %s
+                CRITICAL OUTPUT RULES
+                - Output valid Markdown only.
+                - Do NOT output HTML, JSON, plain-text blobs, or conversational responses.
+                - Do NOT wrap the response in code fences.
+                - Use proper Markdown headings (#, ##, ###).
+                - Use Markdown tables where required (pipe syntax).
+                - Use bullet lists where appropriate.
+                - Maintain professional enterprise proposal formatting.
+
+                OPPORTUNITY CONTEXT
+                - Opportunity Name: %s
+                - Client Name: %s
                 - Implementation Type: %s
                 - Platforms: %s
                 - Technology Categories: %s
@@ -42,27 +51,31 @@ public class GeminiProposalPromptBuilder {
                 - Breakdown: %s
                 - Reasoning: %s
 
-                INSTRUCTIONS
-                - Write professional, enterprise-grade proposal content.
-                - Align timeline and cost with the AI estimate.
-                - Be specific to the opportunity context.
-                - Use clear business language suitable for client presentation.
+                REQUIRED DOCUMENT STRUCTURE (use these exact top-level sections as Markdown headings)
 
-                Respond with JSON only (no markdown, no code fences) using exactly these fields:
-                {
-                  "executiveSummary": "...",
-                  "projectOverview": "...",
-                  "scopeOfWork": "...",
-                  "technologyStack": "...",
-                  "componentsAndFeatures": "...",
-                  "deliveryApproach": "...",
-                  "teamStructure": "...",
-                  "timelineEstimate": "...",
-                  "costEstimate": "...",
-                  "risksAndAssumptions": "...",
-                  "supportAndMaintenance": "...",
-                  "conclusion": "..."
-                }
+                # 1. Introduction
+
+                # 2. Scope of Work
+                Include a Markdown table with columns: Work Package | Description | Deliverables
+
+                # 3. Solution Architecture
+
+                # 4. Technology Stack
+
+                # 5. Quality Assurance
+
+                # 6. Project Governance
+                Include an escalation matrix as a Markdown table with columns: Level | Role | Contact | Response Time
+
+                # 7. Commercials
+                ## i. Elapsed Time
+                ## ii. Payment Milestones
+                Include payment milestones as a Markdown table with columns: Milestone | Description | % Payment | Amount | Target Date
+
+                # 8. Organization Capabilities
+
+                Align timeline, effort, and cost content with the AI estimate provided above.
+                Be specific to the opportunity context.
                 """.formatted(
                 opportunity.getOpportunityName(),
                 opportunity.getClientName(),

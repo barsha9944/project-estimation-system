@@ -1,6 +1,7 @@
 package com.projectestimation.backend.proposal.service;
 
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.estimation.repository.EstimateResultRepository;
@@ -29,29 +30,33 @@ import java.text.DecimalFormat;
 @Service
 public class ProposalService {
 
+    private static final String DOCX_MEDIA_TYPE =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
     private final ProposalRepository proposalRepository;
     private final EstimateResultRepository estimateResultRepository;
     private final OpportunityRepository opportunityRepository;
     private final ParametersRepository parametersRepository;
     private final GeminiProposalOrchestrator geminiProposalOrchestrator;
-    private final ProposalPdfGenerator proposalPdfGenerator;
+    private final PandocDocxConverter pandocDocxConverter;
 
     public ProposalService(ProposalRepository proposalRepository,
                            EstimateResultRepository estimateResultRepository,
                            OpportunityRepository opportunityRepository,
                            ParametersRepository parametersRepository,
                            GeminiProposalOrchestrator geminiProposalOrchestrator,
-                           ProposalPdfGenerator proposalPdfGenerator) {
+                           PandocDocxConverter pandocDocxConverter) {
         this.proposalRepository = proposalRepository;
         this.estimateResultRepository = estimateResultRepository;
         this.opportunityRepository = opportunityRepository;
         this.parametersRepository = parametersRepository;
         this.geminiProposalOrchestrator = geminiProposalOrchestrator;
-        this.proposalPdfGenerator = proposalPdfGenerator;
+        this.pandocDocxConverter = pandocDocxConverter;
     }
 
     /**
      * Primary opportunity-driven AI proposal generation workflow.
+     * Gemini produces Markdown; DOCX is generated on download via Pandoc.
      */
     @Transactional
     public ProposalResponse generateForOpportunity(Long opportunityId, User user) {
@@ -63,19 +68,18 @@ public class ProposalService {
         int nextVersion = resolveNextVersion(opportunityId);
 
         String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
-        byte[] pdfContent = proposalPdfGenerator.generate(title, aiResult.proposalContent());
+        String fileBaseName = "proposal-" + opportunityId + "-v" + nextVersion;
 
         Proposal proposal = new Proposal();
         proposal.setOpportunity(opportunity);
         proposal.setEstimateResult(estimate);
         proposal.setTitle(title);
-        proposal.setProposalContent(aiResult.proposalContent());
-        proposal.setSummaryText(aiResult.proposalContent());
+        proposal.setMarkdownContent(aiResult.markdownContent());
+        proposal.setSummaryText(aiResult.markdownContent());
         proposal.setGeneratedByAI(true);
         proposal.setVersion(nextVersion);
-        proposal.setFileName("proposal-" + opportunityId + "-v" + nextVersion + ".pdf");
-        proposal.setFileType(MediaType.APPLICATION_PDF_VALUE);
-        proposal.setFileContent(pdfContent);
+        proposal.setFileName(fileBaseName + ".docx");
+        proposal.setFileType(DOCX_MEDIA_TYPE);
         proposal.setGeneratedBy(user);
 
         Proposal saved = proposalRepository.save(proposal);
@@ -101,7 +105,7 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
 
-        return buildDownloadResponse(proposal);
+        return buildDocxDownloadResponse(proposal);
     }
 
     /**
@@ -117,7 +121,7 @@ public class ProposalService {
         Proposal proposal = new Proposal();
         proposal.setEstimateResult(estimateResult);
         proposal.setTitle(request.proposalTitle());
-        proposal.setProposalContent(summary);
+        proposal.setMarkdownContent(summary);
         proposal.setSummaryText(summary);
         proposal.setFileName(fileName);
         proposal.setFileType(MediaType.TEXT_PLAIN_VALUE);
@@ -144,7 +148,55 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findById(proposalId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal not found"));
 
-        return buildDownloadResponse(proposal);
+        if (proposal.isGeneratedByAI()) {
+            return buildDocxDownloadResponse(proposal);
+        }
+
+        return buildLegacyDownloadResponse(proposal);
+    }
+
+    private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
+        if (proposal.getMarkdownContent() == null || proposal.getMarkdownContent().isBlank()) {
+            throw new ProposalFailedException("Proposal Markdown content is not available for conversion");
+        }
+
+        String baseFileName = proposal.getFileName() != null
+                ? proposal.getFileName().replace(".docx", "")
+                : "proposal-" + proposal.getId() + "-v" + proposal.getVersion();
+
+        PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(
+                proposal.getMarkdownContent(),
+                baseFileName
+        );
+
+        proposal.setGeneratedDocPath(conversion.generatedDocPath());
+        proposalRepository.save(proposal);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(DOCX_MEDIA_TYPE));
+        headers.setContentDisposition(
+                ContentDisposition.attachment()
+                        .filename(baseFileName + ".docx")
+                        .build()
+        );
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(conversion.docxBytes());
+    }
+
+    private ResponseEntity<byte[]> buildLegacyDownloadResponse(Proposal proposal) {
+        if (proposal.getFileContent() == null) {
+            throw new ProposalFailedException("Proposal file content is not available");
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(proposal.getFileType()));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(proposal.getFileName()).build());
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(proposal.getFileContent());
     }
 
     private Opportunity loadOpportunity(Long opportunityId) {
@@ -179,22 +231,12 @@ public class ProposalService {
                 opportunityId,
                 saved.getVersion(),
                 saved.getTitle(),
-                saved.getProposalContent(),
+                saved.getMarkdownContent(),
                 saved.isGeneratedByAI(),
                 saved.getCreatedAt(),
                 saved.getUpdatedAt(),
                 downloadUrl
         );
-    }
-
-    private ResponseEntity<byte[]> buildDownloadResponse(Proposal proposal) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(proposal.getFileType()));
-        headers.setContentDisposition(ContentDisposition.attachment().filename(proposal.getFileName()).build());
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(proposal.getFileContent());
     }
 
     private String buildLegacySummary(ProposalGenerateRequest request, EstimateResult estimateResult) {

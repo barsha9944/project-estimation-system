@@ -26,19 +26,20 @@ public class Proposal {
     @Column(nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String proposalContent;
+    @Column(name = "markdown_content", columnDefinition = "TEXT", nullable = false)
+    private String markdownContent;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String summaryText;
 
-    @Column(nullable = false, columnDefinition = "BYTEA")
+    @Column(name = "generated_doc_path")
+    private String generatedDocPath;
+
+    @Column(columnDefinition = "BYTEA")
     private byte[] fileContent;
 
-    @Column(nullable = false)
     private String fileName;
 
-    @Column(nullable = false)
     private String fileType;
 
     @Column(nullable = false)
@@ -86,10 +87,12 @@ public class Proposal {
     public void setEstimateResult(EstimateResult estimateResult) { this.estimateResult = estimateResult; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public String getProposalContent() { return proposalContent; }
-    public void setProposalContent(String proposalContent) { this.proposalContent = proposalContent; }
+    public String getMarkdownContent() { return markdownContent; }
+    public void setMarkdownContent(String markdownContent) { this.markdownContent = markdownContent; }
     public String getSummaryText() { return summaryText; }
     public void setSummaryText(String summaryText) { this.summaryText = summaryText; }
+    public String getGeneratedDocPath() { return generatedDocPath; }
+    public void setGeneratedDocPath(String generatedDocPath) { this.generatedDocPath = generatedDocPath; }
     public byte[] getFileContent() { return fileContent; }
     public void setFileContent(byte[] fileContent) { this.fileContent = fileContent; }
     public String getFileName() { return fileName; }
@@ -105,4 +108,12 @@ public class Proposal {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public LocalDateTime getGeneratedAt() { return generatedAt; }
+
+    /** @deprecated use {@link #getMarkdownContent()} */
+    @Deprecated
+    public String getProposalContent() { return markdownContent; }
+
+    /** @deprecated use {@link #setMarkdownContent(String)} */
+    @Deprecated
+    public void setProposalContent(String proposalContent) { this.markdownContent = proposalContent; }
 }

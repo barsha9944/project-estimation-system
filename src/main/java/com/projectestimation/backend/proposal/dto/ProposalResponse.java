@@ -7,7 +7,7 @@ public record ProposalResponse(
         Long opportunityId,
         Integer version,
         String title,
-        String proposalContent,
+        String markdownContent,
         boolean generatedByAI,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
