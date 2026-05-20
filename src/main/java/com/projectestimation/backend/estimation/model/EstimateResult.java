@@ -36,6 +36,9 @@ public class EstimateResult {
     @Column(nullable = false)
     private double hourlyRate;
 
+    @Column(nullable = false, length = 3)
+    private String currency;
+
     @Column(nullable = false)
     private int teamSize;
 
@@ -102,6 +105,8 @@ public class EstimateResult {
     public void setProductivityFactor(double productivityFactor) { this.productivityFactor = productivityFactor; }
     public double getHourlyRate() { return hourlyRate; }
     public void setHourlyRate(double hourlyRate) { this.hourlyRate = hourlyRate; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
     public int getTeamSize() { return teamSize; }
     public void setTeamSize(int teamSize) { this.teamSize = teamSize; }
     public double getTotalEffortHours() { return totalEffortHours; }

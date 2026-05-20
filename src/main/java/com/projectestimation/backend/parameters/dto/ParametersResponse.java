@@ -11,6 +11,7 @@ public record ParametersResponse(
         Double riskFactor,
         Double productivityFactor,
         Double hourlyRate,
+        String currency,
         Integer teamSize,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

@@ -36,6 +36,9 @@ public class Parameters {
     @Column(nullable = false)
     private Double hourlyRate;
 
+    @Column(nullable = false, length = 3)
+    private String currency;
+
     @Column(nullable = false)
     private Integer teamSize;
 

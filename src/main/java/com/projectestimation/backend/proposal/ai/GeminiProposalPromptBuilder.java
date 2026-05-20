@@ -1,5 +1,6 @@
 package com.projectestimation.backend.proposal.ai;
 
+import com.projectestimation.backend.common.util.CurrencyFormatter;
 import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
@@ -11,6 +12,10 @@ import java.util.List;
 public class GeminiProposalPromptBuilder {
 
     public String build(Opportunity opportunity, Parameters parameters, EstimateResult estimate) {
+        String currency = estimate.getCurrency();
+        String formattedCost = CurrencyFormatter.formatAmount(estimate.getEstimatedCost(), currency);
+        String formattedHourlyRate = CurrencyFormatter.formatAmount(parameters.getHourlyRate(), currency) + " per hour";
+
         return """
                 You are an expert enterprise software consulting proposal writer.
                 Generate a complete client-facing project proposal as VALID STRUCTURED MARKDOWN ONLY.
@@ -23,6 +28,7 @@ public class GeminiProposalPromptBuilder {
                 - Use Markdown tables where required (pipe syntax).
                 - Use bullet lists where appropriate.
                 - Maintain professional enterprise proposal formatting.
+                - Use %s for ALL monetary values. Do NOT convert currencies.
 
                 OPPORTUNITY CONTEXT
                 - Opportunity Name: %s
@@ -40,12 +46,13 @@ public class GeminiProposalPromptBuilder {
                 - Complexity: %s
                 - Risk Factor: %.2f
                 - Productivity Factor: %.2f
-                - Hourly Rate: %.2f
+                - Hourly Rate: %s
+                - Currency: %s
                 - Team Size: %d
 
                 AI ESTIMATE
                 - Total Effort Hours: %.2f
-                - Estimated Cost: %.2f
+                - Estimated Cost: %s
                 - Timeline (weeks): %.2f
                 - Confidence Score: %.2f
                 - Breakdown: %s
@@ -70,13 +77,16 @@ public class GeminiProposalPromptBuilder {
                 # 7. Commercials
                 ## i. Elapsed Time
                 ## ii. Payment Milestones
-                Include payment milestones as a Markdown table with columns: Milestone | Description | % Payment | Amount | Target Date
+                - Display total estimated cost as: %s
+                - All payment milestone amounts must use %s labels (e.g. %s 25,000.00 or %s 12,00,000.00 as appropriate).
+                Include payment milestones as a Markdown table with columns: Milestone | Description | %% Payment | Amount (%s) | Target Date
 
                 # 8. Organization Capabilities
 
                 Align timeline, effort, and cost content with the AI estimate provided above.
                 Be specific to the opportunity context.
                 """.formatted(
+                currency,
                 opportunity.getOpportunityName(),
                 opportunity.getClientName(),
                 opportunity.getImplementationType().name(),
@@ -92,14 +102,21 @@ public class GeminiProposalPromptBuilder {
                 parameters.getComplexity().name(),
                 parameters.getRiskFactor(),
                 parameters.getProductivityFactor(),
-                parameters.getHourlyRate(),
+                formattedHourlyRate,
+                currency,
                 parameters.getTeamSize(),
                 estimate.getTotalEffortHours(),
-                estimate.getEstimatedCost(),
+                formattedCost,
                 estimate.getTimelineWeeks(),
                 estimate.getConfidenceScore(),
                 nullSafe(estimate.getBreakdown()),
-                nullSafe(estimate.getReasoning())
+                nullSafe(estimate.getReasoning()),
+                formattedCost,
+                currency,
+                currency,
+                currency,
+                currency,
+                currency
         );
     }
 

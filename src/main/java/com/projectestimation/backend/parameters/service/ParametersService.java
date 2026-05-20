@@ -2,6 +2,7 @@ package com.projectestimation.backend.parameters.service;
 
 import com.projectestimation.backend.common.exception.BadRequestException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.util.CurrencyFormatter;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.parameters.dto.ParametersCreateRequest;
@@ -34,7 +35,7 @@ public class ParametersService {
         Parameters parameters = new Parameters();
         parameters.setOpportunity(opportunity);
         applyRequestFields(parameters, request.complexity(), request.riskFactor(),
-                request.productivityFactor(), request.hourlyRate(), request.teamSize());
+                request.productivityFactor(), request.hourlyRate(), request.currency(), request.teamSize());
 
         Parameters saved = parametersRepository.save(parameters);
         return toResponse(saved);
@@ -50,7 +51,7 @@ public class ParametersService {
         findOpportunityOrThrow(opportunityId);
         Parameters parameters = findParametersByOpportunityOrThrow(opportunityId);
         applyRequestFields(parameters, request.complexity(), request.riskFactor(),
-                request.productivityFactor(), request.hourlyRate(), request.teamSize());
+                request.productivityFactor(), request.hourlyRate(), request.currency(), request.teamSize());
 
         Parameters saved = parametersRepository.save(parameters);
         return toResponse(saved);
@@ -71,11 +72,13 @@ public class ParametersService {
                                     Double riskFactor,
                                     Double productivityFactor,
                                     Double hourlyRate,
+                                    String currency,
                                     Integer teamSize) {
         parameters.setComplexity(complexity);
         parameters.setRiskFactor(riskFactor);
         parameters.setProductivityFactor(productivityFactor);
         parameters.setHourlyRate(hourlyRate);
+        parameters.setCurrency(CurrencyFormatter.normalizeCurrency(currency));
         parameters.setTeamSize(teamSize);
     }
 
@@ -87,6 +90,7 @@ public class ParametersService {
                 parameters.getRiskFactor(),
                 parameters.getProductivityFactor(),
                 parameters.getHourlyRate(),
+                parameters.getCurrency(),
                 parameters.getTeamSize(),
                 parameters.getCreatedAt(),
                 parameters.getUpdatedAt()

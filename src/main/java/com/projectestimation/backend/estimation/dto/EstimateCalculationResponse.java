@@ -7,6 +7,7 @@ public record EstimateCalculationResponse(
         String projectName,
         double totalEffortHours,
         double estimatedCost,
+        String currency,
         double timelineWeeks,
         double confidenceScore,
         String breakdown,

@@ -2,6 +2,7 @@ package com.projectestimation.backend.estimation.service;
 
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.util.CurrencyFormatter;
 import com.projectestimation.backend.estimation.ai.AiEstimationResult;
 import com.projectestimation.backend.estimation.ai.GeminiEstimationOrchestrator;
 import com.projectestimation.backend.estimation.dto.EstimateCalculationRequest;
@@ -39,6 +40,8 @@ public class EstimationService {
      * Legacy frontend-driven calculation (backward compatibility) — powered by Gemini AI.
      */
     public EstimateCalculationResponse calculate(EstimateCalculationRequest request, User user) {
+        String currency = CurrencyFormatter.normalizeCurrency(request.parameters().currency());
+
         AiEstimationResult aiResult = geminiEstimationOrchestrator.estimateFromLegacyPayload(
                 request.projectName(),
                 request.requirementSummary(),
@@ -46,6 +49,7 @@ public class EstimationService {
                 request.parameters().riskFactor(),
                 request.parameters().productivityFactor(),
                 request.parameters().hourlyRate(),
+                currency,
                 request.parameters().teamSize()
         );
 
@@ -56,8 +60,9 @@ public class EstimationService {
         result.setRiskFactor(request.parameters().riskFactor());
         result.setProductivityFactor(request.parameters().productivityFactor());
         result.setHourlyRate(request.parameters().hourlyRate());
+        result.setCurrency(currency);
         result.setTeamSize(request.parameters().teamSize());
-        applyAiOutput(result, aiResult);
+        applyAiOutput(result, aiResult, request.parameters().hourlyRate(), currency);
         result.setCalculatedBy(user);
 
         return persistAndRespond(result);
@@ -84,8 +89,9 @@ public class EstimationService {
         result.setRiskFactor(parameters.getRiskFactor());
         result.setProductivityFactor(parameters.getProductivityFactor());
         result.setHourlyRate(parameters.getHourlyRate());
+        result.setCurrency(parameters.getCurrency());
         result.setTeamSize(parameters.getTeamSize());
-        applyAiOutput(result, aiResult);
+        applyAiOutput(result, aiResult, parameters.getHourlyRate(), parameters.getCurrency());
         result.setCalculatedBy(user);
 
         opportunity.setStatus(OpportunityStatus.ESTIMATED);
@@ -115,9 +121,10 @@ public class EstimationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Parameters not found for this opportunity"));
     }
 
-    private void applyAiOutput(EstimateResult result, AiEstimationResult aiResult) {
+    private void applyAiOutput(EstimateResult result, AiEstimationResult aiResult, double hourlyRate, String currency) {
         result.setTotalEffortHours(aiResult.totalEffortHours());
-        result.setEstimatedCost(aiResult.estimatedCost());
+        result.setEstimatedCost(CurrencyFormatter.calculateEstimatedCost(aiResult.totalEffortHours(), hourlyRate));
+        result.setCurrency(currency);
         result.setTimelineWeeks(aiResult.timelineWeeks());
         result.setConfidenceScore(aiResult.confidenceScore());
         result.setBreakdown(aiResult.breakdown());
@@ -135,6 +142,7 @@ public class EstimationService {
                 saved.getProjectName(),
                 saved.getTotalEffortHours(),
                 saved.getEstimatedCost(),
+                saved.getCurrency(),
                 saved.getTimelineWeeks(),
                 saved.getConfidenceScore(),
                 saved.getBreakdown(),

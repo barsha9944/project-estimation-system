@@ -32,6 +32,7 @@ public class GeminiEstimationOrchestrator {
             double riskFactor,
             double productivityFactor,
             double hourlyRate,
+            String currency,
             int teamSize
     ) {
         String prompt = promptBuilder.buildFromLegacyPayload(
@@ -41,6 +42,7 @@ public class GeminiEstimationOrchestrator {
                 riskFactor,
                 productivityFactor,
                 hourlyRate,
+                currency,
                 teamSize
         );
         String rawResponse = geminiClient.generateEstimation(prompt);

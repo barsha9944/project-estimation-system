@@ -23,6 +23,7 @@ public class GeminiEstimationPromptBuilder {
                 parameters.getRiskFactor(),
                 parameters.getProductivityFactor(),
                 parameters.getHourlyRate(),
+                parameters.getCurrency(),
                 parameters.getTeamSize()
         );
     }
@@ -34,6 +35,7 @@ public class GeminiEstimationPromptBuilder {
             double riskFactor,
             double productivityFactor,
             double hourlyRate,
+            String currency,
             int teamSize
     ) {
         return buildPrompt(
@@ -49,6 +51,7 @@ public class GeminiEstimationPromptBuilder {
                 riskFactor,
                 productivityFactor,
                 hourlyRate,
+                currency,
                 teamSize
         );
     }
@@ -66,6 +69,7 @@ public class GeminiEstimationPromptBuilder {
             double riskFactor,
             double productivityFactor,
             double hourlyRate,
+            String currency,
             int teamSize
     ) {
         return """
@@ -86,12 +90,18 @@ public class GeminiEstimationPromptBuilder {
                 - Complexity Level: %s
                 - Risk Factor: %.2f
                 - Productivity Factor: %.2f
-                - Hourly Rate: %.2f
+                - Hourly Rate: %.2f %s
+                - Currency: %s
                 - Team Size: %d
 
+                COST RULE
+                - Estimated cost must be calculated as: totalEffortHours * hourlyRate
+                - All cost values must be expressed in %s only.
+                - Do NOT convert currencies or use exchange rates.
+
                 INSTRUCTIONS
-                - Use the parameters and opportunity context to estimate effort, cost, and timeline.
-                - Cost should align with effort, hourly rate, and team size.
+                - Use the parameters and opportunity context to estimate effort and timeline.
+                - Set estimatedCost using the cost rule above in %s.
                 - Confidence score must be between 0 and 100.
                 - Provide concise, professional reasoning and a breakdown summary.
 
@@ -117,7 +127,12 @@ public class GeminiEstimationPromptBuilder {
                 riskFactor,
                 productivityFactor,
                 hourlyRate,
-                teamSize
+                currency,
+                currency,
+                teamSize,
+                currency,
+                currency,
+                currency
         );
     }
 
