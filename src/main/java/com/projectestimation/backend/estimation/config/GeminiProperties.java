@@ -5,9 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.gemini")
 public class GeminiProperties {
 
-    private String apiKey = "";
+    private String apiKey = "AIzaSyAXPADxsq0IhHQHM0r9BdF5nUtjnWrjOvc";
     private String baseUrl = "https://generativelanguage.googleapis.com/v1beta";
-    private String model = "gemini-1.5-flash";
+    private String model = "gemini-2.0-flash";
     private int timeoutMs = 60_000;
 
     public String getApiKey() {
