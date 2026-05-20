@@ -39,6 +39,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.failure(ex.getMessage(), null));
     }
 
+    @ExceptionHandler(ProposalFailedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleProposalFailed(ProposalFailedException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.failure(ex.getMessage(), null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleGeneric(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
