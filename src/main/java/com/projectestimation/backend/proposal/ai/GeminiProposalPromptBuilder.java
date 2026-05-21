@@ -81,6 +81,7 @@ public class GeminiProposalPromptBuilder {
                 - All payment milestone amounts must use %s labels (e.g. %s 25,000.00 or %s 12,00,000.00 as appropriate).
                 Include payment milestones as a Markdown table with columns: Milestone | Description | %% Payment | Amount (%s) | Target Date
 
+
                 # 8. Organization Capabilities
 
                 Align timeline, effort, and cost content with the AI estimate provided above.

@@ -36,7 +36,7 @@ public class EstimateResult {
     @Column(nullable = false)
     private double hourlyRate;
 
-    @Column(nullable = false, length = 3)
+//    @Column(nullable = false, length = 3)
     private String currency;
 
     @Column(nullable = false)

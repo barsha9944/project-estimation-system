@@ -36,7 +36,7 @@ public class PandocDocxConverter {
         } catch (Exception ex) {
             throw new ProposalFailedException("Failed to convert Markdown to DOCX using Pandoc", ex);
         } finally {
-            cleanupTempFiles(baseFileName);
+//            cleanupTempFiles(baseFileName);
         }
     }
 
