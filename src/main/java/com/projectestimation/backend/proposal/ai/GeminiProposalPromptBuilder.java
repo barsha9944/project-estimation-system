@@ -67,8 +67,10 @@ public class GeminiProposalPromptBuilder {
                 Include a Markdown table with columns: Work Package | Description | Deliverables
 
                 # 3. Solution Architecture
+                Include a lightweight ASCII/monospace architecture diagram showing frontend, backend, APIs, integrations, and database flow where applicable.
 
                 # 4. Technology Stack
+                Include a Markdown table with columns: Layer | Technology | Purpose
 
                 # 5. Quality Assurance
 
