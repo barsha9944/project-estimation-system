@@ -37,8 +37,9 @@ public class EstimateResult {
     @Column(nullable = false)
     private double hourlyRate;
 
-//    @Column(nullable = false, length = 3)
-    private String currency;
+    @Enumerated(EnumType.STRING)
+    // @Column(nullable = false, length = 3)
+    private CurrencyCode currency;
 
     @Column(nullable = false)
     private int teamSize;
