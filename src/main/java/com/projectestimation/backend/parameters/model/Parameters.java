@@ -1,5 +1,6 @@
 package com.projectestimation.backend.parameters.model;
 
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,8 +37,9 @@ public class Parameters {
     @Column(nullable = false)
     private Double hourlyRate;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 3)
-    private String currency;
+    private CurrencyCode currency;
 
     @Column(nullable = false)
     private Integer teamSize;

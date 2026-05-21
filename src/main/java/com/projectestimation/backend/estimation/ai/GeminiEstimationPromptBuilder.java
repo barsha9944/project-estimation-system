@@ -1,5 +1,6 @@
 package com.projectestimation.backend.estimation.ai;
 
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
 import org.springframework.stereotype.Component;
@@ -35,7 +36,7 @@ public class GeminiEstimationPromptBuilder {
             double riskFactor,
             double productivityFactor,
             double hourlyRate,
-            String currency,
+            CurrencyCode currency,
             int teamSize
     ) {
         return buildPrompt(
@@ -69,9 +70,10 @@ public class GeminiEstimationPromptBuilder {
             double riskFactor,
             double productivityFactor,
             double hourlyRate,
-            String currency,
+            CurrencyCode currency,
             int teamSize
     ) {
+        String currencyCode = currency.name();
         return """
                 You are an expert software project estimation consultant.
                 Analyze the opportunity and parameters below and produce a realistic project estimate.
@@ -127,12 +129,12 @@ public class GeminiEstimationPromptBuilder {
                 riskFactor,
                 productivityFactor,
                 hourlyRate,
-                currency,
-                currency,
+                currencyCode,
+                currencyCode,
                 teamSize,
-                currency,
-                currency,
-                currency
+                currencyCode,
+                currencyCode,
+                currencyCode
         );
     }
 

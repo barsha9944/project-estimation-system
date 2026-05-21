@@ -1,5 +1,6 @@
 package com.projectestimation.backend.estimation.ai;
 
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,7 @@ public class GeminiEstimationOrchestrator {
             double riskFactor,
             double productivityFactor,
             double hourlyRate,
-            String currency,
+            CurrencyCode currency,
             int teamSize
     ) {
         String prompt = promptBuilder.buildFromLegacyPayload(

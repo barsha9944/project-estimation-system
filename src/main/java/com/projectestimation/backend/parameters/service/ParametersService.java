@@ -2,7 +2,7 @@ package com.projectestimation.backend.parameters.service;
 
 import com.projectestimation.backend.common.exception.BadRequestException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
-import com.projectestimation.backend.common.util.CurrencyFormatter;
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.parameters.dto.ParametersCreateRequest;
@@ -72,13 +72,13 @@ public class ParametersService {
                                     Double riskFactor,
                                     Double productivityFactor,
                                     Double hourlyRate,
-                                    String currency,
+                                    CurrencyCode currency,
                                     Integer teamSize) {
         parameters.setComplexity(complexity);
         parameters.setRiskFactor(riskFactor);
         parameters.setProductivityFactor(productivityFactor);
         parameters.setHourlyRate(hourlyRate);
-        parameters.setCurrency(CurrencyFormatter.normalizeCurrency(currency));
+        parameters.setCurrency(currency);
         parameters.setTeamSize(teamSize);
     }
 

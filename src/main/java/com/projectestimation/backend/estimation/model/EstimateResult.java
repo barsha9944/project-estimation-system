@@ -1,6 +1,7 @@
 package com.projectestimation.backend.estimation.model;
 
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import jakarta.persistence.*;
 
@@ -36,8 +37,9 @@ public class EstimateResult {
     @Column(nullable = false)
     private double hourlyRate;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 3)
-    private String currency;
+    private CurrencyCode currency;
 
     @Column(nullable = false)
     private int teamSize;
@@ -105,8 +107,8 @@ public class EstimateResult {
     public void setProductivityFactor(double productivityFactor) { this.productivityFactor = productivityFactor; }
     public double getHourlyRate() { return hourlyRate; }
     public void setHourlyRate(double hourlyRate) { this.hourlyRate = hourlyRate; }
-    public String getCurrency() { return currency; }
-    public void setCurrency(String currency) { this.currency = currency; }
+    public CurrencyCode getCurrency() { return currency; }
+    public void setCurrency(CurrencyCode currency) { this.currency = currency; }
     public int getTeamSize() { return teamSize; }
     public void setTeamSize(int teamSize) { this.teamSize = teamSize; }
     public double getTotalEffortHours() { return totalEffortHours; }

@@ -1,5 +1,7 @@
 package com.projectestimation.backend.estimation.dto;
 
+import com.projectestimation.backend.common.enums.CurrencyCode;
+
 import java.time.LocalDateTime;
 
 public record EstimateCalculationResponse(
@@ -7,7 +9,7 @@ public record EstimateCalculationResponse(
         String projectName,
         double totalEffortHours,
         double estimatedCost,
-        String currency,
+        CurrencyCode currency,
         double timelineWeeks,
         double confidenceScore,
         String breakdown,

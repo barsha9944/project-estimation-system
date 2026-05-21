@@ -2,6 +2,7 @@ package com.projectestimation.backend.estimation.service;
 
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.common.util.CurrencyFormatter;
 import com.projectestimation.backend.estimation.ai.AiEstimationResult;
 import com.projectestimation.backend.estimation.ai.GeminiEstimationOrchestrator;
@@ -40,7 +41,7 @@ public class EstimationService {
      * Legacy frontend-driven calculation (backward compatibility) — powered by Gemini AI.
      */
     public EstimateCalculationResponse calculate(EstimateCalculationRequest request, User user) {
-        String currency = CurrencyFormatter.normalizeCurrency(request.parameters().currency());
+        CurrencyCode currency = CurrencyFormatter.requireCurrency(request.parameters().currency());
 
         AiEstimationResult aiResult = geminiEstimationOrchestrator.estimateFromLegacyPayload(
                 request.projectName(),
@@ -121,7 +122,7 @@ public class EstimationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Parameters not found for this opportunity"));
     }
 
-    private void applyAiOutput(EstimateResult result, AiEstimationResult aiResult, double hourlyRate, String currency) {
+    private void applyAiOutput(EstimateResult result, AiEstimationResult aiResult, double hourlyRate, CurrencyCode currency) {
         result.setTotalEffortHours(aiResult.totalEffortHours());
         result.setEstimatedCost(CurrencyFormatter.calculateEstimatedCost(aiResult.totalEffortHours(), hourlyRate));
         result.setCurrency(currency);

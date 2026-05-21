@@ -12,9 +12,10 @@ import java.util.List;
 public class GeminiProposalPromptBuilder {
 
     public String build(Opportunity opportunity, Parameters parameters, EstimateResult estimate) {
-        String currency = estimate.getCurrency();
-        String formattedCost = CurrencyFormatter.formatAmount(estimate.getEstimatedCost(), currency);
-        String formattedHourlyRate = CurrencyFormatter.formatAmount(parameters.getHourlyRate(), currency) + " per hour";
+        String currencyCode = estimate.getCurrency().name();
+        String formattedCost = CurrencyFormatter.formatAmount(estimate.getEstimatedCost(), estimate.getCurrency());
+        String formattedHourlyRate = CurrencyFormatter.formatAmount(parameters.getHourlyRate(), parameters.getCurrency())
+                + " per hour";
 
         return """
                 You are an expert enterprise software consulting proposal writer.
@@ -86,7 +87,7 @@ public class GeminiProposalPromptBuilder {
                 Align timeline, effort, and cost content with the AI estimate provided above.
                 Be specific to the opportunity context.
                 """.formatted(
-                currency,
+                currencyCode,
                 opportunity.getOpportunityName(),
                 opportunity.getClientName(),
                 opportunity.getImplementationType().name(),
@@ -103,7 +104,7 @@ public class GeminiProposalPromptBuilder {
                 parameters.getRiskFactor(),
                 parameters.getProductivityFactor(),
                 formattedHourlyRate,
-                currency,
+                currencyCode,
                 parameters.getTeamSize(),
                 estimate.getTotalEffortHours(),
                 formattedCost,
@@ -112,11 +113,11 @@ public class GeminiProposalPromptBuilder {
                 nullSafe(estimate.getBreakdown()),
                 nullSafe(estimate.getReasoning()),
                 formattedCost,
-                currency,
-                currency,
-                currency,
-                currency,
-                currency
+                currencyCode,
+                currencyCode,
+                currencyCode,
+                currencyCode,
+                currencyCode
         );
     }
 
