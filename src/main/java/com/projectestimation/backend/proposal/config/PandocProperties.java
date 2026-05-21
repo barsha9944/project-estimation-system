@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.pandoc")
 public class PandocProperties {
 
-    private String executable = "pandoc";
+    private String executable = "C:\\Users\\BeasDeveloper\\AppData\\Local\\Pandoc\\pandoc.exe";
     private String tempDir = System.getProperty("java.io.tmpdir") + "/proposal-conversions";
 
     public String getExecutable() {
