@@ -1,5 +1,6 @@
 package com.projectestimation.backend.proposal.ai;
 
+import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import org.springframework.stereotype.Component;
 
@@ -14,25 +15,61 @@ public class GeminiProposalResponseParser {
             Pattern.CASE_INSENSITIVE
     );
 
-    private static final List<String> REQUIRED_SECTIONS = List.of(
-            "Introduction",
-            "Scope of Work",
-            "Solution Architecture",
-            "Technology Stack",
-            "Quality Assurance",
-            "Project Governance",
-            "Commercials",
-            "Organization Capabilities"
-    );
+    private List<String> requiredSections(
+            ProposalType type
+    ) {
 
-    public AiProposalResult parse(String rawResponse) {
+        return switch (type) {
+
+            case BASIC -> List.of(
+                    "Introduction",
+                    "Scope",
+                    "Solution Architecture",
+                    "Technology Stack",
+                    "Commercials",
+                    "Organization Capabilities"
+            );
+
+            case INTERMEDIATE -> List.of(
+                    "Introduction",
+                    "Scope",
+                    "Solution Architecture",
+                    "Technology Stack",
+                    "Quality Assurance",
+                    "Commercials",
+                    "Organization Capabilities"
+            );
+
+            case EXPERT -> List.of(
+                    "Introduction",
+                    "Scope",
+                    "Solution Architecture",
+                    "Important Process Flows",
+                    "Assumptions",
+                    "Accountability Distributions",
+                    "Technology Stack",
+                    "Quality Assurance",
+                    "Commercials",
+                    "Organization Capabilities"
+            );
+        };
+    }
+
+    public AiProposalResult parse(String rawResponse, ProposalType proposalType) {
         if (rawResponse == null || rawResponse.isBlank()) {
             throw new ProposalFailedException("Gemini returned an empty proposal response");
         }
 
         String markdown = normalizeMarkdown(rawResponse);
-        validateMarkdown(markdown);
-        return new AiProposalResult(markdown);
+        validateMarkdown(
+                markdown,
+                proposalType
+        );
+        return new AiProposalResult(
+                markdown,
+                null,
+                null
+        );
     }
 
     private String normalizeMarkdown(String rawResponse) {
@@ -49,12 +86,18 @@ public class GeminiProposalResponseParser {
         return trimmed.trim();
     }
 
-    private void validateMarkdown(String markdown) {
+    private void validateMarkdown(
+            String markdown,
+            ProposalType proposalType
+    ) {
         if (!markdown.contains("#")) {
             throw new ProposalFailedException("Gemini response is not valid Markdown: missing headings");
         }
 
-        for (String section : REQUIRED_SECTIONS) {
+        for (
+        	    String section :
+        	    requiredSections(proposalType)
+        	) {
             if (!containsSection(markdown, section)) {
                 throw new ProposalFailedException("Gemini Markdown response is missing required section: " + section);
             }

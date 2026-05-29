@@ -1,11 +1,25 @@
 package com.projectestimation.backend.proposal.model;
 
+import java.time.LocalDateTime;
+
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.opportunity.model.Opportunity;
-import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "proposals")
@@ -60,6 +74,16 @@ public class Proposal {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime generatedAt;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "proposal_type")
+    private ProposalType proposalType;
+    
+    @Column(columnDefinition = "TEXT")
+    private String architectureHtml;
+
+    @Column(columnDefinition = "TEXT")
+    private String processFlowHtml;
 
     @PrePersist
     protected void onCreate() {
@@ -108,12 +132,39 @@ public class Proposal {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public LocalDateTime getGeneratedAt() { return generatedAt; }
+   
 
     /** @deprecated use {@link #getMarkdownContent()} */
     @Deprecated
     public String getProposalContent() { return markdownContent; }
 
-    /** @deprecated use {@link #setMarkdownContent(String)} */
+    public ProposalType getProposalType() {
+		return proposalType;
+	}
+
+	public void setProposalType(ProposalType proposalType) {
+		this.proposalType = proposalType;
+	}
+	
+	
+
+	public String getArchitectureHtml() {
+		return architectureHtml;
+	}
+
+	public void setArchitectureHtml(String architectureHtml) {
+		this.architectureHtml = architectureHtml;
+	}
+
+	public String getProcessFlowHtml() {
+		return processFlowHtml;
+	}
+
+	public void setProcessFlowHtml(String processFlowHtml) {
+		this.processFlowHtml = processFlowHtml;
+	}
+
+	/** @deprecated use {@link #setMarkdownContent(String)} */
     @Deprecated
     public void setProposalContent(String proposalContent) { this.markdownContent = proposalContent; }
 }

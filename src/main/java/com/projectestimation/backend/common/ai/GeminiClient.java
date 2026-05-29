@@ -1,19 +1,29 @@
 package com.projectestimation.backend.common.ai;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.estimation.config.GeminiProperties;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
 @Component
 public class GeminiClient {
@@ -69,6 +79,162 @@ public class GeminiClient {
             throw new AiGenerationFailedException("Unexpected error while calling Gemini API", ex);
         }
     }
+    
+    public String generateContentWithImages(
+        String prompt,
+        List<Path> imagePaths,
+        String responseMimeType,
+        int maxOutputTokens
+	) {
+	
+	    validateConfiguration();
+	
+	    try {
+	
+	        List<Map<String, Object>> parts =
+	                new ArrayList<>();
+	
+	        // Prompt part
+	        parts.add(
+	                Map.of(
+	                        "text",
+	                        prompt
+	                )
+	        );
+	
+	        // Image parts
+	        for (Path imagePath : imagePaths) {
+	
+	            byte[] imageBytes =
+	                    Files.readAllBytes(
+	                            imagePath
+	                    );
+	
+	            String base64 =
+	                    Base64.getEncoder()
+	                            .encodeToString(
+	                                    imageBytes
+	                            );
+	
+	            parts.add(
+	                    Map.of(
+	                            "inline_data",
+	                            Map.of(
+	                                    "mime_type",
+	                                    "image/png",
+	                                    "data",
+	                                    base64
+	                            )
+	                    )
+	            );
+	        }
+	
+	        Map<String, Object> generationConfig =
+	                new HashMap<>();
+	
+	        generationConfig.put(
+	                "temperature",
+	                0.4
+	        );
+	
+	        generationConfig.put(
+	                "maxOutputTokens",
+	                maxOutputTokens
+	        );
+	
+	        generationConfig.put(
+	                "responseMimeType",
+	                responseMimeType
+	        );
+	
+	        Map<String, Object> content =
+	                new HashMap<>();
+	
+	        content.put(
+	                "parts",
+	                parts
+	        );
+	
+	        Map<String, Object> requestBody =
+	                new HashMap<>();
+	
+	        requestBody.put(
+	                "contents",
+	                List.of(content)
+	        );
+	
+	        requestBody.put(
+	                "generationConfig",
+	                generationConfig
+	        );
+	
+	        String url =
+	                properties.getBaseUrl()
+	                + "/models/"
+	                + properties.getModel()
+	                + ":generateContent";
+	
+	        HttpHeaders headers =
+	                new HttpHeaders();
+	
+	        headers.setContentType(
+	                MediaType.APPLICATION_JSON
+	        );
+	
+	        headers.set(
+	                "x-goog-api-key",
+	                properties.getApiKey()
+	        );
+	
+	        HttpEntity<Map<String, Object>> request =
+	                new HttpEntity<>(
+	                        requestBody,
+	                        headers
+	                );
+	
+	        ResponseEntity<String> response =
+	                restTemplate.postForEntity(
+	                        url,
+	                        request,
+	                        String.class
+	                );
+	
+	        if (
+	                !response.getStatusCode().is2xxSuccessful()
+	                || response.getBody() == null
+	        ) {
+	
+	            throw new AiGenerationFailedException(
+	                    "Gemini API returned an unsuccessful response"
+	            );
+	        }
+	
+	        return extractResponseText(
+	                response.getBody()
+	        );
+	
+	    } catch (AiGenerationFailedException ex) {
+	
+	        throw ex;
+	
+	    } catch (RestClientException ex) {
+	
+	        throw new AiGenerationFailedException(
+	                "Gemini multimodal API request failed or timed out",
+	                ex
+	        );
+	
+	    } catch (Exception ex) {
+	
+	    	ex.printStackTrace();
+
+	        throw new AiGenerationFailedException(
+	                "Unexpected error while calling Gemini multimodal API: "
+	                        + ex.getMessage(),
+	                ex
+	        		);
+	    }
+	}
 
     private void validateConfiguration() {
         if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {

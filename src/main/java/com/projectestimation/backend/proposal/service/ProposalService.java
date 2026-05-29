@@ -1,6 +1,17 @@
 package com.projectestimation.backend.proposal.service;
 
+import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
+
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimateResult;
@@ -17,15 +28,6 @@ import com.projectestimation.backend.proposal.dto.ProposalGenerateResponse;
 import com.projectestimation.backend.proposal.dto.ProposalResponse;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.nio.charset.StandardCharsets;
-import java.text.DecimalFormat;
 
 @Service
 public class ProposalService {
@@ -59,28 +61,38 @@ public class ProposalService {
      * Gemini produces Markdown; DOCX is generated on download via Pandoc.
      */
     @Transactional
-    public ProposalResponse generateForOpportunity(Long opportunityId, User user) {
+    public ProposalResponse generateForOpportunity(Long opportunityId, ProposalType proposalType, User user) {
         Opportunity opportunity = loadOpportunity(opportunityId);
         Parameters parameters = loadParameters(opportunityId);
         EstimateResult estimate = loadLatestEstimate(opportunityId);
 
-        AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, parameters, estimate);
         int nextVersion = resolveNextVersion(opportunityId);
 
         String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
         String fileBaseName = "proposal-" + opportunityId + "-v" + nextVersion;
+        
+        AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, parameters, estimate,  proposalType, fileBaseName);
+        
 
         Proposal proposal = new Proposal();
         proposal.setOpportunity(opportunity);
         proposal.setEstimateResult(estimate);
         proposal.setTitle(title);
         proposal.setMarkdownContent(aiResult.markdownContent());
+        proposal.setArchitectureHtml(
+                aiResult.architectureHtml()
+        );
+
+        proposal.setProcessFlowHtml(
+                aiResult.processFlowHtml()
+        );
         proposal.setSummaryText(aiResult.markdownContent());
         proposal.setGeneratedByAI(true);
         proposal.setVersion(nextVersion);
         proposal.setFileName(fileBaseName + ".docx");
         proposal.setFileType(DOCX_MEDIA_TYPE);
         proposal.setGeneratedBy(user);
+        proposal.setProposalType(proposalType);
 
         Proposal saved = proposalRepository.save(proposal);
 
@@ -166,7 +178,9 @@ public class ProposalService {
 
         PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(
                 proposal.getMarkdownContent(),
-                baseFileName
+                baseFileName,
+                proposal.getArchitectureHtml(),
+                proposal.getProcessFlowHtml()
         );
 
         proposal.setGeneratedDocPath(conversion.generatedDocPath());

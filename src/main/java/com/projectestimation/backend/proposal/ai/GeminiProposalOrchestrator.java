@@ -1,12 +1,16 @@
 package com.projectestimation.backend.proposal.ai;
 
+import org.springframework.stereotype.Service;
+
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
-import org.springframework.stereotype.Service;
+import com.projectestimation.backend.proposal.service.GeminiDiagramGenerationService;
+import com.projectestimation.backend.proposal.service.HtmlToImageRenderer;
 
 @Service
 public class GeminiProposalOrchestrator {
@@ -16,24 +20,195 @@ public class GeminiProposalOrchestrator {
     private final GeminiProposalPromptBuilder promptBuilder;
     private final GeminiClient geminiClient;
     private final GeminiProposalResponseParser responseParser;
+    private final ProposalStaticContentProvider staticContentProvider;
+    private final GeminiDiagramGenerationService diagramService;
 
-    public GeminiProposalOrchestrator(GeminiProposalPromptBuilder promptBuilder,
-                                      GeminiClient geminiClient,
-                                      GeminiProposalResponseParser responseParser) {
+    public GeminiProposalOrchestrator(
+            GeminiProposalPromptBuilder promptBuilder,
+            GeminiClient geminiClient,
+            GeminiProposalResponseParser responseParser,
+            ProposalStaticContentProvider staticContentProvider,
+            GeminiDiagramGenerationService diagramService
+    ) {
         this.promptBuilder = promptBuilder;
         this.geminiClient = geminiClient;
         this.responseParser = responseParser;
+        this.staticContentProvider = staticContentProvider;
+        this.diagramService = diagramService;
     }
 
     public AiProposalResult generateProposal(Opportunity opportunity,
                                              Parameters parameters,
-                                             EstimateResult estimate) {
-        String prompt = promptBuilder.build(opportunity, parameters, estimate);
+                                             EstimateResult estimate,
+                                             ProposalType proposalType, String baseFileName) {
+        String prompt = promptBuilder.build(opportunity, parameters, estimate, proposalType);
         try {
             String rawResponse = geminiClient.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
-            return responseParser.parse(rawResponse);
+            AiProposalResult parsed =
+                    responseParser.parse(
+                            rawResponse,
+                            proposalType
+                    );
+
+            String markdown =
+                    parsed.markdownContent();
+            
+            String architectureHtml =
+                    diagramService
+                            .generateSolutionArchitectureHtml(
+                                    opportunity
+                            );
+
+            String processFlowHtml =
+                    diagramService
+                            .generateProcessFlowHtml(
+                                    opportunity
+                            );
+            
+            markdown =
+                    injectStaticSections(
+                            markdown,
+                            proposalType,
+                            baseFileName
+                    );
+
+            return new AiProposalResult(markdown, architectureHtml, processFlowHtml);
         } catch (AiGenerationFailedException ex) {
             throw new ProposalFailedException(ex.getMessage(), ex);
         }
     }
+    
+    private String injectStaticSections(
+            String markdown,
+            ProposalType proposalType,
+            String baseFileName
+    ) {
+
+    	String architectureImageName =
+    	        baseFileName + "-architecture.png";
+
+    	String processFlowImageName =
+    	        baseFileName + "-process-flow.png";
+        markdown += "\n\n";
+        if(proposalType == ProposalType.BASIC){
+        	markdown =  markdown.replace("{{COMPLETION_CRITERIA}}",staticContentProvider.load(
+                    "CompletionCriteria.md")
+            );
+        	
+        	markdown += "\n\n";
+        			
+        	markdown = markdown.replace("{{ORGANISATION_CAPABILITIES_BASIC}}",staticContentProvider.load(
+                    "OrganisationCapabilitiesBasic.md")
+            );
+        	
+//        	markdown += "\n\n";
+//			
+//        	markdown = markdown.replace("{{SOLUTION_ARCHITECHTURE}}",staticContentProvider.load(
+//                    "SolutionArchitechture.md")
+//            );
+        	
+        	markdown += "\n\n";
+			
+        	markdown = markdown.replace("{{EXECUTION_PLAN}}",staticContentProvider.load(
+                    "ExecutionSchedule.md")
+            );
+        	
+        	markdown += "\n\n";
+        	
+        	markdown = markdown.replace(
+        	        "{{SOLUTION_ARCHITECTURE_IMAGE}}",
+        	        "![](assets/images/" + architectureImageName + ")"
+        	);
+
+        }
+        if (
+                proposalType == ProposalType.INTERMEDIATE
+                || proposalType == ProposalType.EXPERT
+        ) {
+        	
+        	markdown = markdown.replace(
+        	        "{{SOLUTION_ARCHITECTURE_IMAGE}}",
+        	        "![](assets/images/" + architectureImageName + ")"
+        	);
+
+        	markdown += "\n\n";
+
+            markdown = markdown.replace("{{QUALITY_ASSURANCE}}",staticContentProvider.load(
+                    "QualityAssurance.md")
+            );
+
+            markdown += "\n\n";
+
+            markdown = markdown.replace("{{COMPLETION_CRITERIA}}",staticContentProvider.load(
+                    "CompletionCriteria.md")
+            );
+            
+            markdown += "\n\n";
+            
+            markdown = markdown.replace("{{DATA_SECURITY}}",staticContentProvider.load(
+                    "DataSecurity.md")
+            );
+            
+        	markdown += "\n\n";
+			
+//        	markdown = markdown.replace("{{SOLUTION_ARCHITECHTURE}}",staticContentProvider.load(
+//                    "SolutionArchitechture.md")
+//            );
+//            markdown += "\n\n";
+            
+            markdown = markdown.replace("{{ORGANISATION_CAPABILITIES_DETAILED}}",staticContentProvider.load(
+                    "OrganisationCapabilitiesDetailed.md")
+            );
+
+            markdown += "\n\n";
+			
+        	markdown = markdown.replace("{{EXECUTION_PLAN}}",staticContentProvider.load(
+                    "ExecutionSchedule.md")
+            );
+        	
+        	markdown += "\n\n";
+        }
+
+        if (
+                proposalType == ProposalType.EXPERT
+        ) {
+
+        	markdown = markdown.replace(
+        	        "{{IMPORTANT_PROCESS_FLOW_IMAGE}}",
+        	        "![](assets/images/" + processFlowImageName + ")"
+        	);
+        	markdown += "\n\n";
+        	
+            markdown = markdown.replace("{{ACCOUNTIBILITY_DISTRIBUTION}}",staticContentProvider.load(
+                    "AccountibilityDistribution.md")
+            );
+
+
+            markdown += "\n\n";
+
+            markdown = markdown.replace("{{TESTING_PROCESS}}",staticContentProvider.load(
+                    "TestingProcess.md")
+            );
+
+            markdown += "\n\n";
+        }
+
+//        markdown = markdown.replace("{{ORGANISATION_CAPABILITIES_DETAILED}}",staticContentProvider.load(
+//                "OrganisationCapabilitiesDetailed.md")
+//        );
+//
+//        markdown += "\n\n";
+
+        markdown = markdown.replace("{{TERMS_AND_CONDITIONS}}",staticContentProvider.load(
+                "Terms&Conditions.md")
+        );
+
+        markdown += "\n\n";
+        
+        markdown = markdown.replace("{{CONFIGURATION_MANAGEMENT}}",staticContentProvider.load(
+                "ConfigurationManagement.md")
+        );
+        return markdown;
+    }
+    
 }

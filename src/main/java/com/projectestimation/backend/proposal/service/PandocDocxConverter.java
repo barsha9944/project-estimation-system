@@ -3,6 +3,13 @@ package com.projectestimation.backend.proposal.service;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.proposal.config.PandocProperties;
 import org.springframework.stereotype.Component;
+import com.projectestimation.backend.common.exception.ProposalFailedException;
+import com.projectestimation.backend.proposal.service.HtmlToImageRenderer;
+
+import java.nio.file.StandardCopyOption;
+
+import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,18 +20,74 @@ import java.util.concurrent.TimeUnit;
 public class PandocDocxConverter {
 
     private final PandocProperties pandocProperties;
+    private final HtmlToImageRenderer htmlToImageRenderer;
 
-    public PandocDocxConverter(PandocProperties pandocProperties) {
+    public PandocDocxConverter(
+            PandocProperties pandocProperties,
+            HtmlToImageRenderer htmlToImageRenderer
+    ) {
         this.pandocProperties = pandocProperties;
+        this.htmlToImageRenderer = htmlToImageRenderer;
     }
 
-    public ConversionResult convertMarkdownToDocx(String markdown, String baseFileName) {
+    public ConversionResult convertMarkdownToDocx(String markdown, String baseFileName, String architectureHtml,
+            String processFlowHtml) {
         try {
-            Path tempDir = Files.createDirectories(Path.of(pandocProperties.getTempDir()));
-            String safeBaseName = sanitizeFileName(baseFileName);
+//            Path tempDir = Files.createDirectories(Path.of(pandocProperties.getTempDir()));
+//        	
+////        	Path tempDir =
+////        	        Files.createTempDirectory(
+////        	                "proposal-workspace-"
+////        	        );
+//        	
+//            String safeBaseName = sanitizeFileName(baseFileName);
+//            
+//            Path imagesDir =
+//                    tempDir.resolve(
+//                            "assets/images"
+//                    );
+//
+//            Files.createDirectories(imagesDir);
+//
+//            copyProposalImages(imagesDir);
+        	
+        	Path workspace =
+        	        Files.createDirectories(
+        	                Path.of(
+        	                        pandocProperties.getTempDir()
+        	                )
+        	        );
 
-            Path markdownFile = tempDir.resolve(safeBaseName + ".md");
-            Path docxFile = tempDir.resolve(safeBaseName + ".docx");
+        	String safeBaseName =
+        	        sanitizeFileName(
+        	                baseFileName
+        	        );
+
+        	Path imagesDir =
+        	        Files.createDirectories(
+        	                workspace.resolve(
+        	                        "assets/images"
+        	                )
+        	        );
+
+        	copyProposalImages(imagesDir);
+
+        	generateDynamicImages(
+        	        architectureHtml,
+        	        processFlowHtml,
+        	        imagesDir, baseFileName
+        	);
+
+//            Path markdownFile = tempDir.resolve(safeBaseName + ".md");
+        	Path markdownFile =
+        	        workspace.resolve(
+        	                safeBaseName + ".md"
+        	        );
+//            Path docxFile = tempDir.resolve(safeBaseName + ".docx");
+        	Path docxFile =
+        	        workspace.resolve(
+        	                safeBaseName + ".docx"
+        	        );
 
             Files.writeString(markdownFile, markdown);
             executePandoc(markdownFile, docxFile);
@@ -40,34 +103,72 @@ public class PandocDocxConverter {
         }
     }
 
-    private void executePandoc(Path markdownFile, Path docxFile) throws IOException, InterruptedException {
-        ProcessBuilder processBuilder = new ProcessBuilder(
-                pandocProperties.getExecutable(),
-                markdownFile.toString(),
-                "-o",
-                docxFile.toString()
-        );
-        processBuilder.redirectErrorStream(true);
-
-        Process process = processBuilder.start();
-        String processOutput = new String(process.getInputStream().readAllBytes());
-
-        boolean finished = process.waitFor(60, TimeUnit.SECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            throw new ProposalFailedException("Pandoc conversion timed out");
-        }
-
-        if (process.exitValue() != 0) {
-            throw new ProposalFailedException(
-                    "Pandoc conversion failed: " + (processOutput.isBlank() ? "unknown error" : processOutput.trim())
-            );
-        }
-
-        if (!Files.exists(docxFile) || Files.size(docxFile) == 0) {
-            throw new ProposalFailedException("Pandoc did not generate a valid DOCX file");
-        }
-    }
+    private void executePandoc(
+        Path markdownFile,
+        Path docxFile
+	) throws IOException, InterruptedException {
+	
+	    ProcessBuilder processBuilder =
+	            new ProcessBuilder(
+	                    pandocProperties.getExecutable(),
+	                    markdownFile.toString(),
+	                    "-o",
+	                    docxFile.toString()
+	            );
+	
+	    processBuilder.directory(
+	            markdownFile
+	                    .getParent()
+	                    .toFile()
+	    );
+	
+	    processBuilder.redirectErrorStream(true);
+	
+	    Process process = processBuilder.start();
+	
+	    String processOutput =
+	            new String(
+	                    process.getInputStream()
+	                            .readAllBytes()
+	            );
+	
+	    boolean finished =
+	            process.waitFor(
+	                    60,
+	                    TimeUnit.SECONDS
+	            );
+	
+	    if (!finished) {
+	
+	        process.destroyForcibly();
+	
+	        throw new ProposalFailedException(
+	                "Pandoc conversion timed out"
+	        );
+	    }
+	
+	    if (process.exitValue() != 0) {
+	
+	        throw new ProposalFailedException(
+	                "Pandoc conversion failed: "
+	                        + (
+	                        processOutput.isBlank()
+	                                ? "unknown error"
+	                                : processOutput.trim()
+	                )
+	        );
+	    }
+	
+	    if (
+	            !Files.exists(docxFile)
+	                    || Files.size(docxFile) == 0
+	    ) {
+	
+	        throw new ProposalFailedException(
+	                "Pandoc did not generate a valid DOCX file"
+	        );
+	    }
+	}
 
     private void cleanupTempFiles(String baseFileName) {
         try {
@@ -77,6 +178,78 @@ public class PandocDocxConverter {
             Files.deleteIfExists(tempDir.resolve(safeBaseName + ".docx"));
         } catch (IOException ignored) {
             // Best-effort cleanup of temporary conversion files.
+        }
+    }
+    
+    private void copyProposalImages(
+            Path targetDir
+    ) throws IOException {
+
+        String[] files = {
+                "QualityAssurance.png",
+                "ExecutionSchedule.png",
+                "OrganisationsCapabilities.png"
+        };
+
+        for (String file : files) {
+
+            try (
+                    InputStream is =
+                            getClass()
+                                    .getClassLoader()
+                                    .getResourceAsStream(
+                                            "proposal/assets/images/" + file
+                                    )
+            ) {
+
+                if (is == null) {
+                    continue;
+                }
+
+                Files.copy(
+                        is,
+                        targetDir.resolve(file),
+                        StandardCopyOption.REPLACE_EXISTING
+                );
+            }
+        }
+    }
+    
+    private void generateDynamicImages(
+            String architectureHtml,
+            String processFlowHtml,
+            Path imagesDir,
+            String baseFileName
+    ) {
+
+        try {
+
+        	String architectureImageName =
+        	        baseFileName + "-architecture.png";
+
+        	String processFlowImageName =
+        	        baseFileName + "-process-flow.png";
+        	
+            htmlToImageRenderer.renderHtmlToImage(
+                    architectureHtml,
+                    imagesDir.resolve(
+                    		architectureImageName
+                    )
+            );
+
+            htmlToImageRenderer.renderHtmlToImage(
+                    processFlowHtml,
+                    imagesDir.resolve(
+                    		processFlowImageName
+                    )
+            );
+
+        } catch (Exception ex) {
+
+            throw new ProposalFailedException(
+                    "Failed to generate dynamic proposal images",
+                    ex
+            );
         }
     }
 
