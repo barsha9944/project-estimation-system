@@ -13,4 +13,6 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, Long> 
     List<Opportunity> findByOpportunityNameContainingIgnoreCase(String opportunityName);
 
     List<Opportunity> findByClientNameContainingIgnoreCase(String clientName);
+    
+    long countByStatus(OpportunityStatus status);
 }
