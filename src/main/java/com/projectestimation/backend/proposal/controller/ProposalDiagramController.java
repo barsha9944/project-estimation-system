@@ -56,28 +56,28 @@ public class ProposalDiagramController {
         );
     }
 
-    @GetMapping("/{opportunityId}/process-flow")
-    public ResponseEntity<ApiResponse<DiagramGenerationResponse>>
-    generateProcessFlow(
-            @PathVariable Long opportunityId
-    ) {
-
-        Opportunity opportunity =
-                opportunityRepository.findById(opportunityId)
-                        .orElseThrow();
-
-        String html =
-                diagramService.generateProcessFlowHtml(
-                        opportunity
-                );
-
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Process flow generated successfully",
-                        new DiagramGenerationResponse(html)
-                )
-        );
-    }
+//    @GetMapping("/{opportunityId}/process-flow")
+//    public ResponseEntity<ApiResponse<DiagramGenerationResponse>>
+//    generateProcessFlow(
+//            @PathVariable Long opportunityId
+//    ) {
+//
+//        Opportunity opportunity =
+//                opportunityRepository.findById(opportunityId)
+//                        .orElseThrow();
+//
+//        String html =
+//                diagramService.generateProcessFlowHtml(
+//                        opportunity
+//                );
+//
+//        return ResponseEntity.ok(
+//                ApiResponse.success(
+//                        "Process flow generated successfully",
+//                        new DiagramGenerationResponse(html)
+//                )
+//        );
+//    }
     
     @GetMapping("/test-image")
     public String testImage() {

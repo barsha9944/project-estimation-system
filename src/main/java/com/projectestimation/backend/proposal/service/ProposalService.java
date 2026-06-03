@@ -84,7 +84,10 @@ public class ProposalService {
         );
 
         proposal.setProcessFlowHtml(
-                aiResult.processFlowHtml()
+                String.join(
+                        "\n---FLOW---\n",
+                        aiResult.processFlowHtmls()
+                )
         );
         proposal.setSummaryText(aiResult.markdownContent());
         proposal.setGeneratedByAI(true);
@@ -180,7 +183,10 @@ public class ProposalService {
                 proposal.getMarkdownContent(),
                 baseFileName,
                 proposal.getArchitectureHtml(),
-                proposal.getProcessFlowHtml()
+                java.util.Arrays.asList(
+                        proposal.getProcessFlowHtml()
+                                .split("\n---FLOW---\n")
+                )
         );
 
         proposal.setGeneratedDocPath(conversion.generatedDocPath());

@@ -1,20 +1,17 @@
 package com.projectestimation.backend.proposal.service;
 
-import com.projectestimation.backend.common.exception.ProposalFailedException;
-import com.projectestimation.backend.proposal.config.PandocProperties;
-import org.springframework.stereotype.Component;
-import com.projectestimation.backend.common.exception.ProposalFailedException;
-import com.projectestimation.backend.proposal.service.HtmlToImageRenderer;
-
-import java.nio.file.StandardCopyOption;
-
-import java.io.InputStream;
-import java.nio.file.StandardCopyOption;
-
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import org.springframework.stereotype.Component;
+
+import com.projectestimation.backend.common.exception.ProposalFailedException;
+import com.projectestimation.backend.proposal.config.PandocProperties;
 
 @Component
 public class PandocDocxConverter {
@@ -30,8 +27,12 @@ public class PandocDocxConverter {
         this.htmlToImageRenderer = htmlToImageRenderer;
     }
 
-    public ConversionResult convertMarkdownToDocx(String markdown, String baseFileName, String architectureHtml,
-            String processFlowHtml) {
+    public ConversionResult convertMarkdownToDocx(
+            String markdown,
+            String baseFileName,
+            String architectureHtml,
+            List<String> processFlowHtmls
+    ) {
         try {
 //            Path tempDir = Files.createDirectories(Path.of(pandocProperties.getTempDir()));
 //        	
@@ -74,8 +75,9 @@ public class PandocDocxConverter {
 
         	generateDynamicImages(
         	        architectureHtml,
-        	        processFlowHtml,
-        	        imagesDir, baseFileName
+        	        processFlowHtmls,
+        	        imagesDir,
+        	        baseFileName
         	);
 
 //            Path markdownFile = tempDir.resolve(safeBaseName + ".md");
@@ -217,7 +219,7 @@ public class PandocDocxConverter {
     
     private void generateDynamicImages(
             String architectureHtml,
-            String processFlowHtml,
+            List<String> processFlowHtmls,
             Path imagesDir,
             String baseFileName
     ) {
@@ -237,12 +239,18 @@ public class PandocDocxConverter {
                     )
             );
 
-            htmlToImageRenderer.renderHtmlToImage(
-                    processFlowHtml,
-                    imagesDir.resolve(
-                    		processFlowImageName
-                    )
-            );
+            for (int i = 0; i < processFlowHtmls.size(); i++) {
+
+                htmlToImageRenderer.renderHtmlToImage(
+                        processFlowHtmls.get(i),
+                        imagesDir.resolve(
+                                baseFileName
+                                        + "-process-flow-"
+                                        + (i + 1)
+                                        + ".png"
+                        )
+                );
+            }
 
         } catch (Exception ex) {
 

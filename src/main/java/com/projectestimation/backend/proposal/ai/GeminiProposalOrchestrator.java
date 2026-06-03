@@ -1,5 +1,7 @@
 package com.projectestimation.backend.proposal.ai;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
@@ -10,7 +12,6 @@ import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
 import com.projectestimation.backend.proposal.service.GeminiDiagramGenerationService;
-import com.projectestimation.backend.proposal.service.HtmlToImageRenderer;
 
 @Service
 public class GeminiProposalOrchestrator {
@@ -41,7 +42,40 @@ public class GeminiProposalOrchestrator {
                                              Parameters parameters,
                                              EstimateResult estimate,
                                              ProposalType proposalType, String baseFileName) {
-        String prompt = promptBuilder.build(opportunity, parameters, estimate, proposalType);
+    	
+    	String workflowResponse =
+                diagramService
+                        .identifyProcessFlows(
+                                opportunity
+                        );
+
+        List<String> workflowNames =
+                workflowResponse.lines()
+                        .map(String::trim)
+                        .filter(s -> !s.isBlank())
+                        .toList();
+        
+        StringBuilder workflowPlaceholderRules =
+                new StringBuilder();
+
+        for (int i = 0; i < workflowNames.size(); i++) {
+
+            workflowPlaceholderRules.append(
+                    workflowNames.get(i)
+            )
+            .append(" -> {{PROCESS_FLOW_IMAGE_")
+            .append(i + 1)
+            .append("}}\n");
+        }
+        
+        String workflowsSection =
+                workflowNames.stream()
+                        .map(w -> "- " + w)
+                        .collect(
+                                java.util.stream.Collectors.joining("\n")
+                        );
+        
+        String prompt = promptBuilder.build(opportunity, parameters, estimate, proposalType, workflowsSection, workflowPlaceholderRules.toString());
         try {
             String rawResponse = geminiClient.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
             AiProposalResult parsed =
@@ -59,20 +93,31 @@ public class GeminiProposalOrchestrator {
                                     opportunity
                             );
 
-            String processFlowHtml =
-                    diagramService
-                            .generateProcessFlowHtml(
-                                    opportunity
-                            );
+            
+            List<String> processFlowHtmls =
+                    workflowNames.stream()
+                            .map(workflow ->
+                                    diagramService
+                                            .generateProcessFlowHtml(
+                                                    opportunity,
+                                                    workflow
+                                            )
+                            )
+                            .toList();
             
             markdown =
                     injectStaticSections(
                             markdown,
                             proposalType,
-                            baseFileName
+                            baseFileName,
+                            workflowNames.size()
                     );
 
-            return new AiProposalResult(markdown, architectureHtml, processFlowHtml);
+            return new AiProposalResult(
+                    markdown,
+                    architectureHtml,
+                    processFlowHtmls
+            );
         } catch (AiGenerationFailedException ex) {
             throw new ProposalFailedException(ex.getMessage(), ex);
         }
@@ -81,14 +126,16 @@ public class GeminiProposalOrchestrator {
     private String injectStaticSections(
             String markdown,
             ProposalType proposalType,
-            String baseFileName
+            String baseFileName,
+            int workflowCount
     ) {
 
     	String architectureImageName =
     	        baseFileName + "-architecture.png";
 
-    	String processFlowImageName =
-    	        baseFileName + "-process-flow.png";
+//    	String processFlowImageName =
+//    	        baseFileName + "-process-flow.png";
+    	
         markdown += "\n\n";
         if(proposalType == ProposalType.BASIC){
         	markdown =  markdown.replace("{{COMPLETION_CRITERIA}}",staticContentProvider.load(
@@ -173,10 +220,7 @@ public class GeminiProposalOrchestrator {
                 proposalType == ProposalType.EXPERT
         ) {
 
-        	markdown = markdown.replace(
-        	        "{{IMPORTANT_PROCESS_FLOW_IMAGE}}",
-        	        "![](assets/images/" + processFlowImageName + ")"
-        	);
+        	
         	markdown += "\n\n";
         	
             markdown = markdown.replace("{{ACCOUNTIBILITY_DISTRIBUTION}}",staticContentProvider.load(
@@ -208,6 +252,19 @@ public class GeminiProposalOrchestrator {
         markdown = markdown.replace("{{CONFIGURATION_MANAGEMENT}}",staticContentProvider.load(
                 "ConfigurationManagement.md")
         );
+        
+        for (int i = 1; i <= workflowCount; i++) {
+
+            markdown = markdown.replace(
+                    "{{PROCESS_FLOW_IMAGE_" + i + "}}",
+                    "![](assets/images/"
+                            + baseFileName
+                            + "-process-flow-"
+                            + i
+                            + ".png)"
+            );
+        }
+        
         return markdown;
     }
     
