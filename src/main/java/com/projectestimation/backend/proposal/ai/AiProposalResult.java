@@ -1,4 +1,10 @@
 package com.projectestimation.backend.proposal.ai;
 
-public record AiProposalResult(String markdownContent, String architectureHtml, String processFlowHtml) {
+import java.util.List;
+
+public record AiProposalResult(
+        String markdownContent,
+        String architectureHtml,
+        List<String> processFlowHtmls
+) {
 }

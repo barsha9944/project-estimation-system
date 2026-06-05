@@ -53,6 +53,7 @@ public class GeminiEstimationClient {
         } catch (EstimationFailedException ex) {
             throw ex;
         } catch (RestClientException ex) {
+        	ex.printStackTrace();
         	if (ex.getMessage() != null &&
         	        ex.getMessage().contains("429")) {
  

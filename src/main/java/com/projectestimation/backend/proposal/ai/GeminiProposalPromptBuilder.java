@@ -13,7 +13,8 @@ import com.projectestimation.backend.parameters.model.Parameters;
 @Component
 public class GeminiProposalPromptBuilder {
 
-    public String build(Opportunity opportunity, Parameters parameters, EstimateResult estimate, ProposalType proposalType) {
+    public String build(Opportunity opportunity, Parameters parameters, EstimateResult estimate, ProposalType proposalType, String workflowsSection,
+    		String workflowPlaceholderRules) {
         String currencyCode = estimate.getCurrency().name();
         String formattedCost = CurrencyFormatter.formatAmount(estimate.getEstimatedCost(), estimate.getCurrency());
         String formattedHourlyRate = CurrencyFormatter.formatAmount(parameters.getHourlyRate(), parameters.getCurrency())
@@ -86,6 +87,34 @@ public class GeminiProposalPromptBuilder {
                 - Breakdown: %s
                 - Reasoning: %s
 
+        		IMPORTANT PROCESS FLOW RULES
+
+				Use ONLY the following workflows in the Important Process Flows section:
+				
+				%s
+				
+				Rules:
+				- Use these workflow names exactly as provided.
+				- Do not rename workflows.
+				- Do not create additional workflows.
+				- Do not remove workflows.
+				- For each workflow provide:
+				  - Objective
+				  - Process Description
+				  - Systems Involved
+				- The Important Process Flows section must contain exactly the workflows listed above.
+				
+				IMPORTANT PROCESS FLOW PLACEHOLDER RULES
+
+				%s
+				
+				After describing each workflow:
+				
+				- Insert the corresponding placeholder immediately below the workflow.
+				- Do not modify placeholder names.
+				- Do not remove placeholders.
+				- Do not create additional placeholders.
+
 				DOCUMENT STRUCTURE
 				
 				%s
@@ -116,6 +145,8 @@ public class GeminiProposalPromptBuilder {
                 estimate.getConfidenceScore(),
                 nullSafe(estimate.getBreakdown()),
                 nullSafe(estimate.getReasoning()),
+                workflowsSection,
+                workflowPlaceholderRules,
                 resolveStructure(proposalType)
         );
     }
@@ -217,7 +248,7 @@ public class GeminiProposalPromptBuilder {
 					Use the following columns:
 					| Module | Feature | Description |
 					
-					Include all major business and technical features relevant to the project requirements.
+					Include all major business and technical features user wise relevant to the project requirements.
 
                     ## 2b. Non-Functional Scope
                     Generate this section strictly as a Markdown table.
@@ -293,7 +324,17 @@ public class GeminiProposalPromptBuilder {
 					Use the following columns:
 					| Module | Feature | Description |
 					
-					Include all major business and technical features relevant to the project requirements.
+					Generate the Feature List STRICTLY from the Requirement Summary provided in the Opportunity Context.
+					IMPORTANT Ensure the actor-wise Feature List fully covers all functional requirements described in the Requirement Summary (Do not leave any features).
+
+					Rules:
+					- Use Requirement Summary as the PRIMARY source.
+					- Identify all business features, user capabilities, workflows, modules, and functions mentioned in the Requirement Summary.
+					- Do NOT invent features that are not implied by the Requirement Summary.
+					- Do NOT derive features from Technology Categories, Platforms, Enterprise Contexts, or Components unless they are explicitly mentioned in the Requirement Summary.
+					- Group related requirements into logical business modules.
+					- Each row in the table must represent a feature extracted from the Requirement Summary.
+					- IMPORTANT Ensure the actor-wise Feature List fully covers all functional requirements described in the Requirement Summary.
 
                     ## 2b. Non-Functional Scope
                     Generate this section strictly as a Markdown table.
@@ -329,7 +370,6 @@ public class GeminiProposalPromptBuilder {
 					Include frontend, backend, database, integration, security, hosting, and DevOps technologies where applicable.
                     
                     # 5. Important Process Flows
-                    {{IMPORTANT_PROCESS_FLOW_IMAGE}}
                     
                     Provide detailed explanations for the major business and system workflows.
 
