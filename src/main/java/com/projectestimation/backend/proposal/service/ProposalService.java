@@ -2,6 +2,7 @@ package com.projectestimation.backend.proposal.service;
 
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
+import java.util.List;
 
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +26,7 @@ import com.projectestimation.backend.proposal.ai.AiProposalResult;
 import com.projectestimation.backend.proposal.ai.GeminiProposalOrchestrator;
 import com.projectestimation.backend.proposal.dto.ProposalGenerateRequest;
 import com.projectestimation.backend.proposal.dto.ProposalGenerateResponse;
+import com.projectestimation.backend.proposal.dto.ProposalListResponse;
 import com.projectestimation.backend.proposal.dto.ProposalResponse;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
@@ -84,7 +86,10 @@ public class ProposalService {
         );
 
         proposal.setProcessFlowHtml(
-                aiResult.processFlowHtml()
+                String.join(
+                        "\n---FLOW---\n",
+                        aiResult.processFlowHtmls()
+                )
         );
         proposal.setSummaryText(aiResult.markdownContent());
         proposal.setGeneratedByAI(true);
@@ -180,7 +185,10 @@ public class ProposalService {
                 proposal.getMarkdownContent(),
                 baseFileName,
                 proposal.getArchitectureHtml(),
-                proposal.getProcessFlowHtml()
+                java.util.Arrays.asList(
+                        proposal.getProcessFlowHtml()
+                                .split("\n---FLOW---\n")
+                )
         );
 
         proposal.setGeneratedDocPath(conversion.generatedDocPath());
@@ -277,5 +285,37 @@ public class ProposalService {
         proposal.append("ADDITIONAL NOTES\n\n").append(notes).append("\n");
 
         return proposal.toString();
+    }
+    
+    @Transactional(readOnly = true)
+    public List<ProposalListResponse> getAllProposals() {
+
+    	List<Proposal> proposals = proposalRepository.findAll();
+    	
+        return proposals
+                .stream()
+                .map(this::toListResponse)
+                .toList();
+    }
+    
+    private ProposalListResponse toListResponse(
+            Proposal proposal
+    ) {
+
+        return new ProposalListResponse(
+
+                proposal.getId(),
+
+                proposal.getTitle(),
+
+                proposal.getOpportunity()
+                        .getClientName(),
+
+                        proposal.getProposalType() != null
+                        ? proposal.getProposalType().name()
+                        : "UNKNOWN",
+
+                proposal.getCreatedAt()
+        );
     }
 }

@@ -54,11 +54,13 @@ public class GeminiDiagramGenerationService {
     }
 
     public String generateProcessFlowHtml(
-            Opportunity opportunity
+            Opportunity opportunity,
+            String workflowName
     ) {
 
         String prompt = buildProcessFlowPrompt(
-                opportunity
+                opportunity,
+                workflowName
         );
 
         try {
@@ -89,6 +91,19 @@ public class GeminiDiagramGenerationService {
 
         return """
 Generate ONLY valid HTML with inline CSS for a premium enterprise solution architecture infographic.
+
+FONT SIZE REQUIREMENTS
+
+- Use large presentation-grade fonts.
+- Main title: 36px to 42px
+- Section titles: 28px to 32px
+- Box titles: 22px to 26px
+- Content text: minimum 18px
+- Labels: minimum 16px
+- Never use font sizes below 16px.
+- Optimize for readability inside Word/PDF documents.
+- Assume the image will be inserted into a proposal document.
+- Text must remain readable without zooming.
 
 STRICT RULES:
 
@@ -294,11 +309,43 @@ Opportunity Details:
     }
 
     private String buildProcessFlowPrompt(
-            Opportunity opportunity
+            Opportunity opportunity,
+            String workflowName
     ) {
 
         return """
 Generate ONLY valid HTML with inline CSS for a professional business process flow diagram.
+
+Generate a process flow ONLY for:
+
+Workflow:
+%s
+
+FONT SIZE REQUIREMENTS
+
+- Use large presentation-grade fonts.
+- Main title: 36px to 42px
+- Section titles: 28px to 32px
+- Box titles: 22px to 26px
+- Content text: minimum 18px
+- Labels: minimum 16px
+- Never use font sizes below 16px.
+- Optimize for readability inside Word/PDF documents.
+- Assume the image will be inserted into a proposal document.
+- Text must remain readable without zooming.
+
+IMPORTANT WORKFLOW SCOPING RULES:
+
+- Generate ONLY the workflow specified above.
+- Ignore all other workflows.
+- Do not generate an end-to-end project workflow.
+- Do not generate a generic application workflow.
+- All process steps must be directly related to the specified workflow.
+- The workflow title must appear as the main heading of the diagram.
+- Every generated process step must be unique to this workflow.
+
+Requirement Summary:
+%s
 
 STRICT RULES:
 
@@ -383,16 +430,13 @@ LAYOUT REQUIREMENTS:
 * Keep all boxes aligned consistently.
 
 PROCESS CONTENT REQUIREMENTS:
-Generate a workflow based on:
 
-* User actions
-* System processing
-* API interactions
-* Business validations
-* Database operations
-* Approval workflows
-* Notifications
-* Exception handling (if applicable)
+- Generate steps ONLY for the specified workflow.
+- Use Requirement Summary context only when relevant to the workflow.
+- Do not include unrelated modules.
+- Do not include unrelated integrations.
+- Do not include unrelated approvals.
+- Generate 5-12 steps specifically for this workflow.
 
 IMPORTANT:
 
@@ -410,7 +454,10 @@ Opportunity Details:
 * Components: %s
 """
                 .formatted(
+                		safe(workflowName),
                         safe(opportunity.getOpportunityName()),
+                        safe(opportunity.getRequirementSummary()),
+                        safe(opportunity.getComponents()),
                         safe(opportunity.getRequirementSummary()),
                         safe(opportunity.getComponents())
                 );
@@ -423,5 +470,52 @@ Opportunity Details:
         return value == null
                 ? ""
                 : value.toString();
+    }
+    
+    
+    public String identifyProcessFlows(
+            Opportunity opportunity
+    ) {
+
+        String prompt = """
+    Analyze the Requirement Summary.
+
+    Requirement Summary:
+    %s
+
+    Identify the 3 to 5 most important business workflows.
+
+    Rules:
+    - Return workflow names only.
+    - One workflow per line.
+    - No numbering.
+    - No explanation.
+
+    Example:
+
+    User Authentication Flow
+    Order Processing Flow
+    Notification Workflow
+    Approval Workflow
+    """
+                .formatted(
+                        safe(opportunity.getRequirementSummary())
+                );
+
+        try {
+
+            return geminiClient.generateContent(
+                    prompt,
+                    "text/plain",
+                    1000
+            );
+
+        } catch (AiGenerationFailedException ex) {
+
+            throw new ProposalFailedException(
+                    ex.getMessage(),
+                    ex
+            );
+        }
     }
 }
