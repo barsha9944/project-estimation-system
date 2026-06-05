@@ -1,5 +1,6 @@
 package com.projectestimation.backend.estimation.dto;
 
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -16,6 +17,7 @@ public record EstimateCalculationRequest(
             @DecimalMin(value = "0.1", message = "Risk factor must be >= 0.1") double riskFactor,
             @DecimalMin(value = "0.1", message = "Productivity factor must be >= 0.1") double productivityFactor,
             @DecimalMin(value = "0.0", message = "Hourly rate must be >= 0") double hourlyRate,
+            @NotNull(message = "Currency is required") CurrencyCode currency,
             @Min(value = 1, message = "Team size must be at least 1") int teamSize
     ) {
     }
