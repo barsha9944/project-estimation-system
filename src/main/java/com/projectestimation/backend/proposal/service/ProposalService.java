@@ -318,4 +318,20 @@ public class ProposalService {
                 proposal.getCreatedAt()
         );
     }
+    
+    @Transactional(readOnly = true)
+    public ProposalResponse getProposal(
+            Long proposalId
+    ) {
+
+        Proposal proposal =
+                proposalRepository.findById(proposalId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Proposal not found: " + proposalId
+                                )
+                        );
+
+        return toResponse(proposal);
+    }
 }
