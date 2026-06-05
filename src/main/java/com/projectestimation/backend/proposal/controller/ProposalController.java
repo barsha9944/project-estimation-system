@@ -16,6 +16,7 @@ import com.projectestimation.backend.common.response.ApiResponse;
 import com.projectestimation.backend.proposal.dto.ProposalGenerateRequest;
 import com.projectestimation.backend.proposal.dto.ProposalGenerateResponse;
 import com.projectestimation.backend.proposal.dto.ProposalListResponse;
+import com.projectestimation.backend.proposal.dto.ProposalResponse;
 import com.projectestimation.backend.proposal.service.ProposalService;
 
 import jakarta.validation.Valid;
@@ -44,14 +45,17 @@ public class ProposalController {
         return proposalService.download(proposalId);
     }
     
-    @GetMapping("/getAllProposals")
-    public ResponseEntity<ApiResponse<List<ProposalListResponse>>> getAllProposals() {
-
-    	return ResponseEntity.ok(
-    		    ApiResponse.success(
-    		        "Proposals fetched successfully",
-    		        proposalService.getAllProposals()
-    		    )
-    		);
-    }
+    
+//    @GetMapping("/proposals/{proposalId}")
+//    public ResponseEntity<ApiResponse<ProposalResponse>> getProposal(
+//            @PathVariable Long proposalId
+//    ) {
+//
+//        return ResponseEntity.ok(
+//                ApiResponse.success(
+//                        "Proposal fetched successfully",
+//                        proposalService.getProposal(proposalId)
+//                )
+//        );
+//    }
 }
