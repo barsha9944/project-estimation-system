@@ -306,12 +306,13 @@ public class ProposalService {
 
                 proposal.getId(),
 
+                proposal.getOpportunity().getId(),
+
                 proposal.getTitle(),
 
-                proposal.getOpportunity()
-                        .getClientName(),
+                proposal.getOpportunity().getClientName(),
 
-                        proposal.getProposalType() != null
+                proposal.getProposalType() != null
                         ? proposal.getProposalType().name()
                         : "UNKNOWN",
 

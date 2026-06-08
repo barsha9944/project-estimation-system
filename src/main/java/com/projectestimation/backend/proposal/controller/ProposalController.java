@@ -46,16 +46,17 @@ public class ProposalController {
     }
     
     
-//    @GetMapping("/proposals/{proposalId}")
-//    public ResponseEntity<ApiResponse<ProposalResponse>> getProposal(
-//            @PathVariable Long proposalId
-//    ) {
-//
-//        return ResponseEntity.ok(
-//                ApiResponse.success(
-//                        "Proposal fetched successfully",
-//                        proposalService.getProposal(proposalId)
-//                )
-//        );
-//    }
+   //@GetMapping("/proposals/{proposalId}")
+    @GetMapping("/{proposalId}")
+   public ResponseEntity<ApiResponse<ProposalResponse>> getProposal(
+          @PathVariable Long proposalId
+    ) {
+
+        return ResponseEntity.ok(
+               ApiResponse.success(
+                       "Proposal fetched successfully",
+                       proposalService.getProposal(proposalId)
+               )
+       );
+   }
 }
