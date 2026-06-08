@@ -14,4 +14,6 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     List<Proposal> findByOpportunityId(@Param("opportunityId") Long opportunityId);
 
     Optional<Proposal> findFirstByOpportunity_IdOrderByVersionDesc(Long opportunityId);
+    
+    List<Proposal> findAllByOrderByCreatedAtDesc();
 }

@@ -99,4 +99,14 @@ public class OpportunityProposalController {
                 )
         );
     }
+    
+    @GetMapping("/{proposalId}/download")
+    public ResponseEntity<byte[]> downloadProposal(
+            @PathVariable Long proposalId
+    ) {
+
+        return proposalService.downloadByProposalId(
+                proposalId
+        );
+    }
 }

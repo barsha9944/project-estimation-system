@@ -290,7 +290,7 @@ public class ProposalService {
     @Transactional(readOnly = true)
     public List<ProposalListResponse> getAllProposals() {
 
-    	List<Proposal> proposals = proposalRepository.findAll();
+    	List<Proposal> proposals = proposalRepository.findAllByOrderByCreatedAtDesc();
     	
         return proposals
                 .stream()
@@ -333,5 +333,18 @@ public class ProposalService {
                         );
 
         return toResponse(proposal);
+    }
+    
+    
+    public ResponseEntity<byte[]> downloadByProposalId(Long proposalId) {
+
+        Proposal proposal = proposalRepository
+                .findById(proposalId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Proposal not found"
+                        ));
+
+        return buildDocxDownloadResponse(proposal);
     }
 }
