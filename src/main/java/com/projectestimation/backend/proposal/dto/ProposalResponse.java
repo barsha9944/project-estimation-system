@@ -8,6 +8,7 @@ public record ProposalResponse(
         Integer version,
         String title,
         String markdownContent,
+        String architechtureFlowHtml,
         boolean generatedByAI,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,

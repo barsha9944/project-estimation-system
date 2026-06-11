@@ -84,6 +84,18 @@ public class Proposal {
 
     @Column(columnDefinition = "TEXT")
     private String processFlowHtml;
+    
+    @Column(name = "markdown_file_path")
+    private String markdownFilePath;
+
+    @Column(name = "proposal_directory")
+    private String proposalDirectory;
+    
+    @Column(name = "architecture_image_path")
+    private String architectureImagePath;
+
+    @Column(name = "process_flow_directory")
+    private String processFlowDirectory;
 
     @PrePersist
     protected void onCreate() {
@@ -160,8 +172,42 @@ public class Proposal {
 		return processFlowHtml;
 	}
 
+	public String getMarkdownFilePath() {
+		return markdownFilePath;
+	}
+
+	public void setMarkdownFilePath(String markdownFilePath) {
+		this.markdownFilePath = markdownFilePath;
+	}
+
+	public String getProposalDirectory() {
+		return proposalDirectory;
+	}
+
+	public void setProposalDirectory(String proposalDirectory) {
+		this.proposalDirectory = proposalDirectory;
+	}
+
 	public void setProcessFlowHtml(String processFlowHtml) {
 		this.processFlowHtml = processFlowHtml;
+	}
+
+	
+	
+	public String getArchitectureImagePath() {
+		return architectureImagePath;
+	}
+
+	public void setArchitectureImagePath(String architectureImagePath) {
+		this.architectureImagePath = architectureImagePath;
+	}
+
+	public String getProcessFlowDirectory() {
+		return processFlowDirectory;
+	}
+
+	public void setProcessFlowDirectory(String processFlowDirectory) {
+		this.processFlowDirectory = processFlowDirectory;
 	}
 
 	/** @deprecated use {@link #setMarkdownContent(String)} */

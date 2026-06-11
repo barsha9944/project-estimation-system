@@ -1,9 +1,16 @@
 package com.projectestimation.backend.proposal.service;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -36,6 +43,9 @@ public class ProposalService {
 
     private static final String DOCX_MEDIA_TYPE =
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    
+    @Value("${proposal.storage.path}")
+    private String proposalStoragePath;
 
     private final ProposalRepository proposalRepository;
     private final EstimateResultRepository estimateResultRepository;
@@ -73,8 +83,43 @@ public class ProposalService {
         String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
         String fileBaseName = "proposal-" + opportunityId + "-v" + nextVersion;
         
+        Path proposalDir =
+                Paths.get(
+                        proposalStoragePath,
+                        "opportunity-" + opportunityId,
+                        "proposal-v" + nextVersion
+                );
+
+        try {
+			Files.createDirectories(proposalDir);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
         AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, parameters, estimate,  proposalType, fileBaseName);
         
+        Path markdownFile =
+                proposalDir.resolve(
+                        "proposal.md"
+                );
+
+        try {
+			Files.writeString(
+			        markdownFile,
+			        aiResult.markdownContent()
+			);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+        pandocDocxConverter.generateProposalImages(
+                aiResult.architectureHtml(),
+                aiResult.processFlowHtmls(),
+                proposalDir,
+                fileBaseName
+        );
 
         Proposal proposal = new Proposal();
         proposal.setOpportunity(opportunity);
@@ -99,6 +144,23 @@ public class ProposalService {
         proposal.setGeneratedBy(user);
         proposal.setProposalType(proposalType);
 
+        proposal.setMarkdownFilePath(
+                markdownFile.toString()
+        );
+
+        proposal.setProposalDirectory(
+                proposalDir.toString()
+        );
+        
+        proposal.setArchitectureImagePath(
+                proposalDir.resolve(
+                        fileBaseName + "-architecture.png"
+                ).toString()
+        );
+
+        proposal.setProcessFlowDirectory(
+                proposalDir.toString()
+        );
         Proposal saved = proposalRepository.save(proposal);
 
         opportunity.setStatus(OpportunityStatus.PROPOSAL_GENERATED);
@@ -253,7 +315,8 @@ public class ProposalService {
                 opportunityId,
                 saved.getVersion(),
                 saved.getTitle(),
-                saved.getMarkdownContent(),
+                loadMarkdownContent(saved),
+                saved.getArchitectureHtml(),
                 saved.isGeneratedByAI(),
                 saved.getCreatedAt(),
                 saved.getUpdatedAt(),
@@ -261,6 +324,50 @@ public class ProposalService {
         );
     }
 
+    private String loadMarkdownContent(
+            Proposal proposal
+    ) {
+
+    	
+        try {
+
+        	if (
+        	        proposal.getMarkdownFilePath() != null
+        	        && !proposal.getMarkdownFilePath().isBlank()
+        	) {
+
+        	    String markdown =
+        	            Files.readString(
+        	                    Path.of(
+        	                            proposal.getMarkdownFilePath()
+        	                    )
+        	            );
+
+        	    markdown =
+        	            markdown.replace(
+        	                    "assets/images/",
+        	                    "http://localhost:8080/api/v1/opportunities/"
+        	                            + proposal.getOpportunity().getId()
+        	                            + "/proposal/"
+        	                            + proposal.getId()
+        	                            + "/images/"
+        	            );
+        	    
+        	    System.out.println(markdown);
+
+        	    return markdown;
+        	}
+
+            return proposal.getMarkdownContent();
+
+        } catch (Exception ex) {
+
+            throw new ProposalFailedException(
+                    "Failed to read markdown file",
+                    ex
+            );
+        }
+    }
     private String buildLegacySummary(ProposalGenerateRequest request, EstimateResult estimateResult) {
         String notes = request.notes() == null || request.notes().isBlank()
                 ? "No additional notes provided."
@@ -346,5 +453,42 @@ public class ProposalService {
                         ));
 
         return buildDocxDownloadResponse(proposal);
+    }
+    
+    
+    public ResponseEntity<Resource> getProposalImage(
+            Long proposalId,
+            String fileName
+    ) {
+
+        Proposal proposal =
+                proposalRepository.findById(
+                        proposalId
+                )
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Proposal not found"
+                        )
+                );
+
+        Path imagePath =
+                Path.of(
+                        proposal.getProposalDirectory()
+                ).resolve(
+                        fileName
+                );
+
+        Resource resource =
+                new FileSystemResource(
+                        imagePath
+                );
+
+        return ResponseEntity.ok()
+                .contentType(
+                        MediaType.IMAGE_PNG
+                )
+                .body(
+                        resource
+                );
     }
 }
