@@ -81,7 +81,7 @@ public class ProposalService {
         int nextVersion = resolveNextVersion(opportunityId);
 
         String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
-        String fileBaseName = "proposal-" + opportunityId + "-v" + nextVersion;
+        String fileBaseName = "proposal-" + opportunity.getOpportunityName() + "-v" + nextVersion;
         
         Path proposalDir =
                 Paths.get(
@@ -180,6 +180,7 @@ public class ProposalService {
         return toResponse(proposal);
     }
 
+    @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadLatestByOpportunityId(Long opportunityId) {
         Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
@@ -235,13 +236,26 @@ public class ProposalService {
     }
 
     private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
+    	
+    	System.out.println("START DOWNLOAD");
+    	System.out.println(proposal.getId());
+    	System.out.println(proposal.getOpportunity().getOpportunityName());
         if (proposal.getMarkdownContent() == null || proposal.getMarkdownContent().isBlank()) {
             throw new ProposalFailedException("Proposal Markdown content is not available for conversion");
         }
 
-        String baseFileName = proposal.getFileName() != null
-                ? proposal.getFileName().replace(".docx", "")
-                : "proposal-" + proposal.getId() + "-v" + proposal.getVersion();
+//        String baseFileName = proposal.getFileName() != null
+//                ? proposal.getFileName().replace(".docx", "")
+//                : "proposal-" + proposal.getId() + "-v" + proposal.getVersion();
+        
+        String baseFileName =
+                proposal.getOpportunity()
+                        .getOpportunityName()
+                        .replaceAll("[^a-zA-Z0-9\\s-]", "")
+                        .trim()
+                        .replace(" ", "_")
+                + "_Proposal_v"
+                + proposal.getVersion();
 
         PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(
                 proposal.getMarkdownContent(),
@@ -442,7 +456,7 @@ public class ProposalService {
         return toResponse(proposal);
     }
     
-    
+    @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadByProposalId(Long proposalId) {
 
         Proposal proposal = proposalRepository
