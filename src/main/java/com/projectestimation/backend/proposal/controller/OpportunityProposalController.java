@@ -15,9 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.response.ApiResponse;
-import com.projectestimation.backend.proposal.dto.ProposalListResponse;
+import com.projectestimation.backend.proposal.dto.ProposalDetailWithCountDto;
 import com.projectestimation.backend.proposal.dto.ProposalResponse;
 import com.projectestimation.backend.proposal.service.ProposalService;
+import com.projectestimation.backend.proposal.dto.OpportunityProposalDto;
 
 @RestController
 @RequestMapping("/api/v1/opportunities/{opportunityId}/proposal")
@@ -77,16 +78,15 @@ public class OpportunityProposalController {
     }
     
     @GetMapping("/getAllProposals")
-    public ResponseEntity<ApiResponse<List<ProposalListResponse>>> getAllProposals() {
+    public ResponseEntity<ApiResponse<List<OpportunityProposalDto>>> getAllProposals() {
 
-    	return ResponseEntity.ok(
-    		    ApiResponse.success(
-    		        "Proposals fetched successfully",
-    		        proposalService.getAllProposals()
-    		    )
-    		);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Proposals fetched successfully",
+                        proposalService.getAllProposals()
+                )
+        );
     }
-    
     @GetMapping("/{proposalId}")
     public ResponseEntity<ApiResponse<ProposalResponse>> getProposal(
             @PathVariable Long proposalId
