@@ -2,6 +2,7 @@ package com.projectestimation.backend.proposal.controller;
 
 import java.util.List;
 
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -107,6 +108,19 @@ public class OpportunityProposalController {
 
         return proposalService.downloadByProposalId(
                 proposalId
+        );
+    }
+    
+    
+    @GetMapping("/{proposalId}/images/{fileName:.+}")
+    public ResponseEntity<Resource> getProposalImage(
+            @PathVariable Long proposalId,
+            @PathVariable String fileName
+    ) {
+
+        return proposalService.getProposalImage(
+                proposalId,
+                fileName
         );
     }
 }

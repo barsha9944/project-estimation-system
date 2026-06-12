@@ -217,6 +217,21 @@ public class PandocDocxConverter {
         }
     }
     
+    public void generateProposalImages(
+            String architectureHtml,
+            List<String> processFlowHtmls,
+            Path proposalDir,
+            String baseFileName
+    ) {
+
+        generateDynamicImages(
+                architectureHtml,
+                processFlowHtmls,
+                proposalDir,
+                baseFileName
+        );
+    }
+    
     private void generateDynamicImages(
             String architectureHtml,
             List<String> processFlowHtmls,
