@@ -135,6 +135,8 @@ public class GeminiProposalOrchestrator {
 
     	String architectureImageName =
     	        safeFileName + "-architecture.png";
+    	
+    	System.out.println("MARKDOWN BASE FILE NAME = " + safeFileName);
 
 //    	String processFlowImageName =
 //    	        baseFileName + "-process-flow.png";

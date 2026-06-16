@@ -257,19 +257,53 @@ public class ProposalService {
 //                ? proposal.getFileName().replace(".docx", "")
 //                : "proposal-" + proposal.getId() + "-v" + proposal.getVersion();
         
+//        String baseFileName =
+//                proposal.getOpportunity()
+//                        .getOpportunityName()
+//                        .replaceAll("[^a-zA-Z0-9\\s-]", "")
+//                        .trim()
+//                        .replace(" ", "_")
+//                + "_Proposal_v"
+//                + proposal.getVersion();
+        
         String baseFileName =
-                proposal.getOpportunity()
-                        .getOpportunityName()
-                        .replaceAll("[^a-zA-Z0-9\\s-]", "")
-                        .trim()
-                        .replace(" ", "_")
-                + "_Proposal_v"
-                + proposal.getVersion();
+                proposal.getFileName()
+                        .replace(".docx", "");
 
+        String markdown =
+                proposal.getMarkdownContent();
 
-		PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(
-				proposal.getMarkdownContent(), baseFileName, proposal.getArchitectureHtml(),
-				java.util.Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n")));
+        if (
+                proposal.getMarkdownFilePath() != null
+                && !proposal.getMarkdownFilePath().isBlank()
+        ) {
+
+            try {
+				markdown =
+				        Files.readString(
+				                Path.of(
+				                        proposal.getMarkdownFilePath()
+				                )
+				        );
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+
+        System.out.println("DOCX MARKDOWN");
+        System.out.println(markdown);
+
+        PandocDocxConverter.ConversionResult conversion =
+                pandocDocxConverter.convertMarkdownToDocx(
+                        markdown,
+                        baseFileName,
+                        proposal.getArchitectureHtml(),
+                        java.util.Arrays.asList(
+                                proposal.getProcessFlowHtml()
+                                        .split("\n---FLOW---\n")
+                        )
+                );
 
 		proposal.setGeneratedDocPath(conversion.generatedDocPath());
 		proposalRepository.save(proposal);

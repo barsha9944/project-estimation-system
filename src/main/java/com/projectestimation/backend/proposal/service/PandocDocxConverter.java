@@ -79,6 +79,15 @@ public class PandocDocxConverter {
         	        imagesDir,
         	        baseFileName
         	);
+        	
+        	System.out.println("===== IMAGES CREATED =====");
+
+        	Files.list(imagesDir)
+        	     .forEach(file ->
+        	             System.out.println(file.getFileName())
+        	     );
+
+        	System.out.println("=========================");
 
 //            Path markdownFile = tempDir.resolve(safeBaseName + ".md");
         	Path markdownFile =
@@ -257,6 +266,7 @@ public class PandocDocxConverter {
                     )
             );
 
+            System.out.println("IMAGE BASE FILE NAME = " + baseFileName);
             for (int i = 0; i < processFlowHtmls.size(); i++) {
 
                 htmlToImageRenderer.renderHtmlToImage(
