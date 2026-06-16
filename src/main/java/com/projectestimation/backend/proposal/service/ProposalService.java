@@ -191,6 +191,7 @@ public class ProposalService {
 		return toResponse(proposal);
 	}
 
+	@Transactional(readOnly = true)
 	public ResponseEntity<byte[]> downloadLatestByOpportunityId(Long opportunityId) {
         Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
@@ -413,11 +414,13 @@ public class ProposalService {
 	            .map(row -> new ProposalDetailWithCountDto(
 	                    ((Number) row[0]).longValue(),
 	                    ((Number) row[1]).longValue(),
-	                    row[2] != null
-	                            ? ProposalType.valueOf(row[2].toString())
+	                    (String) row[2],
+	                    (String) row[3],
+	                    row[4] != null
+	                            ? ProposalType.valueOf(row[4].toString())
 	                            : null,
-	                    ((java.sql.Timestamp) row[3]).toLocalDateTime(),
-	                    ((Number) row[4]).longValue()
+	                    ((Timestamp) row[5]).toLocalDateTime(),
+	                    ((Number) row[6]).longValue()
 	            ))
 	            .toList();
 
@@ -429,6 +432,8 @@ public class ProposalService {
 	            .stream()
 	            .map(entry -> new OpportunityProposalDto(
 	                    entry.getKey(),
+	                    entry.getValue().get(0).opportunityName(),
+	                    entry.getValue().get(0).clientName(),
 	                    entry.getValue().get(0).proposalCount(),
 	                    entry.getValue()
 	            ))

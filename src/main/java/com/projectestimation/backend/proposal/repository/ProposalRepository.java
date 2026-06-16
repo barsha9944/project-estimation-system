@@ -61,14 +61,39 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 //		    nativeQuery = true)
 //		List<Object[]> findProposalDetailsWithCount();
 	
+//	@Query(value = """
+//		    SELECT
+//		        p.id,
+//		        p.opportunity_id,
+//		        p.proposal_type,
+//		        p.created_at,
+//		        pc.proposal_count
+//		    FROM proposals p
+//		    INNER JOIN (
+//		        SELECT
+//		            opportunity_id,
+//		            COUNT(*) AS proposal_count
+//		        FROM proposals
+//		        GROUP BY opportunity_id
+//		    ) pc
+//		    ON p.opportunity_id = pc.opportunity_id
+//		    ORDER BY p.opportunity_id, p.created_at DESC
+//		    """,
+//		    nativeQuery = true)
+//		List<Object[]> findProposalDetailsWithCount();
+	
 	@Query(value = """
 		    SELECT
 		        p.id,
 		        p.opportunity_id,
+		        o.opportunity_name,
+		        o.client_name,
 		        p.proposal_type,
 		        p.created_at,
 		        pc.proposal_count
 		    FROM proposals p
+		    INNER JOIN opportunities o
+		        ON p.opportunity_id = o.id
 		    INNER JOIN (
 		        SELECT
 		            opportunity_id,
@@ -76,7 +101,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 		        FROM proposals
 		        GROUP BY opportunity_id
 		    ) pc
-		    ON p.opportunity_id = pc.opportunity_id
+		        ON p.opportunity_id = pc.opportunity_id
 		    ORDER BY p.opportunity_id, p.created_at DESC
 		    """,
 		    nativeQuery = true)
