@@ -241,11 +241,14 @@ public class PandocDocxConverter {
 
         try {
 
-        	String architectureImageName =
-        	        baseFileName + "-architecture.png";
+//        	String architectureImageName =
+//        	        baseFileName + "-architecture.png";
 
-        	String processFlowImageName =
-        	        baseFileName + "-process-flow.png";
+        	String safeFileName =
+        	        baseFileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+        	String architectureImageName =
+        	        safeFileName + "-architecture.png";
         	
             htmlToImageRenderer.renderHtmlToImage(
                     architectureHtml,
@@ -259,7 +262,7 @@ public class PandocDocxConverter {
                 htmlToImageRenderer.renderHtmlToImage(
                         processFlowHtmls.get(i),
                         imagesDir.resolve(
-                                baseFileName
+                                safeFileName
                                         + "-process-flow-"
                                         + (i + 1)
                                         + ".png"

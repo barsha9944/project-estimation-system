@@ -130,8 +130,11 @@ public class GeminiProposalOrchestrator {
             int workflowCount
     ) {
 
+    	String safeFileName =
+    	        baseFileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+
     	String architectureImageName =
-    	        baseFileName + "-architecture.png";
+    	        safeFileName + "-architecture.png";
 
 //    	String processFlowImageName =
 //    	        baseFileName + "-process-flow.png";
@@ -255,14 +258,23 @@ public class GeminiProposalOrchestrator {
         
         for (int i = 1; i <= workflowCount; i++) {
 
-            markdown = markdown.replace(
-                    "{{PROCESS_FLOW_IMAGE_" + i + "}}",
-                    "![](assets/images/"
-                            + baseFileName
-                            + "-process-flow-"
-                            + i
-                            + ".png)"
-            );
+//            markdown = markdown.replace(
+//                    "{{PROCESS_FLOW_IMAGE_" + i + "}}",
+//                    "![](assets/images/"
+//                            + baseFileName
+//                            + "-process-flow-"
+//                            + i
+//                            + ".png)"
+//            );
+        	
+        	markdown = markdown.replace(
+        	        "{{PROCESS_FLOW_IMAGE_" + i + "}}",
+        	        "![](assets/images/"
+        	                + safeFileName
+        	                + "-process-flow-"
+        	                + i
+        	                + ".png)"
+        	);
         }
         
         return markdown;
