@@ -2,13 +2,13 @@ package com.projectestimation.backend.proposal.service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
+import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -33,18 +33,13 @@ import com.projectestimation.backend.parameters.model.Parameters;
 import com.projectestimation.backend.parameters.repository.ParametersRepository;
 import com.projectestimation.backend.proposal.ai.AiProposalResult;
 import com.projectestimation.backend.proposal.ai.GeminiProposalOrchestrator;
+import com.projectestimation.backend.proposal.dto.OpportunityProposalDto;
 import com.projectestimation.backend.proposal.dto.ProposalDetailWithCountDto;
 import com.projectestimation.backend.proposal.dto.ProposalGenerateRequest;
 import com.projectestimation.backend.proposal.dto.ProposalGenerateResponse;
-import com.projectestimation.backend.proposal.dto.ProposalListResponse;
 import com.projectestimation.backend.proposal.dto.ProposalResponse;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
-import java.sql.Timestamp;
-import com.projectestimation.backend.common.enums.ProposalType;
-import java.sql.Timestamp;
-import java.util.stream.Collectors;
-import com.projectestimation.backend.proposal.dto.OpportunityProposalDto;
 
 @Service
 public class ProposalService {
@@ -244,14 +239,43 @@ public class ProposalService {
 	}
 
 	
-    private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
-    	
-    	System.out.println("START DOWNLOAD");
+  private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
+   	
+  	System.out.println("START DOWNLOAD");
     	System.out.println(proposal.getId());
-    	System.out.println(proposal.getOpportunity().getOpportunityName());
-        if (proposal.getMarkdownContent() == null || proposal.getMarkdownContent().isBlank()) {
+   	System.out.println(proposal.getOpportunity().getOpportunityName());
+       if (proposal.getMarkdownContent() == null || proposal.getMarkdownContent().isBlank()) {
             throw new ProposalFailedException("Proposal Markdown content is not available for conversion");
-        }
+       }
+//	private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
+//
+//	    System.out.println("========== START DOWNLOAD ==========");
+//	    System.out.println("Proposal ID: " + proposal.getId());
+//
+//	    System.out.println("Opportunity Name: "
+//	            + proposal.getOpportunity().getOpportunityName());
+//
+//	    System.out.println("Proposal Type: "
+//	            + proposal.getProposalType());
+//
+//	    System.out.println("Title: "
+//	            + proposal.getTitle());
+//
+//	    System.out.println("Markdown Content Is Null: "
+//	            + (proposal.getMarkdownContent() == null));
+//
+//	    System.out.println("Markdown Content Length: "
+//	            + (proposal.getMarkdownContent() == null
+//	                ? 0
+//	                : proposal.getMarkdownContent().length()));
+//
+//	    if (proposal.getMarkdownContent() == null
+//	            || proposal.getMarkdownContent().isBlank()) {
+//
+//	        throw new ProposalFailedException(
+//	                "Proposal Markdown content is not available for conversion"
+//	        );
+//	    }
 
 //        String baseFileName = proposal.getFileName() != null
 //                ? proposal.getFileName().replace(".docx", "")
@@ -267,11 +291,24 @@ public class ProposalService {
 //                + proposal.getVersion();
         
         String baseFileName =
-                proposal.getFileName()
-                        .replace(".docx", "");
+              proposal.getOpportunity()
+                        .getOpportunityName()
+                        .replaceAll("[^a-zA-Z0-9\\s-]", "")
+                        .trim()
+                        .replace(" ", "_")
+                + "_Proposal_v"
+                + proposal.getVersion();
+        
+//        System.out.println("Process Flow Null: "
+//                + (proposal.getProcessFlowHtml() == null));
+//
+//        System.out.println("Architecture Html Null: "
+//                + (proposal.getArchitectureHtml() == null));
+
 
         String markdown =
                 proposal.getMarkdownContent();
+
 
         if (
                 proposal.getMarkdownFilePath() != null
@@ -305,14 +342,29 @@ public class ProposalService {
                         )
                 );
 
-		proposal.setGeneratedDocPath(conversion.generatedDocPath());
+		PandocDocxConverter.ConversionResult conversion1 = pandocDocxConverter.convertMarkdownToDocx(
+				proposal.getMarkdownContent(), baseFileName, 
+				proposal.getArchitectureHtml(),
+//				proposal.getArchitectureHtml() != null
+//                ? proposal.getArchitectureHtml()
+//                : "",
+			java.util.Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n")));
+//				proposal.getProcessFlowHtml() != null
+//	            ? java.util.Arrays.asList(
+//	                proposal.getProcessFlowHtml().split("\n---FLOW---\n")
+//	              )
+//	            : java.util.Collections.emptyList()
+//	    );
+
+
+		proposal.setGeneratedDocPath(conversion1.generatedDocPath());
 		proposalRepository.save(proposal);
 
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.parseMediaType(DOCX_MEDIA_TYPE));
 		headers.setContentDisposition(ContentDisposition.attachment().filename(baseFileName + ".docx").build());
 
-		return ResponseEntity.ok().headers(headers).body(conversion.docxBytes());
+		return ResponseEntity.ok().headers(headers).body(conversion1.docxBytes());
 	}
 
 	private ResponseEntity<byte[]> buildLegacyDownloadResponse(Proposal proposal) {
