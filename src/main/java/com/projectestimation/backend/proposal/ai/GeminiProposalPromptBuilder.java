@@ -179,6 +179,7 @@ public class GeminiProposalPromptBuilder {
 					| Module | Feature | Description |
 					
 					Include all major business and technical features relevant to the project requirements.
+					and if the requirement have good have have features then add that also.
 
                     ## 2b. Non-Functional Scope
                     Generate this section strictly as a Markdown table.
@@ -249,6 +250,7 @@ public class GeminiProposalPromptBuilder {
 					| Module | Feature | Description |
 					
 					Include all major business and technical features user wise relevant to the project requirements.
+					and if the requirement have good have have features then add that also.
 
                     ## 2b. Non-Functional Scope
                     Generate this section strictly as a Markdown table.
@@ -326,6 +328,7 @@ public class GeminiProposalPromptBuilder {
 					
 					Generate the Feature List STRICTLY from the Requirement Summary provided in the Opportunity Context.
 					IMPORTANT Ensure the actor-wise Feature List fully covers all functional requirements described in the Requirement Summary (Do not leave any features).
+					and if the requirement have good have have features then add that also.(do not leave any feature)
 
 					Rules:
 					- Use Requirement Summary as the PRIMARY source.

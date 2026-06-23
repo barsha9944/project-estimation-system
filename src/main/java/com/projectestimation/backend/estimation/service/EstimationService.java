@@ -1,13 +1,17 @@
 package com.projectestimation.backend.estimation.service;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.projectestimation.backend.auth.model.User;
-import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.common.enums.CurrencyCode;
+import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.common.util.CurrencyFormatter;
 import com.projectestimation.backend.estimation.ai.AiEstimationResult;
 import com.projectestimation.backend.estimation.ai.GeminiEstimationOrchestrator;
 import com.projectestimation.backend.estimation.dto.EstimateCalculationRequest;
 import com.projectestimation.backend.estimation.dto.EstimateCalculationResponse;
+import com.projectestimation.backend.estimation.dto.EstimationAnalysisResponse;
 import com.projectestimation.backend.estimation.engine.OpportunityEstimationInputResolver;
 import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.estimation.repository.EstimateResultRepository;
@@ -16,8 +20,6 @@ import com.projectestimation.backend.opportunity.model.OpportunityStatus;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.parameters.model.Parameters;
 import com.projectestimation.backend.parameters.repository.ParametersRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EstimationService {
@@ -26,15 +28,21 @@ public class EstimationService {
     private final EstimateResultRepository estimateResultRepository;
     private final OpportunityRepository opportunityRepository;
     private final ParametersRepository parametersRepository;
+    private final GeminiEstimationAnalysisService geminiService;
+    private final EstimationHtmlParser htmlParser;
 
     public EstimationService(GeminiEstimationOrchestrator geminiEstimationOrchestrator,
                              EstimateResultRepository estimateResultRepository,
                              OpportunityRepository opportunityRepository,
-                             ParametersRepository parametersRepository) {
+                             ParametersRepository parametersRepository,
+                             GeminiEstimationAnalysisService geminiService,
+                             EstimationHtmlParser htmlParser) {
         this.geminiEstimationOrchestrator = geminiEstimationOrchestrator;
         this.estimateResultRepository = estimateResultRepository;
         this.opportunityRepository = opportunityRepository;
         this.parametersRepository = parametersRepository;
+        this.geminiService = geminiService;
+        this.htmlParser = htmlParser;
     }
 
     /**
@@ -150,4 +158,25 @@ public class EstimationService {
                 saved.getCalculatedAt()
         );
     }
+    
+    public EstimationAnalysisResponse generate(
+            Long opportunityId
+    ) {
+
+        Opportunity opportunity =
+                opportunityRepository.findById(opportunityId)
+                        .orElseThrow();
+
+        String html =
+                geminiService.generateAnalysisHtml(
+                        opportunity
+                );
+
+        return new EstimationAnalysisResponse(
+                htmlParser.extractActorTable(html),
+                htmlParser.extractUseCaseTable(html)
+        );
+    }
+    
+    
 }
