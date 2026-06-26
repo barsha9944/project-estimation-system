@@ -12,8 +12,10 @@ import com.projectestimation.backend.estimation.dto.UseCaseCalculationResponse;
 import com.projectestimation.backend.estimation.dto.UseCaseDto;
 import com.projectestimation.backend.estimation.model.EstimationActor;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
+import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.estimation.repository.EstimationActorRepository;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
+import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 
@@ -24,15 +26,18 @@ public class CalculationService {
     private final OpportunityRepository opportunityRepository;
     private final EstimationAnalysisRepository estimationAnalysisRepository;
     private final EstimationActorRepository estimationActorRepository;
+    private final EstimationUseCaseRepository estimationUseCaseRepository;
 
     public CalculationService(
             OpportunityRepository opportunityRepository,
             EstimationAnalysisRepository estimationAnalysisRepository,
-            EstimationActorRepository estimationActorRepository) {
+            EstimationActorRepository estimationActorRepository,
+            EstimationUseCaseRepository estimationUseCaseRepository) {
 
         this.opportunityRepository = opportunityRepository;
         this.estimationAnalysisRepository = estimationAnalysisRepository;
         this.estimationActorRepository = estimationActorRepository;
+        this.estimationUseCaseRepository = estimationUseCaseRepository;
     }
 
     public ActorCalculationResponse calculate(
@@ -115,17 +120,49 @@ public class CalculationService {
     public UseCaseCalculationResponse calculate(
             UseCaseCalculationRequest request) {
 
+        EstimationAnalysis analysis =
+                estimationAnalysisRepository
+                        .findByOpportunityId(request.getOpportunityId())
+                        .orElseGet(() -> {
+
+                            Opportunity opportunity =
+                                    opportunityRepository
+                                            .findById(request.getOpportunityId())
+                                            .orElseThrow(() ->
+                                                    new ResourceNotFoundException("Opportunity not found"));
+
+                            EstimationAnalysis newAnalysis =
+                                    new EstimationAnalysis();
+
+                            newAnalysis.setOpportunity(opportunity);
+
+                            return estimationAnalysisRepository.save(newAnalysis);
+                        });
+
+        // Delete previous use cases
+        estimationUseCaseRepository.deleteByEstimationAnalysisId(
+                analysis.getId());
+
         int simple = 0;
         int average = 0;
         int complex = 0;
 
-        for (UseCaseDto useCase : request.getUseCases()) {
+        for (UseCaseDto dto : request.getUseCases()) {
 
-            if (useCase.getComplexity() == null) {
+            EstimationUseCase useCase =
+                    new EstimationUseCase();
+
+            useCase.setEstimationAnalysis(analysis);
+            useCase.setUseCaseName(dto.getUseCaseName());
+            useCase.setComplexity(dto.getComplexity());
+
+            estimationUseCaseRepository.save(useCase);
+
+            if (dto.getComplexity() == null) {
                 continue;
             }
 
-            switch (useCase.getComplexity().trim().toUpperCase()) {
+            switch (dto.getComplexity().trim().toUpperCase()) {
 
                 case "SIMPLE":
                     simple++;
@@ -145,6 +182,10 @@ public class CalculationService {
                 (simple * 5)
                         + (average * 10)
                         + (complex * 15);
+
+        analysis.setUucp(uucp);
+
+        estimationAnalysisRepository.save(analysis);
 
         return new UseCaseCalculationResponse(
                 simple,

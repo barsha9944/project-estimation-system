@@ -7,5 +7,7 @@ import lombok.Data;
 @Data
 public class UseCaseCalculationRequest {
 
+	private Long opportunityId;
+	
     private List<UseCaseDto> useCases;
 }

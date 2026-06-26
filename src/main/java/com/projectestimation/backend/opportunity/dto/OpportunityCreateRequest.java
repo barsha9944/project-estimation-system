@@ -16,7 +16,7 @@ public record OpportunityCreateRequest(
         @NotNull(message = "Enterprise contexts are required") List<String> enterpriseContexts,
         @NotBlank(message = "Opportunity name is required") String opportunityName,
         @NotBlank(message = "Client name is required") String clientName,
-        @NotBlank(message = "Requirement summary is required") @Size(max = 5000, message = "Requirement summary must not exceed 5000 characters") String requirementSummary,
+        @NotBlank(message = "Requirement summary is required")  String requirementSummary,
         @NotNull(message = "Priority is required") Priority priority,
         LocalDate expectedDeliveryDate,
         @NotNull(message = "Components are required") List<String> components
