@@ -20,6 +20,45 @@ public class GeminiProposalPromptBuilder {
         String formattedHourlyRate = CurrencyFormatter.formatAmount(parameters.getHourlyRate(), parameters.getCurrency())
                 + " per hour";
 
+        String processFlowPrompt = "";
+
+        if (proposalType == ProposalType.EXPERT) {
+
+            processFlowPrompt = """
+                    IMPORTANT PROCESS FLOW RULES
+
+                    Use ONLY the following workflows in the Important Process Flows section:
+
+                    %s
+
+                    Rules:
+                    - Use these workflow names exactly as provided.
+                    - Do not rename workflows.
+                    - Do not create additional workflows.
+                    - Do not remove workflows.
+                    - For each workflow provide:
+                      - Objective
+                      - Process Description
+                      - Systems Involved
+                    - The Important Process Flows section must contain exactly the workflows listed above.
+
+                    IMPORTANT PROCESS FLOW PLACEHOLDER RULES
+
+                    %s
+
+                    After describing each workflow:
+
+                    - Insert the corresponding placeholder immediately below the workflow.
+                    - Do not modify placeholder names.
+                    - Do not remove placeholders.
+                    - Do not create additional placeholders.
+                    """
+                    .formatted(
+                            workflowsSection,
+                            workflowPlaceholderRules
+                    );
+        }
+        
         return """
                 You are an expert enterprise software consulting proposal writer.
                 Generate a complete client-facing project proposal as VALID STRUCTURED MARKDOWN ONLY.
@@ -87,33 +126,7 @@ public class GeminiProposalPromptBuilder {
                 - Breakdown: %s
                 - Reasoning: %s
 
-        		IMPORTANT PROCESS FLOW RULES
-
-				Use ONLY the following workflows in the Important Process Flows section:
-				
-				%s
-				
-				Rules:
-				- Use these workflow names exactly as provided.
-				- Do not rename workflows.
-				- Do not create additional workflows.
-				- Do not remove workflows.
-				- For each workflow provide:
-				  - Objective
-				  - Process Description
-				  - Systems Involved
-				- The Important Process Flows section must contain exactly the workflows listed above.
-				
-				IMPORTANT PROCESS FLOW PLACEHOLDER RULES
-
-				%s
-				
-				After describing each workflow:
-				
-				- Insert the corresponding placeholder immediately below the workflow.
-				- Do not modify placeholder names.
-				- Do not remove placeholders.
-				- Do not create additional placeholders.
+        		%s
 
 				DOCUMENT STRUCTURE
 				
@@ -145,8 +158,7 @@ public class GeminiProposalPromptBuilder {
                 estimate.getConfidenceScore(),
                 nullSafe(estimate.getBreakdown()),
                 nullSafe(estimate.getReasoning()),
-                workflowsSection,
-                workflowPlaceholderRules,
+                processFlowPrompt,
                 resolveStructure(proposalType)
         );
     }
@@ -370,7 +382,7 @@ public class GeminiProposalPromptBuilder {
                     The table must contain:
 					| Layer | Technology | Purpose |
 					
-					Include frontend, backend, database, integration, security, hosting, and DevOps technologies where applicable.
+					Include frontend, backend, database and any other thing strictly as mentioned in the requirement summary not any other input.
                     
                     # 5. Important Process Flows
                     

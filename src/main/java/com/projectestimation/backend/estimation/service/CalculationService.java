@@ -7,14 +7,24 @@ import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.dto.ActorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.ActorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.ActorDto;
+import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationRequest;
+import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationResponse;
+import com.projectestimation.backend.estimation.dto.EnvironmentalFactorDto;
+import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
+import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationResponse;
+import com.projectestimation.backend.estimation.dto.TechnicalFactorDto;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationRequest;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationResponse;
 import com.projectestimation.backend.estimation.dto.UseCaseDto;
 import com.projectestimation.backend.estimation.model.EstimationActor;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
+import com.projectestimation.backend.estimation.model.EstimationEnvironmentalFactor;
+import com.projectestimation.backend.estimation.model.EstimationTechnicalFactor;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.estimation.repository.EstimationActorRepository;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
+import com.projectestimation.backend.estimation.repository.EstimationEnvironmentalFactorRepository;
+import com.projectestimation.backend.estimation.repository.EstimationTechnicalFactorRepository;
 import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
@@ -27,17 +37,23 @@ public class CalculationService {
     private final EstimationAnalysisRepository estimationAnalysisRepository;
     private final EstimationActorRepository estimationActorRepository;
     private final EstimationUseCaseRepository estimationUseCaseRepository;
+    private final EstimationTechnicalFactorRepository estimationTechnicalFactorRepository;
+    private final EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository;
 
     public CalculationService(
             OpportunityRepository opportunityRepository,
             EstimationAnalysisRepository estimationAnalysisRepository,
             EstimationActorRepository estimationActorRepository,
-            EstimationUseCaseRepository estimationUseCaseRepository) {
+            EstimationUseCaseRepository estimationUseCaseRepository,
+            EstimationTechnicalFactorRepository estimationTechnicalFactorRepository,
+            EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository) {
 
         this.opportunityRepository = opportunityRepository;
         this.estimationAnalysisRepository = estimationAnalysisRepository;
         this.estimationActorRepository = estimationActorRepository;
         this.estimationUseCaseRepository = estimationUseCaseRepository;
+        this.estimationTechnicalFactorRepository = estimationTechnicalFactorRepository;
+        this.estimationEnvironmentalFactorRepository = estimationEnvironmentalFactorRepository;
     }
 
     public ActorCalculationResponse calculate(
@@ -192,5 +208,122 @@ public class CalculationService {
                 average,
                 complex,
                 uucp);
+    }
+    
+    public TechnicalFactorCalculationResponse calculate(
+            TechnicalFactorCalculationRequest request
+    ) {
+
+        EstimationAnalysis analysis =
+                estimationAnalysisRepository
+                        .findByOpportunityId(
+                                request.getOpportunityId()
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Estimation Analysis not found"
+                                ));
+
+        estimationTechnicalFactorRepository
+                .deleteByEstimationAnalysisId(
+                        analysis.getId()
+                );
+
+        double total = 0;
+
+        for (TechnicalFactorDto dto : request.getTechnicalFactors()) {
+
+            EstimationTechnicalFactor factor =
+                    new EstimationTechnicalFactor();
+
+            factor.setEstimationAnalysis(
+                    analysis
+            );
+
+            factor.setFactorName(
+                    dto.getFactorName()
+            );
+
+            factor.setMultiplier(
+                    dto.getMultiplier()
+            );
+
+            factor.setMagnitude(
+                    dto.getMagnitude()
+            );
+
+            estimationTechnicalFactorRepository
+                    .save(
+                            factor
+                    );
+
+            total +=
+                    dto.getMultiplier()
+                    * dto.getMagnitude();
+        }
+
+        double tcf =
+                0.6
+                + (total / 100.0);
+
+        analysis.setTcf(
+                tcf
+        );
+
+        estimationAnalysisRepository.save(
+                analysis
+        );
+
+        return new TechnicalFactorCalculationResponse(
+                tcf
+        );
+    }
+    
+    public EnvironmentalFactorCalculationResponse calculate(
+            EnvironmentalFactorCalculationRequest request
+    ) {
+
+        EstimationAnalysis analysis =
+                estimationAnalysisRepository
+                        .findByOpportunityId(request.getOpportunityId())
+                        .orElseThrow(() ->
+                                new RuntimeException("Estimation Analysis not found"));
+
+        estimationEnvironmentalFactorRepository
+                .deleteByEstimationAnalysisId(
+                        analysis.getId()
+                );
+
+        double weightedSum = 0;
+
+        for (EnvironmentalFactorDto dto : request.getEnvironmentalFactors()) {
+
+            EstimationEnvironmentalFactor factor =
+                    new EstimationEnvironmentalFactor();
+
+            factor.setEstimationAnalysis(analysis);
+            factor.setFactorName(dto.getFactorName());
+            factor.setMultiplier(dto.getMultiplier());
+            factor.setMagnitude(dto.getMagnitude());
+            factor.setDescription(dto.getDescription());
+
+            estimationEnvironmentalFactorRepository.save(factor);
+
+            weightedSum +=
+                    dto.getMultiplier()
+                    * dto.getMagnitude();
+        }
+
+        double ef =
+                1.4
+                + (-0.03 * weightedSum);
+
+        analysis.setEf(ef);
+
+        estimationAnalysisRepository.save(analysis);
+
+        return new EnvironmentalFactorCalculationResponse(
+                ef
+        );
     }
 }

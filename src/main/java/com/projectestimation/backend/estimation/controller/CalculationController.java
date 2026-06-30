@@ -7,6 +7,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.projectestimation.backend.estimation.dto.ActorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.ActorCalculationResponse;
+import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationRequest;
+import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationResponse;
+import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
+import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationRequest;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationResponse;
 import com.projectestimation.backend.estimation.service.CalculationService;
@@ -36,6 +40,21 @@ public class CalculationController {
 	    return calculationService.calculate(
 	            request
 	    );
+	}
+	
+	@PostMapping("/calculate-technical-factors")
+	public TechnicalFactorCalculationResponse calculateTechnicalFactors(
+	        @RequestBody TechnicalFactorCalculationRequest request
+	) {
+	    return calculationService.calculate(request);
+	}
+	
+	@PostMapping("/calculate-environmental-factors")
+	public EnvironmentalFactorCalculationResponse calculateEnvironmentalFactors(
+	        @RequestBody EnvironmentalFactorCalculationRequest request
+	) {
+
+	    return calculationService.calculate(request);
 	}
 
 }

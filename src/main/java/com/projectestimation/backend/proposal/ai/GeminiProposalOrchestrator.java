@@ -43,37 +43,47 @@ public class GeminiProposalOrchestrator {
                                              EstimateResult estimate,
                                              ProposalType proposalType, String baseFileName) {
     	
-    	String workflowResponse =
-                diagramService
-                        .identifyProcessFlows(
-                                opportunity
-                        );
+    	List<String> workflowNames = List.of();
 
-        List<String> workflowNames =
-                workflowResponse.lines()
-                        .map(String::trim)
-                        .filter(s -> !s.isBlank())
-                        .toList();
-        
-        StringBuilder workflowPlaceholderRules =
-                new StringBuilder();
+    	String workflowsSection = "";
 
-        for (int i = 0; i < workflowNames.size(); i++) {
+    	String workflowPlaceholderRules = "";
 
-            workflowPlaceholderRules.append(
-                    workflowNames.get(i)
-            )
-            .append(" -> {{PROCESS_FLOW_IMAGE_")
-            .append(i + 1)
-            .append("}}\n");
-        }
-        
-        String workflowsSection =
-                workflowNames.stream()
-                        .map(w -> "- " + w)
-                        .collect(
-                                java.util.stream.Collectors.joining("\n")
-                        );
+    	if (proposalType == ProposalType.EXPERT) {
+
+    	    String workflowResponse =
+    	            diagramService.identifyProcessFlows(
+    	                    opportunity
+    	            );
+
+    	    workflowNames =
+    	            workflowResponse.lines()
+    	                    .map(String::trim)
+    	                    .filter(s -> !s.isBlank())
+    	                    .toList();
+
+    	    StringBuilder placeholderBuilder =
+    	            new StringBuilder();
+
+    	    for (int i = 0; i < workflowNames.size(); i++) {
+
+    	        placeholderBuilder
+    	                .append(workflowNames.get(i))
+    	                .append(" -> {{PROCESS_FLOW_IMAGE_")
+    	                .append(i + 1)
+    	                .append("}}\n");
+    	    }
+
+    	    workflowPlaceholderRules =
+    	            placeholderBuilder.toString();
+
+    	    workflowsSection =
+    	            workflowNames.stream()
+    	                    .map(w -> "- " + w)
+    	                    .collect(
+    	                            java.util.stream.Collectors.joining("\n")
+    	                    );
+    	}
         
         String prompt = promptBuilder.build(opportunity, parameters, estimate, proposalType, workflowsSection, workflowPlaceholderRules.toString());
         try {
@@ -94,16 +104,20 @@ public class GeminiProposalOrchestrator {
                             );
 
             
-            List<String> processFlowHtmls =
-                    workflowNames.stream()
-                            .map(workflow ->
-                                    diagramService
-                                            .generateProcessFlowHtml(
-                                                    opportunity,
-                                                    workflow
-                                            )
-                            )
-                            .toList();
+            List<String> processFlowHtmls = List.of();
+
+            if (proposalType == ProposalType.EXPERT) {
+
+                processFlowHtmls =
+                        workflowNames.stream()
+                                .map(workflow ->
+                                        diagramService.generateProcessFlowHtml(
+                                                opportunity,
+                                                workflow
+                                        )
+                                )
+                                .toList();
+            }
             
             markdown =
                     injectStaticSections(
