@@ -9,6 +9,8 @@ import com.projectestimation.backend.estimation.dto.ActorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.ActorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationResponse;
+import com.projectestimation.backend.estimation.dto.FinalCalculationRequest;
+import com.projectestimation.backend.estimation.dto.FinalCalculationResponse;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationRequest;
@@ -55,6 +57,13 @@ public class CalculationController {
 	) {
 
 	    return calculationService.calculate(request);
+	}
+	
+	@PostMapping("/calculate-final")
+	public FinalCalculationResponse calculateFinal(
+	        @RequestBody FinalCalculationRequest request
+	) {
+	    return calculationService.calculateFinal(request);
 	}
 
 }

@@ -10,6 +10,8 @@ import com.projectestimation.backend.estimation.dto.ActorDto;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorDto;
+import com.projectestimation.backend.estimation.dto.FinalCalculationRequest;
+import com.projectestimation.backend.estimation.dto.FinalCalculationResponse;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorDto;
@@ -326,4 +328,50 @@ public class CalculationService {
                 ef
         );
     }
+    
+   public FinalCalculationResponse calculateFinal(
+        FinalCalculationRequest request
+) {
+
+    EstimationAnalysis analysis =
+            estimationAnalysisRepository
+                    .findByOpportunityId(
+                            request.getOpportunityId()
+                    )
+                    .orElseThrow(() ->
+                            new RuntimeException("Estimation Analysis not found"));
+
+    if (analysis.getUucp() == null
+            || analysis.getTcf() == null
+            || analysis.getEf() == null) {
+
+        throw new RuntimeException(
+                "UUCP, TCF and EF must be calculated before final calculation."
+        );
+    }
+
+    double ucp =
+            analysis.getUucp()
+            * analysis.getTcf()
+            * analysis.getEf();
+
+    double hoursOfEffort =
+            ucp
+            / request.getBenchmarkProductivityRatio();
+
+    analysis.setUcp(ucp);
+
+    analysis.setBenchmarkProductivityRatio(
+            request.getBenchmarkProductivityRatio()
+    );
+
+    analysis.setHoursOfEffort(hoursOfEffort);
+
+    estimationAnalysisRepository.save(analysis);
+
+    return new FinalCalculationResponse(
+            ucp,
+            hoursOfEffort
+    );
+}
 }

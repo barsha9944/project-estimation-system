@@ -39,4 +39,8 @@ public class EstimationAnalysis {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+    
+    private Double benchmarkProductivityRatio;
+    
+    private Double hoursOfEffort;
 }

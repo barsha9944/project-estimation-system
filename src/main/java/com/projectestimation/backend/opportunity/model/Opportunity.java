@@ -49,7 +49,7 @@ public class Opportunity {
     @Column(nullable = false)
     private String clientName;
 
-    @Column(nullable = false, length = 10000)
+    @Column(nullable = false)
     private String requirementSummary;
 
     @Enumerated(EnumType.STRING)
