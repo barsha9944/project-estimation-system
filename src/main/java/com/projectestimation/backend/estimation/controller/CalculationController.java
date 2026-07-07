@@ -1,5 +1,10 @@
 package com.projectestimation.backend.estimation.controller;
 
+import java.io.IOException;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +21,7 @@ import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRe
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationRequest;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationResponse;
 import com.projectestimation.backend.estimation.service.CalculationService;
+import com.projectestimation.backend.opportunity.dto.DownloadEstimateRequest;
 
 @RestController
 @RequestMapping("/api/v1/opportunities/calculate")
@@ -64,6 +70,35 @@ public class CalculationController {
 	        @RequestBody FinalCalculationRequest request
 	) {
 	    return calculationService.calculateFinal(request);
+	}
+	
+	@PostMapping("/download-estimate")
+	public ResponseEntity<byte[]> downloadEstimate(
+	        @RequestBody DownloadEstimateRequest request)
+	        throws IOException {
+
+	    byte[] excel = calculationService.downloadEstimate(request);
+
+//	    return ResponseEntity.ok()
+//	            .header(
+//	                    HttpHeaders.CONTENT_DISPOSITION,
+//	                    "attachment; filename=Estimate.xlsx")
+//	            .contentType(
+//	                    MediaType.parseMediaType(
+//	                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+//	            .body(excel);
+	    
+	    String fileName =
+	            calculationService.getEstimateFileName(request);
+
+	    return ResponseEntity.ok()
+	            .header(
+	                    HttpHeaders.CONTENT_DISPOSITION,
+	                    "attachment; filename=\"" + fileName + "\"")
+	            .contentType(
+	                    MediaType.parseMediaType(
+	                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+	            .body(excel);
 	}
 
 }
