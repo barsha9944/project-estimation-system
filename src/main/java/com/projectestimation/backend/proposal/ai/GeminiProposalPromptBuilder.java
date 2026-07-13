@@ -6,19 +6,15 @@ import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.util.CurrencyFormatter;
-import com.projectestimation.backend.estimation.model.EstimateResult;
+import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
 
 @Component
 public class GeminiProposalPromptBuilder {
 
-    public String build(Opportunity opportunity, Parameters parameters, EstimateResult estimate, ProposalType proposalType, String workflowsSection,
+    public String build(Opportunity opportunity, Parameters parameters, EstimationAnalysis analysis, ProposalType proposalType, String workflowsSection,
     		String workflowPlaceholderRules) {
-        String currencyCode = estimate.getCurrency().name();
-        String formattedCost = CurrencyFormatter.formatAmount(estimate.getEstimatedCost(), estimate.getCurrency());
-        String formattedHourlyRate = CurrencyFormatter.formatAmount(parameters.getHourlyRate(), parameters.getCurrency())
-                + " per hour";
 
         String processFlowPrompt = "";
 
@@ -93,7 +89,7 @@ public class GeminiProposalPromptBuilder {
                 - Use Markdown tables where required (pipe syntax).
                 - Use bullet lists where appropriate.
                 - Maintain professional enterprise proposal formatting.
-                - Use %s for ALL monetary values. Do NOT convert currencies.
+                - Use the project's configured currency for all monetary values.
                 - Every Markdown table must use bold headers.
 					- Example:
 					| **Column 1** | **Column 2** |
@@ -110,21 +106,20 @@ public class GeminiProposalPromptBuilder {
                 - Expected Delivery Date: %s
                 - Requirement Summary: %s
 
-                PARAMETERS
-                - Complexity: %s
-                - Risk Factor: %.2f
-                - Productivity Factor: %.2f
-                - Hourly Rate: %s
-                - Currency: %s
-                - Team Size: %d
 
-                AI ESTIMATE
-                - Total Effort Hours: %.2f
-                - Estimated Cost: %s
-                - Timeline (weeks): %.2f
-                - Confidence Score: %.2f
-                - Breakdown: %s
-                - Reasoning: %s
+                ESTIMATION ANALYSIS
+
+				- Actor Weight : %d
+				
+				- UUCP : %d
+				
+				- Technical Complexity Factor : %.2f
+				
+				- Environmental Factor : %.2f
+				
+				- UCP : %.2f
+				
+				- Hours Of Effort : %.2f
 
         		%s
 
@@ -133,7 +128,6 @@ public class GeminiProposalPromptBuilder {
 				%s
              
                 """.formatted(
-                currencyCode,
                 opportunity.getOpportunityName(),
                 opportunity.getClientName(),
                 opportunity.getImplementationType().name(),
@@ -146,18 +140,12 @@ public class GeminiProposalPromptBuilder {
                         ? opportunity.getExpectedDeliveryDate().toString()
                         : "Not specified",
                 opportunity.getRequirementSummary(),
-                parameters.getComplexity().name(),
-                parameters.getRiskFactor(),
-                parameters.getProductivityFactor(),
-                formattedHourlyRate,
-                currencyCode,
-                parameters.getTeamSize(),
-                estimate.getTotalEffortHours(),
-                formattedCost,
-                estimate.getTimelineWeeks(),
-                estimate.getConfidenceScore(),
-                nullSafe(estimate.getBreakdown()),
-                nullSafe(estimate.getReasoning()),
+                analysis.getActorWeight(),
+                analysis.getUucp(),
+                analysis.getTcf(),
+                analysis.getEf(),
+                analysis.getUcp(),
+                analysis.getHoursOfEffort(),
                 processFlowPrompt,
                 resolveStructure(proposalType)
         );

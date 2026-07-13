@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.estimation.model.EstimateResult;
+import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
 import jakarta.persistence.Column;
@@ -34,8 +35,8 @@ public class Proposal {
     private Opportunity opportunity;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "estimate_id")
-    private EstimateResult estimateResult;
+    @JoinColumn(name = "estimation_analysis_id")
+    private EstimationAnalysis estimationAnalysis;
 
     @Column(nullable = false)
     private String title;
@@ -119,8 +120,8 @@ public class Proposal {
     public Long getId() { return id; }
     public Opportunity getOpportunity() { return opportunity; }
     public void setOpportunity(Opportunity opportunity) { this.opportunity = opportunity; }
-    public EstimateResult getEstimateResult() { return estimateResult; }
-    public void setEstimateResult(EstimateResult estimateResult) { this.estimateResult = estimateResult; }
+    public EstimationAnalysis getEstimationAnalysis() { return estimationAnalysis; }
+    public void setEstimationAnalysis(EstimationAnalysis estimationAnalysis) { this.estimationAnalysis = estimationAnalysis; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getMarkdownContent() { return markdownContent; }

@@ -8,7 +8,7 @@ import com.projectestimation.backend.common.ai.GeminiClient;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
-import com.projectestimation.backend.estimation.model.EstimateResult;
+import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.parameters.model.Parameters;
 import com.projectestimation.backend.proposal.service.GeminiDiagramGenerationService;
@@ -40,7 +40,7 @@ public class GeminiProposalOrchestrator {
 
     public AiProposalResult generateProposal(Opportunity opportunity,
                                              Parameters parameters,
-                                             EstimateResult estimate,
+                                             EstimationAnalysis analysis,
                                              ProposalType proposalType, String baseFileName) {
     	
     	List<String> workflowNames = List.of();
@@ -85,7 +85,7 @@ public class GeminiProposalOrchestrator {
     	                    );
     	}
         
-        String prompt = promptBuilder.build(opportunity, parameters, estimate, proposalType, workflowsSection, workflowPlaceholderRules.toString());
+        String prompt = promptBuilder.build(opportunity, parameters, analysis, proposalType, workflowsSection, workflowPlaceholderRules.toString());
         try {
             String rawResponse = geminiClient.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
             AiProposalResult parsed =

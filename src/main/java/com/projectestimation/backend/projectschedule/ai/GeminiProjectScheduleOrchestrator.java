@@ -1,0 +1,92 @@
+package com.projectestimation.backend.projectschedule.ai;
+
+import org.springframework.stereotype.Service;
+
+import com.projectestimation.backend.common.ai.GeminiClient;
+
+@Service
+public class GeminiProjectScheduleOrchestrator {
+
+    private static final int MAX_OUTPUT_TOKENS = 8192;
+
+    private final GeminiProjectSchedulePromptBuilder promptBuilder;
+
+    private final GeminiProjectScheduleResponseParser responseParser;
+
+    private final GeminiClient geminiClient;
+
+    public GeminiProjectScheduleOrchestrator(
+
+            GeminiProjectSchedulePromptBuilder promptBuilder,
+
+            GeminiProjectScheduleResponseParser responseParser,
+
+            GeminiClient geminiClient
+
+    ) {
+
+        this.promptBuilder = promptBuilder;
+
+        this.responseParser = responseParser;
+
+        this.geminiClient = geminiClient;
+
+    }
+
+    public AiProjectScheduleResult generate(
+
+            String proposal,
+
+            String actors,
+
+            String useCases,
+
+            String projectStartDate,
+
+            Integer teamSize,
+
+            Integer workingDays,
+
+            Integer workingHours,
+
+            Integer buffer
+
+    ) {
+
+        String prompt =
+                promptBuilder.build(
+
+                        proposal,
+
+                        actors,
+
+                        useCases,
+
+                        projectStartDate,
+
+                        teamSize,
+
+                        workingDays,
+
+                        workingHours,
+
+                        buffer
+
+                );
+
+        String json =
+                geminiClient.generateJsonContent(
+                        prompt,
+                        MAX_OUTPUT_TOKENS
+                );
+
+        return new AiProjectScheduleResult(
+
+                responseParser.parse(
+                        json
+                )
+
+        );
+
+    }
+}

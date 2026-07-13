@@ -31,14 +31,14 @@ public class ProposalController {
         this.proposalService = proposalService;
     }
 
-    @PostMapping("/generate")
-    public ResponseEntity<ApiResponse<ProposalGenerateResponse>> generate(
-            @Valid @RequestBody ProposalGenerateRequest request,
-            @AuthenticationPrincipal User user
-    ) {
-        ProposalGenerateResponse response = proposalService.generate(request, user);
-        return ResponseEntity.ok(ApiResponse.success("Proposal generated successfully", response));
-    }
+//    @PostMapping("/generate")
+//    public ResponseEntity<ApiResponse<ProposalGenerateResponse>> generate(
+//            @Valid @RequestBody ProposalGenerateRequest request,
+//            @AuthenticationPrincipal User user
+//    ) {
+//        ProposalGenerateResponse response = proposalService.generate(request, user);
+//        return ResponseEntity.ok(ApiResponse.success("Proposal generated successfully", response));
+//    }
 
     @GetMapping("/{proposalId}/download")
     public ResponseEntity<byte[]> download(@PathVariable Long proposalId) {

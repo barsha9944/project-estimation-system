@@ -25,7 +25,9 @@ import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimateResult;
+import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.repository.EstimateResultRepository;
+import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.OpportunityStatus;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
@@ -60,17 +62,17 @@ public class ProposalService {
 
 
 	private final ProposalRepository proposalRepository;
-	private final EstimateResultRepository estimateResultRepository;
+	private final EstimationAnalysisRepository estimationAnalysisRepository;
 	private final OpportunityRepository opportunityRepository;
 	private final ParametersRepository parametersRepository;
 	private final GeminiProposalOrchestrator geminiProposalOrchestrator;
 	private final PandocDocxConverter pandocDocxConverter;
 
-	public ProposalService(ProposalRepository proposalRepository, EstimateResultRepository estimateResultRepository,
+	public ProposalService(ProposalRepository proposalRepository, EstimationAnalysisRepository estimationAnalysisRepository,
 			OpportunityRepository opportunityRepository, ParametersRepository parametersRepository,
 			GeminiProposalOrchestrator geminiProposalOrchestrator, PandocDocxConverter pandocDocxConverter) {
 		this.proposalRepository = proposalRepository;
-		this.estimateResultRepository = estimateResultRepository;
+		this.estimationAnalysisRepository = estimationAnalysisRepository;
 		this.opportunityRepository = opportunityRepository;
 		this.parametersRepository = parametersRepository;
 		this.geminiProposalOrchestrator = geminiProposalOrchestrator;
@@ -85,7 +87,8 @@ public class ProposalService {
 	public ProposalResponse generateForOpportunity(Long opportunityId, ProposalType proposalType, User user) {
 		Opportunity opportunity = loadOpportunity(opportunityId);
 		Parameters parameters = loadParameters(opportunityId);
-		EstimateResult estimate = loadLatestEstimate(opportunityId);
+		EstimationAnalysis analysis =
+		        loadEstimationAnalysis(opportunityId);
 
 		int nextVersion = resolveNextVersion(opportunityId);
 
@@ -107,7 +110,14 @@ public class ProposalService {
 			e.printStackTrace();
 		}
         
-        AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, parameters, estimate,  proposalType, fileBaseName);
+        AiProposalResult aiResult =
+                geminiProposalOrchestrator.generateProposal(
+                        opportunity,
+                        parameters,
+                        analysis,
+                        proposalType,
+                        fileBaseName
+                );
         
         Path markdownFile =
                 proposalDir.resolve(
@@ -136,7 +146,7 @@ public class ProposalService {
 
 		Proposal proposal = new Proposal();
 		proposal.setOpportunity(opportunity);
-		proposal.setEstimateResult(estimate);
+		proposal.setEstimationAnalysis(analysis);
 		proposal.setTitle(title);
 		proposal.setMarkdownContent(aiResult.markdownContent());
 		proposal.setArchitectureHtml(aiResult.architectureHtml());
@@ -202,45 +212,12 @@ public class ProposalService {
 	/**
 	 * Legacy estimate-driven proposal generation (backward compatibility).
 	 */
-	public ProposalGenerateResponse generate(ProposalGenerateRequest request, User user) {
-		EstimateResult estimateResult = estimateResultRepository.findById(request.estimateId())
-				.orElseThrow(() -> new ResourceNotFoundException("Estimate not found"));
-
-		String summary = buildLegacySummary(request, estimateResult);
-		String fileName = "proposal-" + estimateResult.getId() + ".txt";
-
-		Proposal proposal = new Proposal();
-		proposal.setEstimateResult(estimateResult);
-		proposal.setTitle(request.proposalTitle());
-		proposal.setMarkdownContent(summary);
-		proposal.setSummaryText(summary);
-		proposal.setFileName(fileName);
-		proposal.setFileType(MediaType.TEXT_PLAIN_VALUE);
-		proposal.setFileContent(summary.getBytes(StandardCharsets.UTF_8));
-		proposal.setGeneratedByAI(false);
-		proposal.setVersion(1);
-		proposal.setGeneratedBy(user);
-
-		if (estimateResult.getOpportunity() != null) {
-			proposal.setOpportunity(estimateResult.getOpportunity());
-		}
-
-		Proposal saved = proposalRepository.save(proposal);
-
-		return new ProposalGenerateResponse(saved.getId(), saved.getTitle(), saved.getGeneratedAt(),
-				"/api/v1/proposals/" + saved.getId() + "/download");
-	}
 
 	public ResponseEntity<byte[]> download(Long proposalId) {
 		Proposal proposal = proposalRepository.findById(proposalId)
 				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found"));
 
-		if (proposal.isGeneratedByAI()) {
-			return buildDocxDownloadResponse(proposal);
-		}
-
-
-		return buildLegacyDownloadResponse(proposal);
+		return buildDocxDownloadResponse(proposal);
 	}
 
 	
@@ -315,17 +292,6 @@ public class ProposalService {
 		return ResponseEntity.ok().headers(headers).body(conversion.docxBytes());
 	}
 
-	private ResponseEntity<byte[]> buildLegacyDownloadResponse(Proposal proposal) {
-		if (proposal.getFileContent() == null) {
-			throw new ProposalFailedException("Proposal file content is not available");
-		}
-
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.parseMediaType(proposal.getFileType()));
-		headers.setContentDisposition(ContentDisposition.attachment().filename(proposal.getFileName()).build());
-
-		return ResponseEntity.ok().headers(headers).body(proposal.getFileContent());
-	}
 
 	private Opportunity loadOpportunity(Long opportunityId) {
 		return opportunityRepository.findById(opportunityId)
@@ -337,9 +303,16 @@ public class ProposalService {
 				.orElseThrow(() -> new ResourceNotFoundException("Parameters not found for this opportunity"));
 	}
 
-	private EstimateResult loadLatestEstimate(Long opportunityId) {
-		return estimateResultRepository.findFirstByOpportunity_IdOrderByCreatedAtDesc(opportunityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Estimate not found for this opportunity"));
+	private EstimationAnalysis loadEstimationAnalysis(Long opportunityId) {
+
+	    return estimationAnalysisRepository
+	            .findByOpportunityId(opportunityId)
+	            .orElseThrow(() ->
+	                    new ResourceNotFoundException(
+	                            "Estimation Analysis not found for this opportunity"
+	                    )
+	            );
+
 	}
 
 	private int resolveNextVersion(Long opportunityId) {
@@ -413,31 +386,6 @@ public class ProposalService {
         }
     }
    
-	private String buildLegacySummary(ProposalGenerateRequest request, EstimateResult estimateResult) {
-		String notes = request.notes() == null || request.notes().isBlank() ? "No additional notes provided."
-				: request.notes();
-
-		DecimalFormat df = new DecimalFormat("#.##");
-		StringBuilder proposal = new StringBuilder();
-
-		proposal.append("====================================================\n");
-		proposal.append("                PROJECT WORK PROPOSAL               \n");
-		proposal.append("====================================================\n\n");
-		proposal.append("Proposal Title: ").append(request.proposalTitle()).append("\n");
-		proposal.append("Project Name: ").append(estimateResult.getProjectName()).append("\n");
-		proposal.append("Generated On: ").append(java.time.LocalDate.now()).append("\n\n");
-		proposal.append("EXECUTIVE SUMMARY\n\n");
-		proposal.append(estimateResult.getRequirementSummary()).append("\n\n");
-		proposal.append("ESTIMATION SUMMARY\n\n");
-		proposal.append("Total Effort Hours: ").append(df.format(estimateResult.getTotalEffortHours())).append("\n");
-		proposal.append("Estimated Cost: ").append(estimateResult.getEstimatedCost()).append("\n");
-		proposal.append("Estimated Timeline (weeks): ").append(df.format(estimateResult.getTimelineWeeks()))
-				.append("\n");
-		proposal.append("Confidence Score: ").append(df.format(estimateResult.getConfidenceScore())).append("\n\n");
-		proposal.append("ADDITIONAL NOTES\n\n").append(notes).append("\n");
-
-		return proposal.toString();
-	}
 
 	@Transactional(readOnly = true)
 	public List<OpportunityProposalDto> getAllProposals() {
