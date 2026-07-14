@@ -89,5 +89,22 @@ public class ProjectScheduleController {
         );
 
     }
+    
+    @PostMapping("/download")
+    public ResponseEntity<byte[]> downloadProjectSchedule(
+
+            @PathVariable Long opportunityId,
+
+            @RequestBody
+            SaveProjectScheduleRequest request
+
+    ) {
+
+        return projectScheduleService.downloadProjectSchedule(
+                opportunityId,
+                request
+        );
+
+    }
 
 }

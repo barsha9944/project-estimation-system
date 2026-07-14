@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.auth.model.User;
@@ -22,11 +23,11 @@ import com.projectestimation.backend.projectschedule.dto.GenerateProjectSchedule
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
+import com.projectestimation.backend.projectschedule.excel.ProjectScheduleExcelExporter;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskRepository;
-import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
 import jakarta.transaction.Transactional;
@@ -52,6 +53,8 @@ public class ProjectScheduleService {
 	private final ProjectScheduleRepository projectScheduleRepository;
 
 	private final ProjectScheduleTaskRepository projectScheduleTaskRepository;
+	
+	private final ProjectScheduleExcelExporter projectScheduleExcelExporter;
 
 	
 
@@ -315,5 +318,31 @@ public class ProjectScheduleService {
 	    }
 	
 	}
+    
+    public ResponseEntity<byte[]> downloadProjectSchedule(
+
+            Long opportunityId,
+
+            SaveProjectScheduleRequest request
+
+    ) {
+
+    	byte[] excel =
+    	        projectScheduleExcelExporter.export(
+    	                request
+    	        );
+
+    	return ResponseEntity.ok()
+    	        .header(
+    	                "Content-Disposition",
+    	                "attachment; filename=ProjectSchedule.xlsx"
+    	        )
+    	        .header(
+    	                "Content-Type",
+    	                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    	        )
+    	        .body(excel);
+
+    }
 
 }
