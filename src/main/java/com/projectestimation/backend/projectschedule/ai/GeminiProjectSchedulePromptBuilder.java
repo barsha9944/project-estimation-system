@@ -2,12 +2,17 @@ package com.projectestimation.backend.projectschedule.ai;
 
 import org.springframework.stereotype.Component;
 
+import com.projectestimation.backend.estimation.model.EstimationAnalysis;
+import com.projectestimation.backend.opportunity.model.Opportunity;
+
 @Component
 public class GeminiProjectSchedulePromptBuilder {
 
     public String build(
 
-            String proposal,
+            Opportunity opportunity,
+            
+            EstimationAnalysis analysis,
 
             String actors,
 
@@ -26,126 +31,174 @@ public class GeminiProjectSchedulePromptBuilder {
     ) {
 
     	return """
-    			You are an expert IT Project Manager and Project Planner.
+    			You are a Senior IT Project Manager with expertise in enterprise software delivery.
 
-    			Generate a COMPLETE project schedule STRICTLY as VALID JSON.
-
-    			DO NOT return markdown.
-
-    			DO NOT return HTML.
-
-    			DO NOT return explanations.
+    			Generate a COMPLETE and REALISTIC project schedule STRICTLY as VALID JSON.
 
     			Return ONLY valid JSON.
 
+    			Do NOT return markdown.
+
+    			Do NOT return explanations.
+
+    			Do NOT wrap the response inside ```.
+
+    			====================================================
     			PROJECT INFORMATION
+    			====================================================
 
-    			Proposal:
+    			Project Name:
     			%s
 
-    			Actors:
+    			Client Name:
     			%s
 
-    			Use Cases:
+    			Implementation Type:
     			%s
 
+    			Actor Weight:
+    			%d
+
+    			UUCP:
+    			%d
+
+    			Technical Complexity Factor:
+    			%.2f
+
+    			Environmental Factor:
+    			%.2f
+
+    			Use Case Points (UCP):
+    			%.2f
+
+    			Estimated Hours Of Effort:
+    			%.2f
+
+    			====================================================
+    			ACTORS
+    			====================================================
+
+    			%s
+
+    			====================================================
+    			USE CASES
+    			====================================================
+
+    			%s
+
+    			====================================================
     			PROJECT INPUTS
+    			====================================================
 
-    			Project Start Date : %s
+    			Project Start Date:
+    			%s
 
-    			Team Size : %d
+    			Team Size:
+    			%d
 
-    			Working Days Per Week : %d
+    			Working Days Per Week:
+    			%d
 
-    			Working Hours Per Day : %d
+    			Working Hours Per Day:
+    			%d
 
-    			Buffer Percentage : %d
+    			Buffer Percentage:
+    			%d
 
+    			====================================================
     			INSTRUCTIONS
+    			====================================================
 
-    			1. Analyse the proposal, actors and use cases.
+    			1. Analyse the project information, actors and use cases.
 
-    			2. Identify ALL implementation activities required.
+    			2. Create a realistic enterprise software implementation schedule.
 
-    			3. Create realistic enterprise software implementation tasks.
+    			3. Generate all functional and technical implementation tasks.
 
-    			4. Arrange tasks in execution order.
+    			4. Include analysis, design, development, testing, deployment and support activities wherever applicable.
 
-    			5. Generate predecessor values.
+    			5. Arrange tasks in logical execution order.
 
-    			6. Calculate duration for every task.
+    			6. Create realistic predecessors.
 
-    			7. Calculate planned start date.
+    			7. Multiple tasks may execute in parallel whenever possible.
 
-    			8. Calculate planned end date.
+    			8. Calculate realistic duration for every task.
 
-    			9. Initial status must be PLANNED.
+    			9. Calculate plannedStartDate.
 
-    			10. actualStartDate must be null.
+    			10. Calculate plannedEndDate.
 
-    			11. actualEndDate must be null.
+    			11. actualStartDate must be null.
 
-    			12. Return summary information.
+    			12. actualEndDate must be null.
 
+    			13. Initial status must always be PLANNED.
+
+    			14. durationDays should represent the complete project duration.
+
+    			15. estimatedHours should be equal to the estimated effort distributed across all tasks.
+
+    			====================================================
     			OUTPUT FORMAT
+    			====================================================
 
     			{
     			  "durationDays": number,
-
     			  "totalTasks": number,
-
     			  "completedTasks": 0,
-
     			  "criticalTasks": number,
-
     			  "estimatedHours": number,
-
-    			  "tasks":[
-    			     {
-    			        "sequence":1,
-
-    			        "taskName":"",
-
-    			        "plannedStartDate":"yyyy-MM-dd",
-
-    			        "plannedEndDate":"yyyy-MM-dd",
-
-    			        "actualStartDate":null,
-
-    			        "actualEndDate":null,
-
-    			        "predecessor":"",
-
-    			        "status":"PLANNED"
-    			     }
+    			  "tasks": [
+    			    {
+    			      "sequence": 1,
+    			      "taskName": "",
+    			      "duration": number,
+    			      "plannedStartDate": "yyyy-MM-dd",
+    			      "plannedEndDate": "yyyy-MM-dd",
+    			      "actualStartDate": null,
+    			      "actualEndDate": null,
+    			      "predecessor": "",
+    			      "status": "PLANNED"
+    			    }
     			  ]
     			}
 
-    			IMPORTANT
+    			Return ONLY valid JSON.
+    			"""
+    			.formatted(
 
-    			Return ONLY JSON.
+    			        opportunity.getOpportunityName(),
 
-    			Do not wrap inside ```.
+    			        opportunity.getClientName(),
 
-    			Do not explain anything.
+    			        opportunity.getImplementationType().name(),
 
-    			""".formatted(
+    			        analysis.getActorWeight(),
 
-    			proposal,
+    			        analysis.getUucp(),
 
-    			actors,
+    			        analysis.getTcf(),
 
-    			useCases,
+    			        analysis.getEf(),
 
-    			projectStartDate,
+    			        analysis.getUcp(),
 
-    			teamSize,
+    			        analysis.getHoursOfEffort(),
 
-    			workingDays,
+    			        actors,
 
-    			workingHours,
+    			        useCases,
 
-    			buffer
+    			        projectStartDate,
+
+    			        teamSize,
+
+    			        workingDays,
+
+    			        workingHours,
+
+    			        buffer
 
     			);
 

@@ -2,13 +2,15 @@ package com.projectestimation.backend.projectschedule.dto;
 
 import java.time.LocalDate;
 
-public class ProjectScheduleTaskResponse {
-	
-	private Long id;
+public class SaveProjectScheduleTaskRequest {
+
+    private Long id;
 
     private Integer sequence;
 
     private String taskName;
+
+    private Integer duration;
 
     private LocalDate plannedStartDate;
 
@@ -22,17 +24,15 @@ public class ProjectScheduleTaskResponse {
 
     private String status;
 
-    private Integer duration;
-    
     public Long getId() {
-		return id;
-	}
+        return id;
+    }
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-	public Integer getSequence() {
+    public Integer getSequence() {
         return sequence;
     }
 
@@ -46,6 +46,14 @@ public class ProjectScheduleTaskResponse {
 
     public void setTaskName(String taskName) {
         this.taskName = taskName;
+    }
+
+    public Integer getDuration() {
+        return duration;
+    }
+
+    public void setDuration(Integer duration) {
+        this.duration = duration;
     }
 
     public LocalDate getPlannedStartDate() {
@@ -95,14 +103,4 @@ public class ProjectScheduleTaskResponse {
     public void setStatus(String status) {
         this.status = status;
     }
-
-	public Integer getDuration() {
-		return duration;
-	}
-
-	public void setDuration(Integer duration) {
-		this.duration = duration;
-	}
-    
-    
 }

@@ -3,6 +3,8 @@ package com.projectestimation.backend.projectschedule.ai;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.estimation.model.EstimationAnalysis;
+import com.projectestimation.backend.opportunity.model.Opportunity;
 
 @Service
 public class GeminiProjectScheduleOrchestrator {
@@ -35,7 +37,9 @@ public class GeminiProjectScheduleOrchestrator {
 
     public AiProjectScheduleResult generate(
 
-            String proposal,
+            Opportunity opportunity,
+            
+            EstimationAnalysis analysis,
 
             String actors,
 
@@ -56,7 +60,9 @@ public class GeminiProjectScheduleOrchestrator {
         String prompt =
                 promptBuilder.build(
 
-                        proposal,
+                        opportunity,
+                        
+                        analysis,
 
                         actors,
 

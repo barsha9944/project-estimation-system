@@ -12,6 +12,7 @@ import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.response.ApiResponse;
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
+import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.service.ProjectScheduleService;
 
 import jakarta.validation.Valid;
@@ -54,6 +55,36 @@ public class ProjectScheduleController {
                 ApiResponse.success(
                         "Project schedule generated successfully.",
                         response
+                )
+        );
+
+    }
+    
+    
+    @PostMapping
+    public ResponseEntity<ApiResponse<Void>> saveProjectSchedule(
+
+            @PathVariable Long opportunityId,
+
+            @Valid
+            @RequestBody
+            SaveProjectScheduleRequest request,
+
+            @AuthenticationPrincipal
+            User user
+
+    ) {
+
+        projectScheduleService.saveProjectSchedule(
+                opportunityId,
+                request,
+                user
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Project schedule saved successfully.",
+                        null
                 )
         );
 

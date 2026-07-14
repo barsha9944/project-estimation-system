@@ -3,6 +3,8 @@ package com.projectestimation.backend.projectschedule.dto;
 import java.util.List;
 
 public class ProjectScheduleResponse {
+	
+	private Long id;
 
     private Integer durationDays;
 
@@ -16,7 +18,15 @@ public class ProjectScheduleResponse {
 
     private List<ProjectScheduleTaskResponse> tasks;
 
-    public Integer getDurationDays() {
+    public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Integer getDurationDays() {
         return durationDays;
     }
 

@@ -1,6 +1,8 @@
 package com.projectestimation.backend.projectschedule.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -18,9 +20,16 @@ import com.projectestimation.backend.projectschedule.ai.AiProjectScheduleResult;
 import com.projectestimation.backend.projectschedule.ai.GeminiProjectScheduleOrchestrator;
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
+import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
+import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
+import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskRepository;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 
@@ -39,6 +48,12 @@ public class ProjectScheduleService {
 	private final ProposalRepository proposalRepository;
 
 	private final GeminiProjectScheduleOrchestrator orchestrator;
+	
+	private final ProjectScheduleRepository projectScheduleRepository;
+
+	private final ProjectScheduleTaskRepository projectScheduleTaskRepository;
+
+	
 
     public ProjectScheduleResponse generateProjectSchedule(
 
@@ -65,17 +80,6 @@ public class ProjectScheduleService {
     	                .orElseThrow(
     	                        () -> new RuntimeException(
     	                                "Estimation Analysis not found."
-    	                        )
-    	                );
-    	
-    	Proposal proposal =
-    	        proposalRepository
-    	                .findFirstByOpportunity_IdOrderByVersionDesc(
-    	                        opportunityId
-    	                )
-    	                .orElseThrow(
-    	                        () -> new RuntimeException(
-    	                                "Proposal not found."
     	                        )
     	                );
     	
@@ -114,7 +118,9 @@ public class ProjectScheduleService {
     	AiProjectScheduleResult result =
     	        orchestrator.generate(
 
-    	                proposal.getMarkdownContent(),
+    	        		opportunity,
+    	        		
+    	        		analysis,
 
     	                actorText,
 
@@ -135,5 +141,179 @@ public class ProjectScheduleService {
     	return result.schedule();
 
     }
+    
+    @Transactional
+	public void saveProjectSchedule(
+	
+	        Long opportunityId,
+	
+	        SaveProjectScheduleRequest request,
+	
+	        User user
+	
+	) {
+	
+	    ProjectSchedule schedule =
+	            projectScheduleRepository
+	                    .findByOpportunityId(opportunityId)
+	                    .orElse(null);
+	
+	    if (schedule == null) {
+	
+	        schedule = new ProjectSchedule();
+	
+	    }
+	
+	    Opportunity opportunity =
+	            opportunityRepository
+	                    .findById(opportunityId)
+	                    .orElseThrow(() ->
+	                            new RuntimeException("Opportunity not found.")
+	                    );
+	
+	    EstimationAnalysis analysis =
+	            estimationAnalysisRepository
+	                    .findByOpportunityId(opportunityId)
+	                    .orElseThrow(() ->
+	                            new RuntimeException("Estimation analysis not found.")
+	                    );
+	
+	    schedule.setOpportunity(opportunity);
+	
+	    schedule.setEstimationAnalysis(analysis);
+	
+	    schedule.setSavedBy(user);
+	
+	    schedule.setProjectStartDate(
+	            request.getProjectStartDate()
+	    );
+	
+	    schedule.setTeamSize(
+	            request.getTeamSize()
+	    );
+	
+	    schedule.setWorkingDaysPerWeek(
+	            request.getWorkingDaysPerWeek()
+	    );
+	
+	    schedule.setWorkingHoursPerDay(
+	            request.getWorkingHoursPerDay()
+	    );
+	
+	    schedule.setBufferPercentage(
+	            request.getBufferPercentage()
+	    );
+	
+	    schedule.setDurationDays(
+	            request.getDurationDays()
+	    );
+	
+	    schedule.setTotalTasks(
+	            request.getTotalTasks()
+	    );
+	
+	    schedule.setCompletedTasks(
+	            request.getCompletedTasks()
+	    );
+	
+	    schedule.setCriticalTasks(
+	            request.getCriticalTasks()
+	    );
+	
+	    schedule.setEstimatedHours(
+	            request.getEstimatedHours()
+	    );
+	
+	    schedule =
+	            projectScheduleRepository.save(
+	                    schedule
+	            );
+	    
+	    List<ProjectScheduleTask> existingTasks =
+	            schedule.getId() == null
+	                    ? List.of()
+	                    : projectScheduleTaskRepository.findByProjectScheduleId(
+	                            schedule.getId()
+	                    );
+
+	    Map<Long, ProjectScheduleTask> existingTaskMap =
+	            new HashMap<>();
+
+	    for (ProjectScheduleTask task : existingTasks) {
+
+	        existingTaskMap.put(
+	                task.getId(),
+	                task
+	        );
+
+	    }
+
+	    List<ProjectScheduleTask> savedTasks = new java.util.ArrayList<>();
+
+	    for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
+
+	        ProjectScheduleTask task;
+
+	        if (taskRequest.getId() != null
+	                && existingTaskMap.containsKey(taskRequest.getId())) {
+
+	            task = existingTaskMap.get(
+	                    taskRequest.getId()
+	            );
+
+	        } else {
+
+	            task = new ProjectScheduleTask();
+
+	            task.setProjectSchedule(schedule);
+
+	        }
+
+	        task.setSequence(
+	                taskRequest.getSequence()
+	        );
+
+	        task.setTaskName(
+	                taskRequest.getTaskName()
+	        );
+
+	        task.setDuration(
+	                taskRequest.getDuration()
+	        );
+
+	        task.setPlannedStartDate(
+	                taskRequest.getPlannedStartDate()
+	        );
+
+	        task.setPlannedEndDate(
+	                taskRequest.getPlannedEndDate()
+	        );
+
+	        task.setActualStartDate(
+	                taskRequest.getActualStartDate()
+	        );
+
+	        task.setActualEndDate(
+	                taskRequest.getActualEndDate()
+	        );
+
+	        task.setPredecessor(
+	                taskRequest.getPredecessor()
+	        );
+
+	        task.setStatus(
+	                taskRequest.getStatus()
+	        );
+
+	        task =
+	                projectScheduleTaskRepository.save(
+	                        task
+	                );
+
+	        savedTasks.add(task);
+
+	    }
+	
+	}
 
 }
