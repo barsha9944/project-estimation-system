@@ -369,6 +369,16 @@ public class ProjectScheduleService {
         response.setCriticalTasks(schedule.getCriticalTasks());
 
         response.setEstimatedHours(schedule.getEstimatedHours());
+        
+        response.setBufferPercentage(schedule.getBufferPercentage());
+        
+        response.setProjectStartDate(schedule.getProjectStartDate());
+        
+        response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
+        
+        response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
+        
+        response.setTeamSize(schedule.getTeamSize());
 
         List<ProjectScheduleTaskResponse> tasks =
                 schedule.getTasks()

@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.dto;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class ProjectScheduleResponse {
@@ -15,6 +16,16 @@ public class ProjectScheduleResponse {
     private Integer criticalTasks;
 
     private Double estimatedHours;
+    
+    private Integer bufferPercentage;
+    
+    private Integer teamSize;
+    
+    private Integer WorkingDaysPerWeek;
+    
+    private Integer workingHoursPerDays;
+    
+    private LocalDate projectStartDate;
 
     private List<ProjectScheduleTaskResponse> tasks;
 
@@ -66,7 +77,48 @@ public class ProjectScheduleResponse {
         this.estimatedHours = estimatedHours;
     }
 
-    public List<ProjectScheduleTaskResponse> getTasks() {
+    
+    public Integer getBufferPercentage() {
+		return bufferPercentage;
+	}
+
+	public void setBufferPercentage(Integer bufferPercentage) {
+		this.bufferPercentage = bufferPercentage;
+	}
+
+	public Integer getTeamSize() {
+		return teamSize;
+	}
+
+	public void setTeamSize(Integer teamSize) {
+		this.teamSize = teamSize;
+	}
+
+	public Integer getWorkingDaysPerWeek() {
+		return WorkingDaysPerWeek;
+	}
+
+	public void setWorkingDaysPerWeek(Integer workingDaysPerWeek) {
+		WorkingDaysPerWeek = workingDaysPerWeek;
+	}
+
+	public Integer getWorkingHoursPerDays() {
+		return workingHoursPerDays;
+	}
+
+	public void setWorkingHoursPerDays(Integer workingHoursPerDays) {
+		this.workingHoursPerDays = workingHoursPerDays;
+	}
+
+	public LocalDate getProjectStartDate() {
+		return projectStartDate;
+	}
+
+	public void setProjectStartDate(LocalDate projectStartDate) {
+		this.projectStartDate = projectStartDate;
+	}
+
+	public List<ProjectScheduleTaskResponse> getTasks() {
         return tasks;
     }
 
