@@ -5,13 +5,16 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.Objects;
 
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
@@ -49,126 +52,152 @@ public class ProjectScheduleExcelExporter {
     }
 
     private void createProjectScheduleSheet(
-            XSSFWorkbook workbook,
-            SaveProjectScheduleRequest request
-    ) {
+        XSSFWorkbook workbook,
+        SaveProjectScheduleRequest request
+) {
 
-        Sheet sheet =
-                workbook.createSheet("Project Schedule");
+    Sheet sheet = workbook.createSheet("Project Schedule");
 
-        CellStyle headerStyle =
-                workbook.createCellStyle();
+    CellStyle headerStyle = createTableHeaderStyle(workbook);
 
-        Font headerFont =
-                workbook.createFont();
+    CellStyle cellStyle = createTableCellStyle(workbook);
 
-        headerFont.setBold(true);
+    CellStyle dateStyle = createDateCellStyle(workbook);
 
-        headerStyle.setFont(headerFont);
+    int rowIndex = 0;
 
-        int rowIndex = 0;
+    Row header = sheet.createRow(rowIndex++);
 
-        Row header =
-                sheet.createRow(rowIndex++);
+    String[] columns = {
 
-        String[] columns = {
+            "Seq",
 
-                "Seq",
+            "Task",
 
-                "Task",
+            "Duration",
 
-                "Duration",
+            "Planned Start",
 
-                "Planned Start",
+            "Planned End",
 
-                "Planned End",
+            "Actual Start",
 
-                "Actual Start",
+            "Actual End",
 
-                "Actual End",
+            "Predecessor",
 
-                "Predecessor",
+            "Status"
 
-                "Status"
+    };
 
-        };
+    // Header
+    for (int i = 0; i < columns.length; i++) {
 
-        for (int i = 0; i < columns.length; i++) {
+        Cell cell = header.createCell(i);
 
-            Cell cell =
-                    header.createCell(i);
+        cell.setCellValue(columns[i]);
 
-            cell.setCellValue(columns[i]);
-
-            cell.setCellStyle(headerStyle);
-
-        }
-
-        for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
-
-            Row row =
-                    sheet.createRow(rowIndex++);
-
-            int col = 0;
-
-            row.createCell(col++)
-                    .setCellValue(task.getSequence());
-
-            row.createCell(col++)
-                    .setCellValue(task.getTaskName());
-
-            row.createCell(col++)
-                    .setCellValue(task.getDuration());
-
-            row.createCell(col++)
-                    .setCellValue(
-                            task.getPlannedStartDate() == null
-                                    ? ""
-                                    : task.getPlannedStartDate().toString()
-                    );
-
-            row.createCell(col++)
-                    .setCellValue(
-                            task.getPlannedEndDate() == null
-                                    ? ""
-                                    : task.getPlannedEndDate().toString()
-                    );
-
-            row.createCell(col++)
-                    .setCellValue(
-                            task.getActualStartDate() == null
-                                    ? ""
-                                    : task.getActualStartDate().toString()
-                    );
-
-            row.createCell(col++)
-                    .setCellValue(
-                            task.getActualEndDate() == null
-                                    ? ""
-                                    : task.getActualEndDate().toString()
-                    );
-
-            row.createCell(col++)
-                    .setCellValue(task.getPredecessor());
-
-            row.createCell(col++)
-                    .setCellValue(task.getStatus());
-
-        }
-
-        for (int i = 0; i < columns.length; i++) {
-
-            sheet.autoSizeColumn(i);
-
-        }
+        cell.setCellStyle(headerStyle);
 
     }
+
+    // Data
+    for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
+
+        Row row = sheet.createRow(rowIndex++);
+
+        int col = 0;
+
+        Cell cell;
+
+        // Sequence
+        cell = row.createCell(col++);
+        cell.setCellValue(task.getSequence());
+        cell.setCellStyle(cellStyle);
+
+        // Task
+        cell = row.createCell(col++);
+        cell.setCellValue(task.getTaskName());
+        cell.setCellStyle(cellStyle);
+
+        // Duration
+        cell = row.createCell(col++);
+        cell.setCellValue(task.getDuration());
+        cell.setCellStyle(cellStyle);
+
+        // Planned Start
+        cell = row.createCell(col++);
+        if (task.getPlannedStartDate() != null) {
+            cell.setCellValue(task.getPlannedStartDate());
+        }
+        cell.setCellStyle(dateStyle);
+
+        // Planned End
+        cell = row.createCell(col++);
+        if (task.getPlannedEndDate() != null) {
+            cell.setCellValue(task.getPlannedEndDate());
+        }
+        cell.setCellStyle(dateStyle);
+
+        // Actual Start
+        cell = row.createCell(col++);
+        if (task.getActualStartDate() != null) {
+            cell.setCellValue(task.getActualStartDate());
+        }
+        cell.setCellStyle(dateStyle);
+
+        // Actual End
+        cell = row.createCell(col++);
+        if (task.getActualEndDate() != null) {
+            cell.setCellValue(task.getActualEndDate());
+        }
+        cell.setCellStyle(dateStyle);
+
+        // Predecessor
+        cell = row.createCell(col++);
+        cell.setCellValue(task.getPredecessor() == null ? "" : task.getPredecessor());
+        cell.setCellStyle(cellStyle);
+
+        // Status
+        cell = row.createCell(col++);
+        cell.setCellValue(task.getStatus() == null ? "" : task.getStatus());
+        cell.setCellStyle(cellStyle);
+
+    }
+
+    // Auto-size columns
+    for (int i = 0; i < columns.length; i++) {
+
+        sheet.autoSizeColumn(i);
+
+    }
+
+    // Freeze Header Row
+    sheet.createFreezePane(0, 1);
+
+    // Add Filters
+    sheet.setAutoFilter(
+            new CellRangeAddress(
+                    0,
+                    rowIndex - 1,
+                    0,
+                    columns.length - 1
+            )
+    );
+
+}
     private void createGanttSheet(
             XSSFWorkbook workbook,
             SaveProjectScheduleRequest request
     ) {
 
         Sheet sheet = workbook.createSheet("Gantt Chart");
+        
+        CellStyle monthHeaderStyle = createMonthHeaderStyle(workbook);
+
+        CellStyle dayHeaderStyle = createDayHeaderStyle(workbook);
+
+        CellStyle taskStyle = createTaskStyle(workbook);
 
         if (request.getTasks() == null || request.getTasks().isEmpty()) {
             return;
@@ -192,7 +221,11 @@ public class ProjectScheduleExcelExporter {
 
         Row dayRow = sheet.createRow(1);
 
-        monthRow.createCell(0).setCellValue("Task");
+        Cell taskHeader = monthRow.createCell(0);
+
+        taskHeader.setCellValue("Task");
+
+        taskHeader.setCellStyle(monthHeaderStyle);
 
         dayRow.createCell(0).setCellValue("");
 
@@ -211,8 +244,11 @@ public class ProjectScheduleExcelExporter {
             while (!current.isAfter(maxDate)
                     && current.getMonth() == currentMonth) {
 
-                dayRow.createCell(column)
-                        .setCellValue(current.getDayOfMonth());
+            	Cell dayCell = dayRow.createCell(column);
+
+            	dayCell.setCellValue(current.getDayOfMonth());
+
+            	dayCell.setCellStyle(dayHeaderStyle);
 
                 column++;
 
@@ -227,6 +263,8 @@ public class ProjectScheduleExcelExporter {
             monthCell.setCellValue(
                     currentMonth.name() + " " + current.getYear()
             );
+
+            monthCell.setCellStyle(monthHeaderStyle);
 
             sheet.addMergedRegion(
                     new CellRangeAddress(
@@ -279,8 +317,11 @@ public class ProjectScheduleExcelExporter {
             Row row =
                     sheet.createRow(rowNumber++);
 
-            row.createCell(0)
-                    .setCellValue(task.getTaskName());
+            Cell taskCell = row.createCell(0);
+
+            taskCell.setCellValue(task.getTaskName());
+
+            taskCell.setCellStyle(taskStyle);
 
             if (task.getPlannedStartDate() == null
                     || task.getPlannedEndDate() == null) {
@@ -329,5 +370,117 @@ public class ProjectScheduleExcelExporter {
         sheet.autoSizeColumn(0);
 
     }
+    
+    private CellStyle createMonthHeaderStyle(XSSFWorkbook workbook) {
 
+        CellStyle style = workbook.createCellStyle();
+
+        style.setFillForegroundColor(IndexedColors.ORANGE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+
+        style.setFont(font);
+
+        return style;
+    }
+    
+    
+    private CellStyle createDayHeaderStyle(XSSFWorkbook workbook) {
+
+        CellStyle style = workbook.createCellStyle();
+
+        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        style.setAlignment(HorizontalAlignment.CENTER);
+
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
+        Font font = workbook.createFont();
+        font.setBold(true);
+
+        style.setFont(font);
+
+        return style;
+    }
+    
+    private CellStyle createTaskStyle(XSSFWorkbook workbook) {
+
+        CellStyle style = workbook.createCellStyle();
+
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        return style;
+    }
+
+    private CellStyle createTableHeaderStyle(XSSFWorkbook workbook) {
+
+        CellStyle style = workbook.createCellStyle();
+
+        style.setFillForegroundColor(IndexedColors.ORANGE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+
+        style.setFont(font);
+
+        return style;
+    }
+    
+    private CellStyle createTableCellStyle(XSSFWorkbook workbook) {
+
+        CellStyle style = workbook.createCellStyle();
+
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        return style;
+    }
+    
+    private CellStyle createDateCellStyle(XSSFWorkbook workbook) {
+
+        CellStyle style = createTableCellStyle(workbook);
+
+        style.setDataFormat(
+                workbook.createDataFormat()
+                        .getFormat("dd-MMM-yyyy")
+        );
+
+        style.setAlignment(HorizontalAlignment.CENTER);
+
+        return style;
+    }
 }

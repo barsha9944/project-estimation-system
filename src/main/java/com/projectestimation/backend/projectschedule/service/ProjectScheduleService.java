@@ -21,6 +21,7 @@ import com.projectestimation.backend.projectschedule.ai.AiProjectScheduleResult;
 import com.projectestimation.backend.projectschedule.ai.GeminiProjectScheduleOrchestrator;
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
+import com.projectestimation.backend.projectschedule.dto.ProjectScheduleTaskResponse;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
 import com.projectestimation.backend.projectschedule.excel.ProjectScheduleExcelExporter;
@@ -345,4 +346,71 @@ public class ProjectScheduleService {
 
     }
 
+    
+    public ProjectScheduleResponse getProjectSchedule(
+            Long opportunityId
+    ) {
+
+    	ProjectSchedule schedule =
+    	        projectScheduleRepository
+    	                .findByOpportunityIdWithTasks(opportunityId)
+    	                .orElseThrow(() ->
+    	                        new RuntimeException("Project schedule not found."));
+
+        ProjectScheduleResponse response =
+                new ProjectScheduleResponse();
+
+        response.setDurationDays(schedule.getDurationDays());
+
+        response.setTotalTasks(schedule.getTotalTasks());
+
+        response.setCompletedTasks(schedule.getCompletedTasks());
+
+        response.setCriticalTasks(schedule.getCriticalTasks());
+
+        response.setEstimatedHours(schedule.getEstimatedHours());
+
+        List<ProjectScheduleTaskResponse> tasks =
+                schedule.getTasks()
+                        .stream()
+                        .map(this::mapTaskResponse)
+                        .toList();
+
+        response.setTasks(tasks);
+
+        return response;
+
+    }
+    
+    
+    private ProjectScheduleTaskResponse mapTaskResponse(
+            ProjectScheduleTask task
+    ) {
+
+        ProjectScheduleTaskResponse response =
+                new ProjectScheduleTaskResponse();
+
+        response.setId(task.getId());
+
+        response.setSequence(task.getSequence());
+
+        response.setTaskName(task.getTaskName());
+
+        response.setDuration(task.getDuration());
+
+        response.setPlannedStartDate(task.getPlannedStartDate());
+
+        response.setPlannedEndDate(task.getPlannedEndDate());
+
+        response.setActualStartDate(task.getActualStartDate());
+
+        response.setActualEndDate(task.getActualEndDate());
+
+        response.setPredecessor(task.getPredecessor());
+
+        response.setStatus(task.getStatus());
+
+        return response;
+
+    }
 }
