@@ -1,8 +1,6 @@
 package com.projectestimation.backend.projectschedule.service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
@@ -22,6 +20,7 @@ import com.projectestimation.backend.projectschedule.ai.GeminiProjectScheduleOrc
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleTaskResponse;
+import com.projectestimation.backend.projectschedule.dto.RecalculateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
 import com.projectestimation.backend.projectschedule.excel.ProjectScheduleExcelExporter;
@@ -56,6 +55,8 @@ public class ProjectScheduleService {
 	private final ProjectScheduleTaskRepository projectScheduleTaskRepository;
 	
 	private final ProjectScheduleExcelExporter projectScheduleExcelExporter;
+	
+	private final ProjectScheduleCalculator projectScheduleCalculator;
 
 	
 
@@ -233,45 +234,15 @@ public class ProjectScheduleService {
 	                    schedule
 	            );
 	    
-	    List<ProjectScheduleTask> existingTasks =
-	            schedule.getId() == null
-	                    ? List.of()
-	                    : projectScheduleTaskRepository.findByProjectScheduleId(
-	                            schedule.getId()
-	                    );
-
-	    Map<Long, ProjectScheduleTask> existingTaskMap =
-	            new HashMap<>();
-
-	    for (ProjectScheduleTask task : existingTasks) {
-
-	        existingTaskMap.put(
-	                task.getId(),
-	                task
-	        );
-
-	    }
-
-	    List<ProjectScheduleTask> savedTasks = new java.util.ArrayList<>();
-
+	    projectScheduleTaskRepository.deleteByProjectScheduleId(
+	            schedule.getId()
+	    );
+	    
 	    for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
 
-	        ProjectScheduleTask task;
+	        ProjectScheduleTask task = new ProjectScheduleTask();
 
-	        if (taskRequest.getId() != null
-	                && existingTaskMap.containsKey(taskRequest.getId())) {
-
-	            task = existingTaskMap.get(
-	                    taskRequest.getId()
-	            );
-
-	        } else {
-
-	            task = new ProjectScheduleTask();
-
-	            task.setProjectSchedule(schedule);
-
-	        }
+	        task.setProjectSchedule(schedule);
 
 	        task.setSequence(
 	                taskRequest.getSequence()
@@ -309,16 +280,12 @@ public class ProjectScheduleService {
 	                taskRequest.getStatus()
 	        );
 
-	        task =
-	                projectScheduleTaskRepository.save(
-	                        task
-	                );
+	        projectScheduleTaskRepository.save(task);
 
-	        savedTasks.add(task);
+	    }
 
 	    }
 	
-	}
     
     public ResponseEntity<byte[]> downloadProjectSchedule(
 
@@ -421,6 +388,20 @@ public class ProjectScheduleService {
         response.setStatus(task.getStatus());
 
         return response;
+
+    }
+    
+    
+    public ProjectScheduleResponse recalculateProjectSchedule(
+
+            Long opportunityId,
+
+            RecalculateProjectScheduleRequest request
+    ) {
+
+        return projectScheduleCalculator.recalculate(
+                request
+        );
 
     }
 }

@@ -10,5 +10,7 @@ public interface ProjectScheduleTaskRepository
         extends JpaRepository<ProjectScheduleTask, Long> {
 	
 	List<ProjectScheduleTask> findByProjectScheduleId(Long projectScheduleId);
+	
+	void deleteByProjectScheduleId(Long projectScheduleId);
 
 }

@@ -13,6 +13,7 @@ import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.response.ApiResponse;
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
+import com.projectestimation.backend.projectschedule.dto.RecalculateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.service.ProjectScheduleService;
 
@@ -125,6 +126,32 @@ public class ProjectScheduleController {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "Project schedule fetched successfully.",
+                        response
+                )
+        );
+
+    }
+    
+    
+    @PostMapping("/recalculate")
+    public ResponseEntity<ApiResponse<ProjectScheduleResponse>>
+    recalculateProjectSchedule(
+
+            @PathVariable Long opportunityId,
+
+            @RequestBody RecalculateProjectScheduleRequest request
+
+    ) {
+
+        ProjectScheduleResponse response =
+                projectScheduleService.recalculateProjectSchedule(
+                        opportunityId,
+                        request
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Project schedule recalculated successfully.",
                         response
                 )
         );
