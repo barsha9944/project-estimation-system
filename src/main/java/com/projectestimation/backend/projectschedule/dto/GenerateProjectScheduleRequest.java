@@ -29,8 +29,20 @@ public class GenerateProjectScheduleRequest {
     @Min(0)
     @Max(100)
     private Integer bufferPercentage;
+    
+    @NotNull
+    @Min(0)
+    private Double estimatedHours;
 
-    public LocalDate getProjectStartDate() {
+    public Double getEstimatedHours() {
+		return estimatedHours;
+	}
+
+	public void setEstimatedHours(Double estimatedHours) {
+		this.estimatedHours = estimatedHours;
+	}
+
+	public LocalDate getProjectStartDate() {
         return projectStartDate;
     }
 

@@ -122,29 +122,41 @@ public class ProjectScheduleService {
     	
     	AiProjectScheduleResult result =
     	        orchestrator.generate(
-
-    	        		opportunity,
-    	        		
-    	        		analysis,
-
+    	                opportunity,
+    	                analysis,
     	                actorText,
-
     	                useCaseText,
-
     	                request.getProjectStartDate().toString(),
-
     	                request.getTeamSize(),
-
     	                request.getWorkingDaysPerWeek(),
-
     	                request.getWorkingHoursPerDay(),
-
     	                request.getBufferPercentage()
-
     	        );
 
-    	return result.schedule();
+    	ProjectScheduleResponse response =
+    	        result.schedule();
 
+    	double hoursWithBuffer =
+    	        request.getEstimatedHours()
+    	        * (1 + request.getBufferPercentage() / 100.0);
+
+    	int durationDays =
+    	        (int) Math.ceil(
+    	                hoursWithBuffer
+    	                        / (
+    	                                request.getTeamSize()
+    	                                * request.getWorkingHoursPerDay()
+    	                        )
+    	        );
+
+    	response.setDurationDays(durationDays);
+
+    	response.setEstimatedHours(
+    	        request.getEstimatedHours()
+    	);
+
+    	return response;
+    	
     }
     
     @Transactional
