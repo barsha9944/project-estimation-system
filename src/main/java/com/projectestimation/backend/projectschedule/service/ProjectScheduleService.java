@@ -120,6 +120,17 @@ public class ProjectScheduleService {
     	                )
     	                .collect(Collectors.joining("\n"));
     	
+    	double hoursWithBuffer =
+    	        request.getEstimatedHours()
+    	        * (1 + request.getBufferPercentage() / 100.0);
+
+    	int durationDays =
+    	        (int) Math.ceil(
+    	                hoursWithBuffer /
+    	                (request.getTeamSize()
+    	                        * request.getWorkingHoursPerDay())
+    	        );
+    	
     	AiProjectScheduleResult result =
     	        orchestrator.generate(
     	                opportunity,
@@ -130,24 +141,14 @@ public class ProjectScheduleService {
     	                request.getTeamSize(),
     	                request.getWorkingDaysPerWeek(),
     	                request.getWorkingHoursPerDay(),
-    	                request.getBufferPercentage()
+    	                request.getBufferPercentage(),
+    	                durationDays,
+    	                request.getEstimatedHours()
     	        );
 
     	ProjectScheduleResponse response =
     	        result.schedule();
 
-    	double hoursWithBuffer =
-    	        request.getEstimatedHours()
-    	        * (1 + request.getBufferPercentage() / 100.0);
-
-    	int durationDays =
-    	        (int) Math.ceil(
-    	                hoursWithBuffer
-    	                        / (
-    	                                request.getTeamSize()
-    	                                * request.getWorkingHoursPerDay()
-    	                        )
-    	        );
 
     	response.setDurationDays(durationDays);
 

@@ -26,7 +26,11 @@ public class GeminiProjectSchedulePromptBuilder {
 
             Integer workingHours,
 
-            Integer buffer
+            Integer buffer,
+            
+            Integer durationDays,
+            
+            Double estimatedHours
 
     ) {
 
@@ -123,7 +127,7 @@ public class GeminiProjectSchedulePromptBuilder {
 
     			7. Multiple tasks may execute in parallel whenever possible.
 
-    			8. Calculate realistic duration for every task.
+    			8. Distribute the work across tasks so that the sum of all task durations fits exactly within the required project duration.
 
     			9. Calculate plannedStartDate.
 
@@ -135,7 +139,17 @@ public class GeminiProjectSchedulePromptBuilder {
 
     			13. Initial status must always be PLANNED.
 
-    			14. durationDays should represent the complete project duration.
+    			14. PROJECT DURATION
+
+				The total project duration MUST be exactly %d working days.
+				
+				Distribute all tasks so that:
+				
+				- The first task starts on the given Project Start Date.
+				- The final task ends exactly after %d working days.
+				- Respect the working days per week.
+				- Tasks may run in parallel whenever appropriate.
+				- Do not exceed or shorten the total project duration.
 
     			15. estimatedHours should be equal to the estimated effort distributed across all tasks.
 
@@ -165,6 +179,14 @@ public class GeminiProjectSchedulePromptBuilder {
     			}
 
     			Return ONLY valid JSON.
+    			
+    			
+    			Validation Rules
+
+				- durationDays MUST equal the required project duration.
+				- The last task plannedEndDate must correspond to the required project duration.
+				- Do not return a schedule longer or shorter than the required duration.
+				- If parallel tasks are created, ensure the overall project still completes within the required duration.
     			"""
     			.formatted(
 
@@ -198,7 +220,11 @@ public class GeminiProjectSchedulePromptBuilder {
 
     			        workingHours,
 
-    			        buffer
+    			        buffer,
+    			        
+    			        durationDays,
+    			        
+    			        durationDays
 
     			);
 

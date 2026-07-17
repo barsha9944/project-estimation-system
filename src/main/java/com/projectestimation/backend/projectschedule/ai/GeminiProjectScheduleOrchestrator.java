@@ -53,7 +53,11 @@ public class GeminiProjectScheduleOrchestrator {
 
             Integer workingHours,
 
-            Integer buffer
+            Integer buffer,
+            
+            Integer durationDays,
+            
+            Double estimatedHours
 
     ) {
 
@@ -76,7 +80,11 @@ public class GeminiProjectScheduleOrchestrator {
 
                         workingHours,
 
-                        buffer
+                        buffer,
+                        
+                        durationDays,
+                        
+                        estimatedHours
 
                 );
 
