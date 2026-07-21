@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimationActor;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
@@ -307,6 +308,17 @@ public class ProjectScheduleService {
             SaveProjectScheduleRequest request
 
     ) {
+    	
+    	Opportunity opportunity = opportunityRepository.findById(opportunityId)
+    	        .orElseThrow(() -> new ResourceNotFoundException(
+    	                "Opportunity not found: " + opportunityId));
+    	
+    	String opportunityName = opportunity.getOpportunityName();
+
+    	String fileName = opportunityName
+    	        .replaceAll("[\\\\/:*?\"<>|]", "_")
+    	        .replaceAll("\\s+", "_")
+    	        + "_Project_Schedule.xlsx";
 
     	byte[] excel =
     	        projectScheduleExcelExporter.export(
@@ -314,10 +326,10 @@ public class ProjectScheduleService {
     	        );
 
     	return ResponseEntity.ok()
-    	        .header(
-    	                "Content-Disposition",
-    	                "attachment; filename=ProjectSchedule.xlsx"
-    	        )
+    			.header(
+    				    "Content-Disposition",
+    				    "attachment; filename=\"" + fileName + "\""
+    				)
     	        .header(
     	                "Content-Type",
     	                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
