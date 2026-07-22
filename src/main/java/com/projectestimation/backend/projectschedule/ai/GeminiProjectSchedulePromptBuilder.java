@@ -152,31 +152,89 @@ public class GeminiProjectSchedulePromptBuilder {
 				- Do not exceed or shorten the total project duration.
 
     			15. estimatedHours should be equal to the estimated effort distributed across all tasks.
+    			
+    			16. Every task must contain a taskBreakdowns array.
+
+				17. For Requirement Gathering, Documentation, Analysis and Design tasks, generate exactly two task breakdowns:
+				   - Documentation
+				   - Review
+				
+				18. For Development or Coding tasks, generate exactly three task breakdowns:
+				   - Coding
+				   - Code Review
+				   - Unit Testing
+				
+				19. For System Integration Testing (SIT) and User Acceptance Testing (UAT), do not generate additional task breakdowns unless absolutely necessary.
+				
+				20. The sum of the task breakdown durations must always equal the parent task duration.
+				
+				21. Distribute the TOTAL PROJECT EFFORT approximately as follows:
+
+					• Analysis and Design activities: 30%%
+					
+					• Development (Coding) activities: 50%%
+					
+					• System Integration Testing (SIT): 10%%
+					
+					• User Acceptance Testing (UAT): 5%%
+					
+					• Reviews (Documentation Review, Code Review, General Review) and Unit Testing together: 5%%
+					
+					22. These percentages apply to the ENTIRE PROJECT, not to each individual task.
+					
+					23. While generating tasks and task breakdowns, ensure the overall schedule follows these percentages as closely as possible.
+					
+					24. If rounding leaves any remaining effort, allocate it to SIT and UAT while keeping the overall project duration unchanged.
+					
+					25. Do not generate equal duration tasks. Allocate effort realistically according to project complexity.
+					
+					26. Task breakdowns must execute sequentially within the parent task.
+
+						For example:
+						
+						Requirement Analysis
+						  Documentation
+						  Review
+						
+						User Module Development
+						  Coding
+						  Code Review
+						  Unit Testing
+						
+						The first task breakdown starts on the parent task start date and the last task breakdown ends on the parent task end date.
 
     			====================================================
     			OUTPUT FORMAT
     			====================================================
 
     			{
-    			  "durationDays": number,
-    			  "totalTasks": number,
-    			  "completedTasks": 0,
-    			  "criticalTasks": number,
-    			  "estimatedHours": number,
-    			  "tasks": [
-    			    {
-    			      "sequence": 1,
-    			      "taskName": "",
-    			      "duration": number,
-    			      "plannedStartDate": "yyyy-MM-dd",
-    			      "plannedEndDate": "yyyy-MM-dd",
-    			      "actualStartDate": null,
-    			      "actualEndDate": null,
-    			      "predecessor": "",
-    			      "status": "PLANNED"
-    			    }
-    			  ]
-    			}
+				  "durationDays": number,
+				  "totalTasks": number,
+				  "completedTasks": 0,
+				  "criticalTasks": number,
+				  "estimatedHours": number,
+				  "tasks": [
+				    {
+				      "sequence": 1,
+				      "taskName": "",
+				      "duration": number,
+				      "plannedStartDate": "yyyy-MM-dd",
+				      "plannedEndDate": "yyyy-MM-dd",
+				      "actualStartDate": null,
+				      "actualEndDate": null,
+				      "predecessor": "",
+				      "status": "PLANNED",
+				      "taskBreakdowns": [
+				        {
+				          "activityName": "",
+				          "duration": number,
+				          "plannedStartDate": "yyyy-MM-dd",
+				          "plannedEndDate": "yyyy-MM-dd"
+				        }
+				      ]
+				    }
+				  ]
+				}
 
     			Return ONLY valid JSON.
     			

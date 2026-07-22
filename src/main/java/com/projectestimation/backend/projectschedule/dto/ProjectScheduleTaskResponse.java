@@ -1,10 +1,13 @@
 package com.projectestimation.backend.projectschedule.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class ProjectScheduleTaskResponse {
 	
 	private Long id;
+	
+	private List<TaskBreakdownResponse> taskBreakdowns;
 
     private Integer sequence;
 
@@ -30,6 +33,14 @@ public class ProjectScheduleTaskResponse {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+
+	public List<TaskBreakdownResponse> getTaskBreakdowns() {
+		return taskBreakdowns;
+	}
+
+	public void setTaskBreakdowns(List<TaskBreakdownResponse> taskBreakdowns) {
+		this.taskBreakdowns = taskBreakdowns;
 	}
 
 	public Integer getSequence() {

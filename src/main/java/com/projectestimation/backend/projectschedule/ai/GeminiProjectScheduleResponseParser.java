@@ -16,26 +16,30 @@ public class GeminiProjectScheduleResponseParser {
         this.objectMapper = objectMapper;
     }
 
-    public ProjectScheduleResponse parse(
-            String json
-    ) {
+    public ProjectScheduleResponse parse(String json) {
 
-        try {
+    System.out.println("========== GEMINI RESPONSE ==========");
+    System.out.println(json);
+    System.out.println("=====================================");
 
-            return objectMapper.readValue(
-                    json,
-                    ProjectScheduleResponse.class
-            );
+    try {
 
-        } catch (Exception ex) {
+        return objectMapper.readValue(
+                json,
+                ProjectScheduleResponse.class
+        );
 
-            throw new RuntimeException(
-                    "Failed to parse Gemini response",
-                    ex
-            );
+    } catch (Exception ex) {
 
-        }
+        ex.printStackTrace();
+
+        throw new RuntimeException(
+                "Failed to parse Gemini response",
+                ex
+        );
 
     }
+
+}
 
 }

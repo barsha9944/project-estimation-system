@@ -37,9 +37,12 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openxmlformats.schemas.drawingml.x2006.chart.CTBarChart;
 import org.openxmlformats.schemas.drawingml.x2006.chart.CTBarSer;
 import org.openxmlformats.schemas.drawingml.x2006.chart.CTChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTDPt;
 import org.openxmlformats.schemas.drawingml.x2006.chart.CTPlotArea;
 import org.openxmlformats.schemas.drawingml.x2006.chart.CTValAx;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTSRgbColor;
 import org.openxmlformats.schemas.drawingml.x2006.main.CTShapeProperties;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTSolidColorFillProperties;
 import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
@@ -363,7 +366,7 @@ public class ProjectScheduleExcelExporter {
     
     chartData.setGapWidth(30);
 
-    chartData.setVaryColors(false);
+    chartData.setVaryColors(true);
 
     XDDFChartData.Series offsetSeries =
             chartData.addSeries(tasks, offsets);
@@ -401,8 +404,68 @@ public class ProjectScheduleExcelExporter {
             : offsetBar.addNewSpPr();
 
     shape.addNewNoFill();
+    
+    CTBarSer durationBar =
+            barChart.getSerArray(1);
+
+    for (int i = 0; i < lastRow; i++) {
+
+        String taskName =
+                dataSheet.getRow(i + 1)
+                         .getCell(0)
+                         .getStringCellValue();
+
+        byte[] color =
+                getTaskColor(taskName);
+
+        CTDPt point =
+                durationBar.addNewDPt();
+
+        point.addNewIdx().setVal(i);
+
+        CTShapeProperties spPr =
+                point.addNewSpPr();
+
+        CTSolidColorFillProperties fill =
+                spPr.addNewSolidFill();
+
+        CTSRgbColor rgb =
+                fill.addNewSrgbClr();
+
+        rgb.setVal(color);
+    }
 }
     
+   
+   private byte[] getTaskColor(String taskName) {
+
+	    taskName = taskName.toLowerCase();
+
+	    if (taskName.contains("requirement"))
+	        return new byte[]{33, (byte)150, (byte)243}; // Blue
+
+	    if (taskName.contains("architecture")
+	            || taskName.contains("design"))
+	        return new byte[]{(byte)156, 39, (byte)176}; // Purple
+
+	    if (taskName.contains("development")
+	            || taskName.contains("generation")
+	            || taskName.contains("logic"))
+	        return new byte[]{76, (byte)175, 80}; // Green
+
+	    if (taskName.contains("integration"))
+	        return new byte[]{(byte)255, (byte)152, 0}; // Orange
+
+	    if (taskName.contains("testing"))
+	        return new byte[]{(byte)244, 67, 54}; // Red
+
+	    if (taskName.contains("deployment"))
+	        return new byte[]{96, 125, (byte)139}; // Grey
+
+	    return new byte[]{0, (byte)188, (byte)212}; // Cyan
+	}
+   
+   
     private CellStyle createMonthHeaderStyle(XSSFWorkbook workbook) {
 
         CellStyle style = workbook.createCellStyle();

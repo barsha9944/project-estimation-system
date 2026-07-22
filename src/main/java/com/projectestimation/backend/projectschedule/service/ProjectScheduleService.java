@@ -1,5 +1,7 @@
 package com.projectestimation.backend.projectschedule.service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -132,6 +134,13 @@ public class ProjectScheduleService {
     	                        * request.getWorkingHoursPerDay())
     	        );
     	
+    	LocalDate projectEndDate =
+    	        calculateProjectEndDate(
+    	                request.getProjectStartDate(),
+    	                durationDays,
+    	                request.getWorkingDaysPerWeek()
+    	        );
+    	
     	AiProjectScheduleResult result =
     	        orchestrator.generate(
     	                opportunity,
@@ -152,6 +161,8 @@ public class ProjectScheduleService {
 
 
     	response.setDurationDays(durationDays);
+    	
+    	response.setProjectEndDate(projectEndDate);
 
     	response.setEstimatedHours(
     	        request.getEstimatedHours()
@@ -428,5 +439,42 @@ public class ProjectScheduleService {
                 request
         );
 
+    }
+    
+    private LocalDate calculateProjectEndDate(
+            LocalDate startDate,
+            int durationDays,
+            int workingDaysPerWeek
+    ) {
+
+        LocalDate currentDate = startDate;
+
+        int completedWorkingDays = 1;
+
+        while (completedWorkingDays < durationDays) {
+
+            currentDate = currentDate.plusDays(1);
+
+            if (isWorkingDay(currentDate, workingDaysPerWeek)) {
+                completedWorkingDays++;
+            }
+        }
+
+        return currentDate;
+    }
+    
+    private boolean isWorkingDay(
+            LocalDate date,
+            int workingDaysPerWeek
+    ) {
+
+        DayOfWeek day = date.getDayOfWeek();
+
+        if (workingDaysPerWeek == 5) {
+            return day != DayOfWeek.SATURDAY
+                    && day != DayOfWeek.SUNDAY;
+        }
+
+        return true;
     }
 }
