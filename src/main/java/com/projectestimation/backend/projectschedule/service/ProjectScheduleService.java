@@ -415,9 +415,9 @@ public class ProjectScheduleService {
 
         response.setPlannedEndDate(task.getPlannedEndDate());
 
-        response.setActualStartDate(task.getActualStartDate());
+        response.setActualStartDate(task.getActualStartDate()!= null ? task.getActualStartDate()  :task.getPlannedStartDate());
 
-        response.setActualEndDate(task.getActualEndDate());
+        response.setActualEndDate(task.getActualEndDate()!= null ? task.getActualEndDate() : task.getPlannedEndDate());
 
         response.setPredecessor(task.getPredecessor());
 
