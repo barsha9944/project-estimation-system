@@ -2,12 +2,12 @@ package com.projectestimation.backend.projectschedule.excel;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
-import java.time.Month;
 import java.util.Objects;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
@@ -16,11 +16,38 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xddf.usermodel.chart.AxisCrosses;
+import org.apache.poi.xddf.usermodel.chart.AxisOrientation;
+import org.apache.poi.xddf.usermodel.chart.AxisPosition;
+import org.apache.poi.xddf.usermodel.chart.BarDirection;
+import org.apache.poi.xddf.usermodel.chart.BarGrouping;
+import org.apache.poi.xddf.usermodel.chart.ChartTypes;
+import org.apache.poi.xddf.usermodel.chart.XDDFBarChartData;
+import org.apache.poi.xddf.usermodel.chart.XDDFCategoryAxis;
+import org.apache.poi.xddf.usermodel.chart.XDDFChartData;
+import org.apache.poi.xddf.usermodel.chart.XDDFDataSource;
+import org.apache.poi.xddf.usermodel.chart.XDDFDataSourcesFactory;
+import org.apache.poi.xddf.usermodel.chart.XDDFNumericalDataSource;
+import org.apache.poi.xddf.usermodel.chart.XDDFValueAxis;
+import org.apache.poi.xssf.usermodel.XSSFChart;
+import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
+import org.apache.poi.xssf.usermodel.XSSFDrawing;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTBarChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTBarSer;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTDPt;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTPlotArea;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTValAx;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTSRgbColor;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTShapeProperties;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTSolidColorFillProperties;
 import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
+import com.projectestimation.backend.projectschedule.util.ExcelChartDateAxisFixer;
 
 @Component
 public class ProjectScheduleExcelExporter {
@@ -32,13 +59,19 @@ public class ProjectScheduleExcelExporter {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
         ) {
 
-            createProjectScheduleSheet(workbook, request);
+        	createProjectScheduleSheet(workbook, request);
 
-            createGanttSheet(workbook, request);
+        	createHiddenGanttDataSheet(workbook, request);
 
-            workbook.write(outputStream);
+        	createGanttChartSheet(workbook);
 
-            return outputStream.toByteArray();
+        	workbook.write(outputStream);
+
+        	// Get workbook bytes
+        	byte[] workbookBytes = outputStream.toByteArray();
+
+        	// Fix chart XML
+        	return ExcelChartDateAxisFixer.fixDateAxis(workbookBytes);
 
         } catch (Exception ex) {
 
@@ -186,191 +219,253 @@ public class ProjectScheduleExcelExporter {
     );
 
 }
-    private void createGanttSheet(
-            XSSFWorkbook workbook,
-            SaveProjectScheduleRequest request
-    ) {
+   private void createHiddenGanttDataSheet(
+        XSSFWorkbook workbook,
+        SaveProjectScheduleRequest request) {
 
-        Sheet sheet = workbook.createSheet("Gantt Chart");
-        
-        CellStyle monthHeaderStyle = createMonthHeaderStyle(workbook);
+    Sheet sheet = workbook.createSheet("Gantt Data");
 
-        CellStyle dayHeaderStyle = createDayHeaderStyle(workbook);
+    // Hide the sheet
+    workbook.setSheetHidden(workbook.getSheetIndex(sheet), true);
 
-        CellStyle taskStyle = createTaskStyle(workbook);
+    Row header = sheet.createRow(0);
 
-        if (request.getTasks() == null || request.getTasks().isEmpty()) {
-            return;
-        }
+    header.createCell(0).setCellValue("Task");
+    header.createCell(1).setCellValue("Offset");
+    header.createCell(2).setCellValue("Duration");
 
-        LocalDate minDate = request.getTasks()
-                .stream()
-                .map(SaveProjectScheduleTaskRequest::getPlannedStartDate)
-                .filter(Objects::nonNull)
-                .min(LocalDate::compareTo)
-                .orElse(LocalDate.now());
-
-        LocalDate maxDate = request.getTasks()
-                .stream()
-                .map(SaveProjectScheduleTaskRequest::getPlannedEndDate)
-                .filter(Objects::nonNull)
-                .max(LocalDate::compareTo)
-                .orElse(minDate);
-
-        Row monthRow = sheet.createRow(0);
-
-        Row dayRow = sheet.createRow(1);
-
-        Cell taskHeader = monthRow.createCell(0);
-
-        taskHeader.setCellValue("Task");
-
-        taskHeader.setCellStyle(monthHeaderStyle);
-
-        dayRow.createCell(0).setCellValue("");
-
-        int column = 1;
-
-        LocalDate current = minDate;
-
-        int monthStartColumn = 1;
-
-        while (!current.isAfter(maxDate)) {
-
-            Month currentMonth = current.getMonth();
-
-            int startColumn = column;
-
-            while (!current.isAfter(maxDate)
-                    && current.getMonth() == currentMonth) {
-
-            	Cell dayCell = dayRow.createCell(column);
-
-            	dayCell.setCellValue(current.getDayOfMonth());
-
-            	dayCell.setCellStyle(dayHeaderStyle);
-
-                column++;
-
-                current = current.plusDays(1);
-
-            }
-
-            int endColumn = column - 1;
-
-            Cell monthCell = monthRow.createCell(startColumn);
-
-            monthCell.setCellValue(
-                    currentMonth.name() + " " + current.getYear()
-            );
-
-            monthCell.setCellStyle(monthHeaderStyle);
-
-            sheet.addMergedRegion(
-                    new CellRangeAddress(
-                            0,
-                            0,
-                            startColumn,
-                            endColumn
-                    )
-            );
-
-        }
-
-        int rowNumber = 2;
-
-        CellStyle plannedStyle =
-                workbook.createCellStyle();
-
-        plannedStyle.setFillForegroundColor(
-                IndexedColors.LIGHT_BLUE.getIndex()
-        );
-
-        plannedStyle.setFillPattern(
-                FillPatternType.SOLID_FOREGROUND
-        );
-
-        CellStyle completedStyle =
-                workbook.createCellStyle();
-
-        completedStyle.setFillForegroundColor(
-                IndexedColors.BRIGHT_GREEN.getIndex()
-        );
-
-        completedStyle.setFillPattern(
-                FillPatternType.SOLID_FOREGROUND
-        );
-
-        CellStyle progressStyle =
-                workbook.createCellStyle();
-
-        progressStyle.setFillForegroundColor(
-                IndexedColors.ORANGE.getIndex()
-        );
-
-        progressStyle.setFillPattern(
-                FillPatternType.SOLID_FOREGROUND
-        );
-
-        for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
-
-            Row row =
-                    sheet.createRow(rowNumber++);
-
-            Cell taskCell = row.createCell(0);
-
-            taskCell.setCellValue(task.getTaskName());
-
-            taskCell.setCellStyle(taskStyle);
-
-            if (task.getPlannedStartDate() == null
-                    || task.getPlannedEndDate() == null) {
-
-                continue;
-
-            }
-
-            LocalDate day = minDate;
-
-            int excelColumn = 1;
-
-            while (!day.isAfter(maxDate)) {
-
-                if (!day.isBefore(task.getPlannedStartDate())
-                        && !day.isAfter(task.getPlannedEndDate())) {
-
-                    Cell cell =
-                            row.createCell(excelColumn);
-
-                    CellStyle style =
-                            plannedStyle;
-
-                    if ("COMPLETED".equalsIgnoreCase(task.getStatus())) {
-
-                        style = completedStyle;
-
-                    } else if ("IN_PROGRESS".equalsIgnoreCase(task.getStatus())) {
-
-                        style = progressStyle;
-
-                    }
-
-                    cell.setCellStyle(style);
-
-                }
-
-                excelColumn++;
-
-                day = day.plusDays(1);
-
-            }
-
-        }
-
-        sheet.autoSizeColumn(0);
-
+    if (request.getTasks() == null || request.getTasks().isEmpty()) {
+        return;
     }
+
+    LocalDate projectStart = request.getTasks()
+            .stream()
+            .map(SaveProjectScheduleTaskRequest::getPlannedStartDate)
+            .filter(Objects::nonNull)
+            .min(LocalDate::compareTo)
+            .orElse(LocalDate.now());
+
+    int rowIndex = 1;
+
+    for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
+
+        if (task.getPlannedStartDate() == null ||
+                task.getPlannedEndDate() == null) {
+            continue;
+        }
+
+        Row row = sheet.createRow(rowIndex++);
+
+        row.createCell(0).setCellValue(task.getTaskName());
+
+        double excelStartDate =
+                DateUtil.getExcelDate(task.getPlannedStartDate());
+
+        double excelEndDate =
+                DateUtil.getExcelDate(task.getPlannedEndDate());
+
+        row.createCell(1).setCellValue(excelStartDate);
+
+        row.createCell(2).setCellValue(
+                excelEndDate - excelStartDate + 1);
+    }
+
+    sheet.autoSizeColumn(0);
+}
+   
+   private void createGanttChartSheet(XSSFWorkbook workbook) {
+
+    XSSFSheet chartSheet = workbook.createSheet("Gantt Chart");
+
+    XSSFSheet dataSheet =
+            workbook.getSheet("Gantt Data");
+
+    XSSFDrawing drawing =
+            chartSheet.createDrawingPatriarch();
+
+    XSSFClientAnchor anchor =
+            drawing.createAnchor(
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    18,
+                    18);
+
+    XSSFChart chart =
+            drawing.createChart(anchor);
+
+    chart.setTitleText("Project Schedule");
+    chart.setTitleOverlay(false);
+
+    chart.deleteLegend();
+
+    XDDFCategoryAxis categoryAxis =
+            chart.createCategoryAxis(AxisPosition.LEFT);
     
+    categoryAxis.setOrientation(AxisOrientation.MAX_MIN);
+
+    XDDFValueAxis valueAxis =
+            chart.createValueAxis(AxisPosition.BOTTOM);
+
+    valueAxis.setCrosses(AxisCrosses.MIN);
+
+    // Try to display Excel serial numbers as dates
+    valueAxis.setNumberFormat("dd-MMM");
+    
+    double minDate =
+            DateUtil.getExcelDate(
+                    dataSheet.getRow(1)
+                            .getCell(1)
+                            .getLocalDateTimeCellValue()
+                            .toLocalDate());
+
+    valueAxis.setMinimum(minDate);
+
+    int lastRow =
+            dataSheet.getLastRowNum();
+
+    XDDFDataSource<String> tasks =
+            XDDFDataSourcesFactory.fromStringCellRange(
+                    dataSheet,
+                    new CellRangeAddress(
+                            1,
+                            lastRow,
+                            0,
+                            0));
+
+    XDDFNumericalDataSource<Double> offsets =
+            XDDFDataSourcesFactory.fromNumericCellRange(
+                    dataSheet,
+                    new CellRangeAddress(
+                            1,
+                            lastRow,
+                            1,
+                            1));
+
+    XDDFNumericalDataSource<Double> durations =
+            XDDFDataSourcesFactory.fromNumericCellRange(
+                    dataSheet,
+                    new CellRangeAddress(
+                            1,
+                            lastRow,
+                            2,
+                            2));
+
+    XDDFBarChartData chartData =
+            (XDDFBarChartData) chart.createData(
+                    ChartTypes.BAR,
+                    categoryAxis,
+                    valueAxis);
+
+    chartData.setBarDirection(
+            BarDirection.BAR);
+    chartData.setBarGrouping(BarGrouping.STACKED);
+    
+    chartData.setGapWidth(30);
+
+    chartData.setVaryColors(true);
+
+    XDDFChartData.Series offsetSeries =
+            chartData.addSeries(tasks, offsets);
+
+    offsetSeries.setTitle("Offset", null);
+
+    XDDFChartData.Series durationSeries =
+            chartData.addSeries(tasks, durations);
+
+    durationSeries.setTitle("Duration", null);
+
+    chart.plot(chartData);
+    
+    CTChart ctChart = chart.getCTChart();
+
+    CTPlotArea plotArea = ctChart.getPlotArea();
+
+    CTValAx valAx = plotArea.getValAxArray(0);
+
+    if (!valAx.isSetNumFmt()) {
+        valAx.addNewNumFmt();
+    }
+
+    valAx.getNumFmt().setFormatCode("dd-MMM");
+    valAx.getNumFmt().setSourceLinked(false);
+
+    CTBarChart barChart = plotArea.getBarChartArray(0);
+
+    CTBarSer offsetBar =
+            barChart.getSerArray(0);
+
+    CTShapeProperties shape =
+            offsetBar.isSetSpPr()
+            ? offsetBar.getSpPr()
+            : offsetBar.addNewSpPr();
+
+    shape.addNewNoFill();
+    
+    CTBarSer durationBar =
+            barChart.getSerArray(1);
+
+    for (int i = 0; i < lastRow; i++) {
+
+        String taskName =
+                dataSheet.getRow(i + 1)
+                         .getCell(0)
+                         .getStringCellValue();
+
+        byte[] color =
+                getTaskColor(taskName);
+
+        CTDPt point =
+                durationBar.addNewDPt();
+
+        point.addNewIdx().setVal(i);
+
+        CTShapeProperties spPr =
+                point.addNewSpPr();
+
+        CTSolidColorFillProperties fill =
+                spPr.addNewSolidFill();
+
+        CTSRgbColor rgb =
+                fill.addNewSrgbClr();
+
+        rgb.setVal(color);
+    }
+}
+    
+   
+   private byte[] getTaskColor(String taskName) {
+
+	    taskName = taskName.toLowerCase();
+
+	    if (taskName.contains("requirement"))
+	        return new byte[]{33, (byte)150, (byte)243}; // Blue
+
+	    if (taskName.contains("architecture")
+	            || taskName.contains("design"))
+	        return new byte[]{(byte)156, 39, (byte)176}; // Purple
+
+	    if (taskName.contains("development")
+	            || taskName.contains("generation")
+	            || taskName.contains("logic"))
+	        return new byte[]{76, (byte)175, 80}; // Green
+
+	    if (taskName.contains("integration"))
+	        return new byte[]{(byte)255, (byte)152, 0}; // Orange
+
+	    if (taskName.contains("testing"))
+	        return new byte[]{(byte)244, 67, 54}; // Red
+
+	    if (taskName.contains("deployment"))
+	        return new byte[]{96, 125, (byte)139}; // Grey
+
+	    return new byte[]{0, (byte)188, (byte)212}; // Cyan
+	}
+   
+   
     private CellStyle createMonthHeaderStyle(XSSFWorkbook workbook) {
 
         CellStyle style = workbook.createCellStyle();

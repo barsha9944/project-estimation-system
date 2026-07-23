@@ -26,6 +26,8 @@ public class ProjectScheduleResponse {
     private Integer workingHoursPerDays;
     
     private LocalDate projectStartDate;
+    
+    private LocalDate projectEndDate;
 
     private List<ProjectScheduleTaskResponse> tasks;
 
@@ -125,4 +127,14 @@ public class ProjectScheduleResponse {
     public void setTasks(List<ProjectScheduleTaskResponse> tasks) {
         this.tasks = tasks;
     }
+
+	public LocalDate getProjectEndDate() {
+		return projectEndDate;
+	}
+
+	public void setProjectEndDate(LocalDate projectEndDate) {
+		this.projectEndDate = projectEndDate;
+	}
+    
+    
 }

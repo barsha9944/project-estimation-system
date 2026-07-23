@@ -1,5 +1,7 @@
 package com.projectestimation.backend.projectschedule.service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -7,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimationActor;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
@@ -131,6 +134,13 @@ public class ProjectScheduleService {
     	                        * request.getWorkingHoursPerDay())
     	        );
     	
+    	LocalDate projectEndDate =
+    	        calculateProjectEndDate(
+    	                request.getProjectStartDate(),
+    	                durationDays,
+    	                request.getWorkingDaysPerWeek()
+    	        );
+    	
     	AiProjectScheduleResult result =
     	        orchestrator.generate(
     	                opportunity,
@@ -151,6 +161,8 @@ public class ProjectScheduleService {
 
 
     	response.setDurationDays(durationDays);
+    	
+    	response.setProjectEndDate(projectEndDate);
 
     	response.setEstimatedHours(
     	        request.getEstimatedHours()
@@ -307,6 +319,17 @@ public class ProjectScheduleService {
             SaveProjectScheduleRequest request
 
     ) {
+    	
+    	Opportunity opportunity = opportunityRepository.findById(opportunityId)
+    	        .orElseThrow(() -> new ResourceNotFoundException(
+    	                "Opportunity not found: " + opportunityId));
+    	
+    	String opportunityName = opportunity.getOpportunityName();
+
+    	String fileName = opportunityName
+    	        .replaceAll("[\\\\/:*?\"<>|]", "_")
+    	        .replaceAll("\\s+", "_")
+    	        + "_Project_Schedule.xlsx";
 
     	byte[] excel =
     	        projectScheduleExcelExporter.export(
@@ -314,10 +337,10 @@ public class ProjectScheduleService {
     	        );
 
     	return ResponseEntity.ok()
-    	        .header(
-    	                "Content-Disposition",
-    	                "attachment; filename=ProjectSchedule.xlsx"
-    	        )
+    			.header(
+    				    "Content-Disposition",
+    				    "attachment; filename=\"" + fileName + "\""
+    				)
     	        .header(
     	                "Content-Type",
     	                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -416,5 +439,42 @@ public class ProjectScheduleService {
                 request
         );
 
+    }
+    
+    private LocalDate calculateProjectEndDate(
+            LocalDate startDate,
+            int durationDays,
+            int workingDaysPerWeek
+    ) {
+
+        LocalDate currentDate = startDate;
+
+        int completedWorkingDays = 1;
+
+        while (completedWorkingDays < durationDays) {
+
+            currentDate = currentDate.plusDays(1);
+
+            if (isWorkingDay(currentDate, workingDaysPerWeek)) {
+                completedWorkingDays++;
+            }
+        }
+
+        return currentDate;
+    }
+    
+    private boolean isWorkingDay(
+            LocalDate date,
+            int workingDaysPerWeek
+    ) {
+
+        DayOfWeek day = date.getDayOfWeek();
+
+        if (workingDaysPerWeek == 5) {
+            return day != DayOfWeek.SATURDAY
+                    && day != DayOfWeek.SUNDAY;
+        }
+
+        return true;
     }
 }
