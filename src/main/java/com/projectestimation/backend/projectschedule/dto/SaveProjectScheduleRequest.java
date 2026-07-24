@@ -34,6 +34,8 @@ public class SaveProjectScheduleRequest {
     
     private Integer duration;
 
+    private LocalDate projectEndDate;
+    
     private List<SaveProjectScheduleTaskRequest> tasks;
 
     public LocalDate getProjectStartDate() {
@@ -132,6 +134,14 @@ public class SaveProjectScheduleRequest {
 
 	public void setDuration(Integer duration) {
 		this.duration = duration;
+	}
+
+	public LocalDate getProjectEndDate() {
+		return projectEndDate;
+	}
+
+	public void setProjectEndDate(LocalDate projectEndDate) {
+		this.projectEndDate = projectEndDate;
 	}
     
     

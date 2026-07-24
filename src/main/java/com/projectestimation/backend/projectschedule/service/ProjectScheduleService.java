@@ -2,11 +2,13 @@ package com.projectestimation.backend.projectschedule.service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
@@ -26,14 +28,15 @@ import com.projectestimation.backend.projectschedule.dto.ProjectScheduleTaskResp
 import com.projectestimation.backend.projectschedule.dto.RecalculateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
+import com.projectestimation.backend.projectschedule.dto.TaskBreakdownResponse;
 import com.projectestimation.backend.projectschedule.excel.ProjectScheduleExcelExporter;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 
@@ -217,6 +220,10 @@ public class ProjectScheduleService {
 	    schedule.setProjectStartDate(
 	            request.getProjectStartDate()
 	    );
+	    
+	    schedule.setProjectEndDate(
+	            request.getProjectEndDate()
+	    );
 	
 	    schedule.setTeamSize(
 	            request.getTeamSize()
@@ -305,7 +312,46 @@ public class ProjectScheduleService {
 	                taskRequest.getStatus()
 	        );
 
-	        projectScheduleTaskRepository.save(task);
+	        ProjectScheduleTask savedTask =
+	                projectScheduleTaskRepository.save(task);
+	        
+	        if (taskRequest.getTaskBreakdowns() != null) {
+
+	            List<ProjectScheduleTaskBreakdown> breakdowns =
+	                    taskRequest.getTaskBreakdowns()
+	                            .stream()
+	                            .map(breakdownRequest -> {
+
+	                                ProjectScheduleTaskBreakdown breakdown =
+	                                        new ProjectScheduleTaskBreakdown();
+
+	                                breakdown.setProjectScheduleTask(savedTask);
+
+	                                breakdown.setActivityName(
+	                                        breakdownRequest.getActivityName()
+	                                );
+
+	                                breakdown.setDuration(
+	                                        breakdownRequest.getDuration()
+	                                );
+
+	                                breakdown.setPlannedStartDate(
+	                                        breakdownRequest.getPlannedStartDate()
+	                                );
+
+	                                breakdown.setPlannedEndDate(
+	                                        breakdownRequest.getPlannedEndDate()
+	                                );
+
+	                                return breakdown;
+
+	                            })
+	                            .collect(Collectors.toCollection(ArrayList::new));
+
+	            savedTask.setTaskBreakdowns(breakdowns);
+
+	            projectScheduleTaskRepository.save(savedTask);
+	        }
 
 	    }
 
@@ -349,7 +395,7 @@ public class ProjectScheduleService {
 
     }
 
-    
+    @Transactional(readOnly = true)
     public ProjectScheduleResponse getProjectSchedule(
             Long opportunityId
     ) {
@@ -377,6 +423,10 @@ public class ProjectScheduleService {
         
         response.setProjectStartDate(schedule.getProjectStartDate());
         
+        response.setProjectEndDate(
+                schedule.getProjectEndDate()
+        );
+        
         response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
         
         response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
@@ -396,36 +446,72 @@ public class ProjectScheduleService {
     }
     
     
-    private ProjectScheduleTaskResponse mapTaskResponse(
-            ProjectScheduleTask task
-    ) {
+  private ProjectScheduleTaskResponse mapTaskResponse(
+        ProjectScheduleTask task
+) {
 
-        ProjectScheduleTaskResponse response =
-                new ProjectScheduleTaskResponse();
+    ProjectScheduleTaskResponse response =
+            new ProjectScheduleTaskResponse();
 
-        response.setId(task.getId());
+    response.setSequence(task.getSequence());
 
-        response.setSequence(task.getSequence());
+    response.setTaskName(task.getTaskName());
 
-        response.setTaskName(task.getTaskName());
+    response.setDuration(task.getDuration());
 
-        response.setDuration(task.getDuration());
+    response.setPlannedStartDate(task.getPlannedStartDate());
 
-        response.setPlannedStartDate(task.getPlannedStartDate());
+    response.setPlannedEndDate(task.getPlannedEndDate());
 
-        response.setPlannedEndDate(task.getPlannedEndDate());
+    response.setActualStartDate(task.getActualStartDate());
+
 
         response.setActualStartDate(task.getActualStartDate()!= null ? task.getActualStartDate()  :task.getPlannedStartDate());
 
         response.setActualEndDate(task.getActualEndDate()!= null ? task.getActualEndDate() : task.getPlannedEndDate());
 
-        response.setPredecessor(task.getPredecessor());
+  
 
-        response.setStatus(task.getStatus());
+    response.setPredecessor(task.getPredecessor());
 
-        return response;
 
-    }
+    response.setStatus(task.getStatus());
+
+    response.setTaskBreakdowns(
+            task.getTaskBreakdowns()
+                    .stream()
+                    .map(this::mapTaskBreakdownResponse)
+                    .toList()
+    );
+
+    return response;
+}
+  
+  private TaskBreakdownResponse mapTaskBreakdownResponse(
+	        ProjectScheduleTaskBreakdown breakdown
+	) {
+
+	    TaskBreakdownResponse response =
+	            new TaskBreakdownResponse();
+
+	    response.setActivityName(
+	            breakdown.getActivityName()
+	    );
+
+	    response.setDuration(
+	            breakdown.getDuration()
+	    );
+
+	    response.setPlannedStartDate(
+	            breakdown.getPlannedStartDate()
+	    );
+
+	    response.setPlannedEndDate(
+	            breakdown.getPlannedEndDate()
+	    );
+
+	    return response;
+	}
     
     
     public ProjectScheduleResponse recalculateProjectSchedule(
