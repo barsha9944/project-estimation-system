@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
@@ -36,7 +37,6 @@ import com.projectestimation.backend.projectschedule.repository.ProjectScheduleR
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 
@@ -395,7 +395,7 @@ public class ProjectScheduleService {
 
     }
 
-    
+    @Transactional(readOnly = true)
     public ProjectScheduleResponse getProjectSchedule(
             Long opportunityId
     ) {
