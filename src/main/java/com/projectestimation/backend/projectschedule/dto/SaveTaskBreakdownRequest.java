@@ -9,17 +9,13 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class TaskBreakdownResponse {
+public class SaveTaskBreakdownRequest {
 
-    private String activityName;
+	private String activityName;
 
     private Integer duration;
 
     private LocalDate plannedStartDate;
 
     private LocalDate plannedEndDate;
-    
-    private LocalDate actualStartDate;
-    
-    private LocalDate actualEndDate;
 }

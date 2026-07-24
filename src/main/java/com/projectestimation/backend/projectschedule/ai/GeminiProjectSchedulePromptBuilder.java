@@ -133,13 +133,15 @@ public class GeminiProjectSchedulePromptBuilder {
 
     			10. Calculate plannedEndDate.
 
-    			11. actualStartDate must be null.
+    			11. actualStartDate = plannedStartDate for every task.
 
-    			12. actualEndDate must be null.
+				12. actualEndDate = plannedEndDate for every task.
+				
+				13. These values represent the initial baseline schedule before execution begins.
+				
+				14. Initial status must always be PLANNED.
 
-    			13. Initial status must always be PLANNED.
-
-    			14. PROJECT DURATION
+    			15. PROJECT DURATION
 
 				The total project duration MUST be exactly %d working days.
 				
@@ -151,24 +153,24 @@ public class GeminiProjectSchedulePromptBuilder {
 				- Tasks may run in parallel whenever appropriate.
 				- Do not exceed or shorten the total project duration.
 
-    			15. estimatedHours should be equal to the estimated effort distributed across all tasks.
+    			16. estimatedHours should be equal to the estimated effort distributed across all tasks.
     			
-    			16. Every task must contain a taskBreakdowns array.
+    			17. Every task must contain a taskBreakdowns array.
 
-				17. For Requirement Gathering, Documentation, Analysis and Design tasks, generate exactly two task breakdowns:
+				18. For Requirement Gathering, Documentation, Analysis and Design tasks, generate exactly two task breakdowns:
 				   - Documentation
 				   - Review
 				
-				18. For Development or Coding tasks, generate exactly three task breakdowns:
+				19. For Development or Coding tasks, generate exactly three task breakdowns:
 				   - Coding
 				   - Code Review
 				   - Unit Testing
 				
-				19. For System Integration Testing (SIT) and User Acceptance Testing (UAT), do not generate additional task breakdowns unless absolutely necessary.
+				20. For System Integration Testing (SIT) and User Acceptance Testing (UAT), do not generate additional task breakdowns unless absolutely necessary.
 				
-				20. The sum of the task breakdown durations must always equal the parent task duration.
+				21. The sum of the task breakdown durations must always equal the parent task duration.
 				
-				21. Distribute the TOTAL PROJECT EFFORT approximately as follows:
+				22. Distribute the TOTAL PROJECT EFFORT approximately as follows:
 
 					• Analysis and Design activities: 30%%
 					
@@ -180,28 +182,28 @@ public class GeminiProjectSchedulePromptBuilder {
 					
 					• Reviews (Documentation Review, Code Review, General Review) and Unit Testing together: 5%%
 					
-					22. These percentages apply to the ENTIRE PROJECT, not to each individual task.
+				23. These percentages apply to the ENTIRE PROJECT, not to each individual task.
 					
-					23. While generating tasks and task breakdowns, ensure the overall schedule follows these percentages as closely as possible.
+				24. While generating tasks and task breakdowns, ensure the overall schedule follows these percentages as closely as possible.
 					
-					24. If rounding leaves any remaining effort, allocate it to SIT and UAT while keeping the overall project duration unchanged.
+				25. If rounding leaves any remaining effort, allocate it to SIT and UAT while keeping the overall project duration unchanged.
 					
-					25. Do not generate equal duration tasks. Allocate effort realistically according to project complexity.
+				26. Do not generate equal duration tasks. Allocate effort realistically according to project complexity.
 					
-					26. Task breakdowns must execute sequentially within the parent task.
+				27. Task breakdowns must execute sequentially within the parent task.
 
-						For example:
-						
-						Requirement Analysis
-						  Documentation
-						  Review
-						
-						User Module Development
-						  Coding
-						  Code Review
-						  Unit Testing
-						
-						The first task breakdown starts on the parent task start date and the last task breakdown ends on the parent task end date.
+					For example:
+					
+					Requirement Analysis
+					  Documentation
+					  Review
+					
+					User Module Development
+					  Coding
+					  Code Review
+					  Unit Testing
+					
+					The first task breakdown starts on the parent task start date and the last task breakdown ends on the parent task end date.
 
     			====================================================
     			OUTPUT FORMAT
@@ -229,7 +231,10 @@ public class GeminiProjectSchedulePromptBuilder {
 				          "activityName": "",
 				          "duration": number,
 				          "plannedStartDate": "yyyy-MM-dd",
-				          "plannedEndDate": "yyyy-MM-dd"
+				      	  "plannedEndDate": "yyyy-MM-dd",
+				          "actualStartDate": null,
+				      	  "actualEndDate": null,
+				          
 				        }
 				      ]
 				    }

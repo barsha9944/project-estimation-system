@@ -1,6 +1,7 @@
 package com.projectestimation.backend.projectschedule.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class SaveProjectScheduleTaskRequest {
 
@@ -23,6 +24,8 @@ public class SaveProjectScheduleTaskRequest {
     private String predecessor;
 
     private String status;
+    
+    private List<SaveTaskBreakdownRequest> taskBreakdowns;
 
     public Long getId() {
         return id;
@@ -103,4 +106,14 @@ public class SaveProjectScheduleTaskRequest {
     public void setStatus(String status) {
         this.status = status;
     }
+
+	public List<SaveTaskBreakdownRequest> getTaskBreakdowns() {
+		return taskBreakdowns;
+	}
+
+	public void setTaskBreakdowns(List<SaveTaskBreakdownRequest> taskBreakdowns) {
+		this.taskBreakdowns = taskBreakdowns;
+	}
+    
+    
 }
