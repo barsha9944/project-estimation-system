@@ -14,7 +14,7 @@ public interface ProjectScheduleRepository
     Optional<ProjectSchedule> findByOpportunityId(Long opportunityId);
     
     @Query("""
-    	    SELECT ps
+    	    SELECT DISTINCT ps
     	    FROM ProjectSchedule ps
     	    LEFT JOIN FETCH ps.tasks
     	    WHERE ps.opportunity.id = :opportunityId

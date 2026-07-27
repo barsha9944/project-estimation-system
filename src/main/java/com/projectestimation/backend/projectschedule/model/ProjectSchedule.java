@@ -67,6 +67,8 @@ public class ProjectSchedule {
     private Integer criticalTasks;
 
     private Double estimatedHours;
+    
+    private LocalDate projectEndDate;
 
     @OneToMany(
             mappedBy = "projectSchedule",
