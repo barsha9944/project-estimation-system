@@ -1,14 +1,13 @@
 package com.projectestimation.backend.proposal.service;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import java.text.DecimalFormat;
+import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -24,9 +23,7 @@ import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
-import com.projectestimation.backend.estimation.model.EstimateResult;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
-import com.projectestimation.backend.estimation.repository.EstimateResultRepository;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.OpportunityStatus;
@@ -35,18 +32,11 @@ import com.projectestimation.backend.parameters.model.Parameters;
 import com.projectestimation.backend.parameters.repository.ParametersRepository;
 import com.projectestimation.backend.proposal.ai.AiProposalResult;
 import com.projectestimation.backend.proposal.ai.GeminiProposalOrchestrator;
+import com.projectestimation.backend.proposal.dto.OpportunityProposalDto;
 import com.projectestimation.backend.proposal.dto.ProposalDetailWithCountDto;
-import com.projectestimation.backend.proposal.dto.ProposalGenerateRequest;
-import com.projectestimation.backend.proposal.dto.ProposalGenerateResponse;
-import com.projectestimation.backend.proposal.dto.ProposalListResponse;
 import com.projectestimation.backend.proposal.dto.ProposalResponse;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
-import java.sql.Timestamp;
-import com.projectestimation.backend.common.enums.ProposalType;
-import java.sql.Timestamp;
-import java.util.stream.Collectors;
-import com.projectestimation.backend.proposal.dto.OpportunityProposalDto;
 
 @Service
 public class ProposalService {
@@ -271,15 +261,21 @@ public class ProposalService {
         System.out.println("DOCX MARKDOWN");
         System.out.println(markdown);
 
+        List<String> processFlows =
+                proposal.getProcessFlowHtml() == null
+                || proposal.getProcessFlowHtml().isBlank()
+                        ? List.of()
+                        : Arrays.asList(
+                                proposal.getProcessFlowHtml()
+                                        .split("\n---FLOW---\n")
+                          );
+        
         PandocDocxConverter.ConversionResult conversion =
                 pandocDocxConverter.convertMarkdownToDocx(
                         markdown,
                         baseFileName,
                         proposal.getArchitectureHtml(),
-                        java.util.Arrays.asList(
-                                proposal.getProcessFlowHtml()
-                                        .split("\n---FLOW---\n")
-                        )
+                        processFlows
                 );
 
 		proposal.setGeneratedDocPath(conversion.generatedDocPath());
