@@ -197,7 +197,6 @@ public class GeminiProposalPromptBuilder {
 					Include items/features/services not covered under the current proposal scope.
 
                     # 3. Solution Architecture
-                    {{SOLUTION_ARCHITECTURE_IMAGE}}
                     Provide a detailed enterprise-grade solution architecture explanation including:
 					- frontend layer
 					- backend services
