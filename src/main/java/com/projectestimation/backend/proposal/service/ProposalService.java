@@ -5,9 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
+
+import java.util.Arrays;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -22,6 +27,7 @@ import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.estimation.ai.GeminiEstimationClient;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
@@ -39,7 +45,7 @@ import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
 @Service
 public class ProposalService {
-
+	private static final Logger log = LogManager.getLogger(ProposalService.class);
 	private static final String DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 	@Value("${proposal.storage.path}")
@@ -194,9 +200,21 @@ public class ProposalService {
 			}
 		}
 
+//<<<<<<< HEAD
+//		PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(markdown,
+//				baseFileName, proposal.getArchitectureHtml(),
+//				java.util.Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n")));
+//=======
+		log.info("DOCX MARKDOWN");
+		log.info(markdown);
+
+		List<String> processFlows = proposal.getProcessFlowHtml() == null || proposal.getProcessFlowHtml().isBlank()
+				? List.of()
+				: Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n"));
+
 		PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(markdown,
-				baseFileName, proposal.getArchitectureHtml(),
-				java.util.Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n")));
+				baseFileName, proposal.getArchitectureHtml(), processFlows);
+//>>>>>>> 684294120c02f361669b6c3421b02dda460cdbb2
 
 		proposal.setGeneratedDocPath(conversion.generatedDocPath());
 		proposalRepository.save(proposal);

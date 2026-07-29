@@ -271,13 +271,16 @@ public class PandocDocxConverter {
 
             for (int i = 0; i < processFlowHtmls.size(); i++) {
 
+                String html = processFlowHtmls.get(i);
+
+                if (html == null || html.isBlank()) {
+                    continue;
+                }
+
                 htmlToImageRenderer.renderHtmlToImage(
-                        processFlowHtmls.get(i),
+                        html,
                         imagesDir.resolve(
-                                safeFileName
-                                        + "-process-flow-"
-                                        + (i + 1)
-                                        + ".png"
+                                safeFileName + "-process-flow-" + (i + 1) + ".png"
                         )
                 );
             }
