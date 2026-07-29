@@ -11,10 +11,12 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -50,43 +52,56 @@ public class GeminiClient {
         return generateContent(prompt, "application/json", maxOutputTokens);
     }
 
-    public String generateContent(String prompt, String responseMimeType, int maxOutputTokens) {
-        validateConfiguration();
+//    public String generateContent(String prompt, String responseMimeType, int maxOutputTokens) {
+//        validateConfiguration();
+//
+//        try {
+//            String url = properties.getBaseUrl() + "/models/" + properties.getModel() + ":generateContent";
+//
+//            HttpHeaders headers = new HttpHeaders();
+//            headers.setContentType(MediaType.APPLICATION_JSON);
+//            headers.set("x-goog-api-key", properties.getApiKey());
+//
+//            HttpEntity<String> request = new HttpEntity<>(
+//                    buildRequestBody(prompt, responseMimeType, maxOutputTokens),
+//                    headers
+//            );
+//            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+//
+//            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+//                throw new AiGenerationFailedException("Gemini API returned an unsuccessful response");
+//            }
+//
+//            return extractResponseText(response.getBody());
+//        } catch (AiGenerationFailedException ex) {
+//            throw ex;
+//        } catch (RestClientException ex) {
+//        	ex.printStackTrace();
+//            throw new AiGenerationFailedException("Gemini API request failed or timed out", ex);
+//        } catch (Exception ex) {
+//            throw new AiGenerationFailedException("Unexpected error while calling Gemini API", ex);
+//        }
+//    }
+    
+    public String generateContent(
+            String prompt,
+            String responseMimeType,
+            int maxOutputTokens) {
 
-        try {
-            String url = properties.getBaseUrl() + "/models/" + properties.getModel() + ":generateContent";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-goog-api-key", properties.getApiKey());
-
-            HttpEntity<String> request = new HttpEntity<>(
-                    buildRequestBody(prompt, responseMimeType, maxOutputTokens),
-                    headers
-            );
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new AiGenerationFailedException("Gemini API returned an unsuccessful response");
-            }
-
-            return extractResponseText(response.getBody());
-        } catch (AiGenerationFailedException ex) {
-            throw ex;
-        } catch (RestClientException ex) {
-        	ex.printStackTrace();
-            throw new AiGenerationFailedException("Gemini API request failed or timed out", ex);
-        } catch (Exception ex) {
-            throw new AiGenerationFailedException("Unexpected error while calling Gemini API", ex);
-        }
+        return generateContent(
+                properties.getModel(),
+                prompt,
+                responseMimeType,
+                maxOutputTokens
+        );
     }
     
     public String generateContentWithImages(
-        String prompt,
-        List<Path> imagePaths,
-        String responseMimeType,
-        int maxOutputTokens
-	) {
+            String model,
+            String prompt,
+            List<Path> imagePaths,
+            String responseMimeType,
+            int maxOutputTokens) {
 	
 	    validateConfiguration();
 	
@@ -169,10 +184,16 @@ public class GeminiClient {
 	                generationConfig
 	        );
 	
+//	        String url =
+//	                properties.getBaseUrl()
+//	                + "/models/"
+//	                + properties.getModel()
+//	                + ":generateContent";
+	        
 	        String url =
 	                properties.getBaseUrl()
 	                + "/models/"
-	                + properties.getModel()
+	                + model
 	                + ":generateContent";
 	
 	        HttpHeaders headers =
@@ -215,25 +236,53 @@ public class GeminiClient {
 	        );
 	
 	    } catch (AiGenerationFailedException ex) {
-	
+
 	        throw ex;
-	
-	    } catch (RestClientException ex) {
-	
-	        throw new AiGenerationFailedException(
-	                "Gemini multimodal API request failed or timed out",
-	                ex
-	        );
-	
-	    } catch (Exception ex) {
-	
-	    	ex.printStackTrace();
+
+	    } catch (HttpClientErrorException ex) {
 
 	        throw new AiGenerationFailedException(
-	                "Unexpected error while calling Gemini multimodal API: "
-	                        + ex.getMessage(),
+	                model,
+	                ex.getStatusCode().value(),
+	                ex.getResponseBodyAsString(),
 	                ex
-	        		);
+	        );
+
+	    } catch (HttpServerErrorException ex) {
+
+	        throw new AiGenerationFailedException(
+	                model,
+	                ex.getStatusCode().value(),
+	                ex.getResponseBodyAsString(),
+	                ex
+	        );
+
+	    } catch (ResourceAccessException ex) {
+
+	        throw new AiGenerationFailedException(
+	                model,
+	                408,
+	                "Request timed out",
+	                ex
+	        );
+
+	    } catch (RestClientException ex) {
+
+	        throw new AiGenerationFailedException(
+	                model,
+	                500,
+	                "Gemini API request failed",
+	                ex
+	        );
+
+	    } catch (Exception ex) {
+
+	        throw new AiGenerationFailedException(
+	                model,
+	                500,
+	                "Unexpected Gemini error",
+	                ex
+	        );
 	    }
 	}
 
@@ -282,5 +331,94 @@ public class GeminiClient {
         }
 
         return text;
+    }
+    
+    
+    public String generateContent(
+            String model,
+            String prompt,
+            String responseMimeType,
+            int maxOutputTokens) {
+
+        validateConfiguration();
+
+        try {
+
+            String url = properties.getBaseUrl()
+                    + "/models/"
+                    + model
+                    + ":generateContent";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-goog-api-key", properties.getApiKey());
+
+            HttpEntity<String> request = new HttpEntity<>(
+                    buildRequestBody(prompt, responseMimeType, maxOutputTokens),
+                    headers
+            );
+
+            ResponseEntity<String> response =
+                    restTemplate.postForEntity(
+                            url,
+                            request,
+                            String.class
+                    );
+
+            if (!response.getStatusCode().is2xxSuccessful()
+                    || response.getBody() == null) {
+
+                throw new AiGenerationFailedException(
+                        "Gemini API returned an unsuccessful response"
+                );
+            }
+
+            return extractResponseText(response.getBody());
+
+        } catch (AiGenerationFailedException ex) {
+
+            throw ex;
+
+        } catch (HttpClientErrorException ex) {
+
+        	throw new AiGenerationFailedException(
+        	        model,
+        	        ex.getStatusCode().value(),
+        	        ex.getResponseBodyAsString(),
+        	        ex
+        	);
+        }catch (HttpServerErrorException ex) {
+
+        	throw new AiGenerationFailedException(
+        	        model,
+        	        ex.getStatusCode().value(),
+        	        ex.getResponseBodyAsString(),
+        	        ex
+        	);
+        }catch (ResourceAccessException ex) {
+
+        	throw new AiGenerationFailedException(
+                    model,
+                    408,
+                    "Request timed out",
+                    ex
+            );
+        }catch (RestClientException ex) {
+
+        	throw new AiGenerationFailedException(
+                    model,
+                    500,
+                    "Gemini API request failed",
+                    ex
+            );
+        } catch (Exception ex) {
+
+        	throw new AiGenerationFailedException(
+                    model,
+                    500,
+                    "Unexpected Gemini error",
+                    ex
+            );
+        }
     }
 }
