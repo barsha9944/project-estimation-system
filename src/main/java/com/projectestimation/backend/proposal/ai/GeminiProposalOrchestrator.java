@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
@@ -19,20 +20,21 @@ public class GeminiProposalOrchestrator {
     private static final int PROPOSAL_MAX_OUTPUT_TOKENS = 8192;
 
     private final GeminiProposalPromptBuilder promptBuilder;
-    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
+//    private final GeminiClient geminiClient;
     private final GeminiProposalResponseParser responseParser;
     private final ProposalStaticContentProvider staticContentProvider;
     private final GeminiDiagramGenerationService diagramService;
 
     public GeminiProposalOrchestrator(
             GeminiProposalPromptBuilder promptBuilder,
-            GeminiClient geminiClient,
+            AiGateway aiGateway,
             GeminiProposalResponseParser responseParser,
             ProposalStaticContentProvider staticContentProvider,
             GeminiDiagramGenerationService diagramService
     ) {
         this.promptBuilder = promptBuilder;
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
         this.responseParser = responseParser;
         this.staticContentProvider = staticContentProvider;
         this.diagramService = diagramService;
@@ -87,7 +89,7 @@ public class GeminiProposalOrchestrator {
         
         String prompt = promptBuilder.build(opportunity, parameters, analysis, proposalType, workflowsSection, workflowPlaceholderRules.toString());
         try {
-            String rawResponse = geminiClient.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
+            String rawResponse = aiGateway.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
             AiProposalResult parsed =
                     responseParser.parse(
                             rawResponse,

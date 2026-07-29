@@ -9,7 +9,10 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Duration;
 
 @Configuration
-@EnableConfigurationProperties(GeminiProperties.class)
+@EnableConfigurationProperties({
+    GeminiProperties.class,
+    OpenAiProperties.class
+})
 public class EstimationConfig {
 
     @Bean(name = "geminiRestTemplate")
@@ -17,6 +20,17 @@ public class EstimationConfig {
         return builder
                 .setConnectTimeout(Duration.ofMillis(properties.getTimeoutMs()))
                 .setReadTimeout(Duration.ofMillis(properties.getTimeoutMs()))
+                .build();
+    }
+    
+    @Bean(name = "openAiRestTemplate")
+    public RestTemplate openAiRestTemplate(
+            RestTemplateBuilder builder,
+            OpenAiProperties properties) {
+
+        return builder
+                .setConnectTimeout(Duration.ofMillis(properties.getConnectTimeoutMs()))
+                .setReadTimeout(Duration.ofMillis(properties.getReadTimeoutMs()))
                 .build();
     }
 }

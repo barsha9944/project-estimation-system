@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.opportunity.model.Opportunity;
@@ -15,12 +16,12 @@ public class GeminiDiagramGenerationService {
 
     private static final int MAX_OUTPUT_TOKENS = 4096;
 
-    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
 
     public GeminiDiagramGenerationService(
-            GeminiClient geminiClient
+            AiGateway aiGateway
     ) {
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
     }
 
     public String generateSolutionArchitectureHtml(
@@ -33,7 +34,7 @@ public class GeminiDiagramGenerationService {
 
         try {
 
-        	return geminiClient.generateContentWithImages(
+        	return aiGateway.generateContentWithImages(
         	        prompt,
         	        List.of(
         	                Path.of(
@@ -65,7 +66,7 @@ public class GeminiDiagramGenerationService {
 
         try {
 
-        	return geminiClient.generateContentWithImages(
+        	return aiGateway.generateContentWithImages(
         	        prompt,
         	        List.of(
         	                Path.of(
@@ -504,7 +505,7 @@ Opportunity Details:
 
         try {
 
-            return geminiClient.generateContent(
+            return aiGateway.generateContent(
                     prompt,
                     "text/plain",
                     1000
