@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.projectestimation.backend.common.exception.EstimationFailedException;
 import com.projectestimation.backend.estimation.config.GeminiProperties;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +19,8 @@ import org.springframework.web.client.RestTemplate;
  
 @Component
 public class GeminiEstimationClient {
+
+    private static final Logger log = LogManager.getLogger(GeminiEstimationClient.class);
  
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -53,9 +57,9 @@ public class GeminiEstimationClient {
         } catch (EstimationFailedException ex) {
             throw ex;
         } catch (RestClientException ex) {
-        	ex.printStackTrace();
         	if (ex.getMessage() != null &&
         	        ex.getMessage().contains("429")) {
+                log.warn("Gemini quota exceeded. Returning mock estimation response.");
  
         	        return getMockEstimationResponse();
         	    }

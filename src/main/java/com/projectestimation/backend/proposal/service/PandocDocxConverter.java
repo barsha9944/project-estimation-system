@@ -7,7 +7,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.common.exception.ProposalFailedException;
@@ -15,6 +18,8 @@ import com.projectestimation.backend.proposal.config.PandocProperties;
 
 @Component
 public class PandocDocxConverter {
+
+    private static final Logger log = LogManager.getLogger(PandocDocxConverter.class);
 
     private final PandocProperties pandocProperties;
     private final HtmlToImageRenderer htmlToImageRenderer;
@@ -80,14 +85,12 @@ public class PandocDocxConverter {
         	        baseFileName
         	);
         	
-        	System.out.println("===== IMAGES CREATED =====");
-
-        	Files.list(imagesDir)
-        	     .forEach(file ->
-        	             System.out.println(file.getFileName())
-        	     );
-
-        	System.out.println("=========================");
+        	try (Stream<Path> imageFiles = Files.list(imagesDir)) {
+                log.info(
+                        "Generated proposal images: {}",
+                        imageFiles.map(file -> file.getFileName().toString()).toList()
+                );
+            }
 
 //            Path markdownFile = tempDir.resolve(safeBaseName + ".md");
         	Path markdownFile =
@@ -266,7 +269,6 @@ public class PandocDocxConverter {
                     )
             );
 
-            System.out.println("IMAGE BASE FILE NAME = " + baseFileName);
             for (int i = 0; i < processFlowHtmls.size(); i++) {
 
                 String html = processFlowHtmls.get(i);

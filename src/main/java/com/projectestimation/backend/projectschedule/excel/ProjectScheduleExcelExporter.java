@@ -45,6 +45,7 @@ import org.openxmlformats.schemas.drawingml.x2006.main.CTShapeProperties;
 import org.openxmlformats.schemas.drawingml.x2006.main.CTSolidColorFillProperties;
 import org.springframework.stereotype.Component;
 
+import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
 import com.projectestimation.backend.projectschedule.util.ExcelChartDateAxisFixer;
@@ -75,7 +76,7 @@ public class ProjectScheduleExcelExporter {
 
         } catch (Exception ex) {
 
-            throw new RuntimeException(
+            throw new ProjectScheduleFailedException(
                     "Failed to generate project schedule excel.",
                     ex
             );

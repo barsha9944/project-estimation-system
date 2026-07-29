@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class GeminiProperties {
 
 
-    private String apiKey = "AQ.Ab8RN6I9xVn-RRVBYsyjmPipsgzDsU2tAKTBhuuPXjlp0Zne0w";
+    private static String apiKey = ""; //put your genini key here and never push it to git
 
     private String baseUrl = "https://generativelanguage.googleapis.com/v1beta";
     private String model = "gemini-3.1-flash-lite";

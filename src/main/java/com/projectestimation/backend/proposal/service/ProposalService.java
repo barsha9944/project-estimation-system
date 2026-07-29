@@ -5,10 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
+
 import java.util.Arrays;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -23,6 +27,7 @@ import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.estimation.ai.GeminiEstimationClient;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
@@ -40,16 +45,11 @@ import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
 @Service
 public class ProposalService {
+	private static final Logger log = LogManager.getLogger(ProposalService.class);
+	private static final String DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-
-	
-
-    private static final String DOCX_MEDIA_TYPE =
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    
-    @Value("${proposal.storage.path}")
-    private String proposalStoragePath;
-
+	@Value("${proposal.storage.path}")
+	private String proposalStoragePath;
 
 	private final ProposalRepository proposalRepository;
 	private final EstimationAnalysisRepository estimationAnalysisRepository;
@@ -58,9 +58,10 @@ public class ProposalService {
 	private final GeminiProposalOrchestrator geminiProposalOrchestrator;
 	private final PandocDocxConverter pandocDocxConverter;
 
-	public ProposalService(ProposalRepository proposalRepository, EstimationAnalysisRepository estimationAnalysisRepository,
-			OpportunityRepository opportunityRepository, ParametersRepository parametersRepository,
-			GeminiProposalOrchestrator geminiProposalOrchestrator, PandocDocxConverter pandocDocxConverter) {
+	public ProposalService(ProposalRepository proposalRepository,
+			EstimationAnalysisRepository estimationAnalysisRepository, OpportunityRepository opportunityRepository,
+			ParametersRepository parametersRepository, GeminiProposalOrchestrator geminiProposalOrchestrator,
+			PandocDocxConverter pandocDocxConverter) {
 		this.proposalRepository = proposalRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
 		this.opportunityRepository = opportunityRepository;
@@ -77,62 +78,34 @@ public class ProposalService {
 	public ProposalResponse generateForOpportunity(Long opportunityId, ProposalType proposalType, User user) {
 		Opportunity opportunity = loadOpportunity(opportunityId);
 		Parameters parameters = loadParameters(opportunityId);
-		EstimationAnalysis analysis =
-		        loadEstimationAnalysis(opportunityId);
+		EstimationAnalysis analysis = loadEstimationAnalysis(opportunityId);
 
 		int nextVersion = resolveNextVersion(opportunityId);
 
+		String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
+		String fileBaseName = "proposal-" + opportunity.getOpportunityName() + "-v" + nextVersion;
 
-        String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
-        String fileBaseName = "proposal-" + opportunity.getOpportunityName() + "-v" + nextVersion;
-        
-        Path proposalDir =
-                Paths.get(
-                        proposalStoragePath,
-                        "opportunity-" + opportunityId,
-                        "proposal-v" + nextVersion
-                );
+		Path proposalDir = Paths.get(proposalStoragePath, "opportunity-" + opportunityId, "proposal-v" + nextVersion);
 
-        try {
+		try {
 			Files.createDirectories(proposalDir);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new ProposalFailedException("Failed to create proposal directory", e);
 		}
-        
-        AiProposalResult aiResult =
-                geminiProposalOrchestrator.generateProposal(
-                        opportunity,
-                        parameters,
-                        analysis,
-                        proposalType,
-                        fileBaseName
-                );
-        
-        Path markdownFile =
-                proposalDir.resolve(
-                        "proposal.md"
-                );
 
-        try {
-			Files.writeString(
-			        markdownFile,
-			        aiResult.markdownContent()
-			);
+		AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, parameters, analysis,
+				proposalType, fileBaseName);
+
+		Path markdownFile = proposalDir.resolve("proposal.md");
+
+		try {
+			Files.writeString(markdownFile, aiResult.markdownContent());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new ProposalFailedException("Failed to write proposal markdown file", e);
 		}
-        
-        pandocDocxConverter.generateProposalImages(
-                aiResult.architectureHtml(),
-                aiResult.processFlowHtmls(),
-                proposalDir,
-                fileBaseName
-        );
 
-
-		
+		pandocDocxConverter.generateProposalImages(aiResult.architectureHtml(), aiResult.processFlowHtmls(),
+				proposalDir, fileBaseName);
 
 		Proposal proposal = new Proposal();
 		proposal.setOpportunity(opportunity);
@@ -140,7 +113,6 @@ public class ProposalService {
 		proposal.setTitle(title);
 		proposal.setMarkdownContent(aiResult.markdownContent());
 		proposal.setArchitectureHtml(aiResult.architectureHtml());
-
 
 		proposal.setProcessFlowHtml(String.join("\n---FLOW---\n", aiResult.processFlowHtmls()));
 		proposal.setSummaryText(aiResult.markdownContent());
@@ -151,27 +123,14 @@ public class ProposalService {
 		proposal.setGeneratedBy(user);
 		proposal.setProposalType(proposalType);
 
-        proposal.setMarkdownFilePath(
-                markdownFile.toString()
-        );
+		proposal.setMarkdownFilePath(markdownFile.toString());
 
-        proposal.setProposalDirectory(
-                proposalDir.toString()
-        );
-        
-        proposal.setArchitectureImagePath(
-                proposalDir.resolve(
-                        fileBaseName + "-architecture.png"
-                ).toString()
-        );
+		proposal.setProposalDirectory(proposalDir.toString());
 
-        proposal.setProcessFlowDirectory(
-                proposalDir.toString()
-        );
-        Proposal saved = proposalRepository.save(proposal);
+		proposal.setArchitectureImagePath(proposalDir.resolve(fileBaseName + "-architecture.png").toString());
 
-
-		
+		proposal.setProcessFlowDirectory(proposalDir.toString());
+		Proposal saved = proposalRepository.save(proposal);
 
 		opportunity.setStatus(OpportunityStatus.PROPOSAL_GENERATED);
 		opportunityRepository.save(opportunity);
@@ -187,17 +146,16 @@ public class ProposalService {
 		Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
 				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
 
-
 		return toResponse(proposal);
 	}
 
 	@Transactional(readOnly = true)
 	public ResponseEntity<byte[]> downloadLatestByOpportunityId(Long opportunityId) {
-        Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
- 
-        return buildDocxDownloadResponse(proposal);
-    }
+		Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
+
+		return buildDocxDownloadResponse(proposal);
+	}
 
 	/**
 	 * Legacy estimate-driven proposal generation (backward compatibility).
@@ -210,20 +168,16 @@ public class ProposalService {
 		return buildDocxDownloadResponse(proposal);
 	}
 
-	
-    private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
-    	
-    	System.out.println("START DOWNLOAD");
-    	System.out.println(proposal.getId());
-    	System.out.println(proposal.getOpportunity().getOpportunityName());
-        if (proposal.getMarkdownContent() == null || proposal.getMarkdownContent().isBlank()) {
-            throw new ProposalFailedException("Proposal Markdown content is not available for conversion");
-        }
+	private ResponseEntity<byte[]> buildDocxDownloadResponse(Proposal proposal) {
+
+		if (proposal.getMarkdownContent() == null || proposal.getMarkdownContent().isBlank()) {
+			throw new ProposalFailedException("Proposal Markdown content is not available for conversion");
+		}
 
 //        String baseFileName = proposal.getFileName() != null
 //                ? proposal.getFileName().replace(".docx", "")
 //                : "proposal-" + proposal.getId() + "-v" + proposal.getVersion();
-        
+
 //        String baseFileName =
 //                proposal.getOpportunity()
 //                        .getOpportunityName()
@@ -232,51 +186,35 @@ public class ProposalService {
 //                        .replace(" ", "_")
 //                + "_Proposal_v"
 //                + proposal.getVersion();
-        
-        String baseFileName =
-                proposal.getFileName()
-                        .replace(".docx", "");
 
-        String markdown =
-                proposal.getMarkdownContent();
+		String baseFileName = proposal.getFileName().replace(".docx", "");
 
-        if (
-                proposal.getMarkdownFilePath() != null
-                && !proposal.getMarkdownFilePath().isBlank()
-        ) {
+		String markdown = proposal.getMarkdownContent();
 
-            try {
-				markdown =
-				        Files.readString(
-				                Path.of(
-				                        proposal.getMarkdownFilePath()
-				                )
-				        );
+		if (proposal.getMarkdownFilePath() != null && !proposal.getMarkdownFilePath().isBlank()) {
+
+			try {
+				markdown = Files.readString(Path.of(proposal.getMarkdownFilePath()));
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				throw new ProposalFailedException("Failed to read proposal markdown file", e);
 			}
-        }
+		}
 
-        System.out.println("DOCX MARKDOWN");
-        System.out.println(markdown);
+//<<<<<<< HEAD
+//		PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(markdown,
+//				baseFileName, proposal.getArchitectureHtml(),
+//				java.util.Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n")));
+//=======
+		log.info("DOCX MARKDOWN");
+		log.info(markdown);
 
-        List<String> processFlows =
-                proposal.getProcessFlowHtml() == null
-                || proposal.getProcessFlowHtml().isBlank()
-                        ? List.of()
-                        : Arrays.asList(
-                                proposal.getProcessFlowHtml()
-                                        .split("\n---FLOW---\n")
-                          );
-        
-        PandocDocxConverter.ConversionResult conversion =
-                pandocDocxConverter.convertMarkdownToDocx(
-                        markdown,
-                        baseFileName,
-                        proposal.getArchitectureHtml(),
-                        processFlows
-                );
+		List<String> processFlows = proposal.getProcessFlowHtml() == null || proposal.getProcessFlowHtml().isBlank()
+				? List.of()
+				: Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n"));
+
+		PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(markdown,
+				baseFileName, proposal.getArchitectureHtml(), processFlows);
+//>>>>>>> 684294120c02f361669b6c3421b02dda460cdbb2
 
 		proposal.setGeneratedDocPath(conversion.generatedDocPath());
 		proposalRepository.save(proposal);
@@ -287,7 +225,6 @@ public class ProposalService {
 
 		return ResponseEntity.ok().headers(headers).body(conversion.docxBytes());
 	}
-
 
 	private Opportunity loadOpportunity(Long opportunityId) {
 		return opportunityRepository.findById(opportunityId)
@@ -301,13 +238,8 @@ public class ProposalService {
 
 	private EstimationAnalysis loadEstimationAnalysis(Long opportunityId) {
 
-	    return estimationAnalysisRepository
-	            .findByOpportunityId(opportunityId)
-	            .orElseThrow(() ->
-	                    new ResourceNotFoundException(
-	                            "Estimation Analysis not found for this opportunity"
-	                    )
-	            );
+		return estimationAnalysisRepository.findByOpportunityId(opportunityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation Analysis not found for this opportunity"));
 
 	}
 
@@ -316,166 +248,86 @@ public class ProposalService {
 				.map(proposal -> proposal.getVersion() + 1).orElse(1);
 	}
 
-
 	private ProposalResponse toResponse(Proposal saved) {
 		Long opportunityId = saved.getOpportunity() != null ? saved.getOpportunity().getId() : null;
 		String downloadUrl = opportunityId != null ? "/api/v1/opportunities/" + opportunityId + "/proposal/download"
 				: "/api/v1/proposals/" + saved.getId() + "/download";
 
+		return new ProposalResponse(saved.getId(), opportunityId, saved.getVersion(), saved.getTitle(),
+				loadMarkdownContent(saved), saved.getArchitectureHtml(), saved.isGeneratedByAI(), saved.getCreatedAt(),
+				saved.getUpdatedAt(), downloadUrl);
+	}
 
-        return new ProposalResponse(
-                saved.getId(),
-                opportunityId,
-                saved.getVersion(),
-                saved.getTitle(),
-                loadMarkdownContent(saved),
-                saved.getArchitectureHtml(),
-                saved.isGeneratedByAI(),
-                saved.getCreatedAt(),
-                saved.getUpdatedAt(),
-                downloadUrl
-        );
-    }
+	private String loadMarkdownContent(Proposal proposal) {
 
-    private String loadMarkdownContent(
-            Proposal proposal
-    ) {
+		try {
 
-    	
-        try {
+			if (proposal.getMarkdownFilePath() != null && !proposal.getMarkdownFilePath().isBlank()) {
 
-        	if (
-        	        proposal.getMarkdownFilePath() != null
-        	        && !proposal.getMarkdownFilePath().isBlank()
-        	) {
+				String markdown = Files.readString(Path.of(proposal.getMarkdownFilePath()));
 
-        	    String markdown =
-        	            Files.readString(
-        	                    Path.of(
-        	                            proposal.getMarkdownFilePath()
-        	                    )
-        	            );
+				markdown = markdown.replace("assets/images/", "http://localhost:8080/api/v1/opportunities/"
+						+ proposal.getOpportunity().getId() + "/proposal/" + proposal.getId() + "/images/");
 
-        	    markdown =
-        	            markdown.replace(
-        	                    "assets/images/",
-        	                    "http://localhost:8080/api/v1/opportunities/"
-        	                            + proposal.getOpportunity().getId()
-        	                            + "/proposal/"
-        	                            + proposal.getId()
-        	                            + "/images/"
-        	            );
-        	    
-        	    System.out.println(markdown);
+				return markdown;
+			}
 
-        	    return markdown;
-        	}
+			return proposal.getMarkdownContent();
 
-            return proposal.getMarkdownContent();
+		} catch (Exception ex) {
 
-        } catch (Exception ex) {
-
-            throw new ProposalFailedException(
-                    "Failed to read markdown file",
-                    ex
-            );
-        }
-    }
-   
+			throw new ProposalFailedException("Failed to read markdown file", ex);
+		}
+	}
 
 	@Transactional(readOnly = true)
 	public List<OpportunityProposalDto> getAllProposals() {
 
-	    List<Object[]> rows = proposalRepository.findProposalDetailsWithCount();
+		List<Object[]> rows = proposalRepository.findProposalDetailsWithCount();
 
-	    List<ProposalDetailWithCountDto> proposals = rows.stream()
-	            .map(row -> new ProposalDetailWithCountDto(
-	                    ((Number) row[0]).longValue(),
-	                    ((Number) row[1]).longValue(),
-	                    (String) row[2],
-	                    (String) row[3],
-	                    row[4] != null
-	                            ? ProposalType.valueOf(row[4].toString())
-	                            : null,
-	                    ((Timestamp) row[5]).toLocalDateTime(),
-	                    ((Number) row[6]).longValue()
-	            ))
-	            .toList();
+		List<ProposalDetailWithCountDto> proposals = rows.stream()
+				.map(row -> new ProposalDetailWithCountDto(((Number) row[0]).longValue(), ((Number) row[1]).longValue(),
+						(String) row[2], (String) row[3],
+						row[4] != null ? ProposalType.valueOf(row[4].toString()) : null,
+						((Timestamp) row[5]).toLocalDateTime(), ((Number) row[6]).longValue()))
+				.toList();
 
-	    return proposals.stream()
-	            .collect(Collectors.groupingBy(
-	                    ProposalDetailWithCountDto::opportunityId
-	            ))
-	            .entrySet()
-	            .stream()
-	            .map(entry -> new OpportunityProposalDto(
-	                    entry.getKey(),
-	                    entry.getValue().get(0).opportunityName(),
-	                    entry.getValue().get(0).clientName(),
-	                    entry.getValue().get(0).proposalCount(),
-	                    entry.getValue()
-	            ))
-	            .toList();
+		return proposals.stream().collect(Collectors.groupingBy(ProposalDetailWithCountDto::opportunityId)).entrySet()
+				.stream()
+				.map(entry -> new OpportunityProposalDto(entry.getKey(), entry.getValue().get(0).opportunityName(),
+						entry.getValue().get(0).clientName(), entry.getValue().get(0).proposalCount(),
+						entry.getValue()))
+				.toList();
 	}
+
 	@Transactional(readOnly = true)
 	public ProposalResponse getProposal(Long proposalId) {
 
 		Proposal proposal = proposalRepository.findById(proposalId)
-				.orElseThrow(() -> new RuntimeException("Proposal not found: " + proposalId));
+				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found: " + proposalId));
 
 		return toResponse(proposal);
 	}
 
+	@Transactional(readOnly = true)
+	public ResponseEntity<byte[]> downloadByProposalId(Long proposalId) {
 
-    
-    @Transactional(readOnly = true)
-    public ResponseEntity<byte[]> downloadByProposalId(Long proposalId) {
+		Proposal proposal = proposalRepository.findById(proposalId)
+				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found"));
 
-        Proposal proposal = proposalRepository
-                .findById(proposalId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Proposal not found"
-                        ));
+		return buildDocxDownloadResponse(proposal);
+	}
 
-        return buildDocxDownloadResponse(proposal);
-    }
-    
-    
-    public ResponseEntity<Resource> getProposalImage(
-            Long proposalId,
-            String fileName
-    ) {
+	public ResponseEntity<Resource> getProposalImage(Long proposalId, String fileName) {
 
-        Proposal proposal =
-                proposalRepository.findById(
-                        proposalId
-                )
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Proposal not found"
-                        )
-                );
+		Proposal proposal = proposalRepository.findById(proposalId)
+				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found"));
 
-        Path imagePath =
-                Path.of(
-                        proposal.getProposalDirectory()
-                ).resolve(
-                        fileName
-                );
+		Path imagePath = Path.of(proposal.getProposalDirectory()).resolve(fileName);
 
-        Resource resource =
-                new FileSystemResource(
-                        imagePath
-                );
+		Resource resource = new FileSystemResource(imagePath);
 
-        return ResponseEntity.ok()
-                .contentType(
-                        MediaType.IMAGE_PNG
-                )
-                .body(
-                        resource
-                );
-    }
+		return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(resource);
+	}
 
 }
