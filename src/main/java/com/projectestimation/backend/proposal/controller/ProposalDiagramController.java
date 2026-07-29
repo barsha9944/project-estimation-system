@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.common.response.ApiResponse;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
@@ -41,7 +42,7 @@ public class ProposalDiagramController {
 
         Opportunity opportunity =
                 opportunityRepository.findById(opportunityId)
-                        .orElseThrow();
+                        .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
         String html =
                 diagramService.generateSolutionArchitectureHtml(
@@ -129,18 +130,11 @@ public class ProposalDiagramController {
             </div>
             """;
 
-        try {
+        htmlToImageRenderer.renderHtmlToImage(
+                html,
+                Path.of("test-architecture.png")
+        );
 
-            htmlToImageRenderer.renderHtmlToImage(
-                    html,
-                    Path.of("test-architecture.png")
-            );
-
-            return "Image generated successfully";
-
-        } catch (Exception ex) {
-
-            return ex.getMessage();
-        }
+        return "Image generated successfully";
     }
 }

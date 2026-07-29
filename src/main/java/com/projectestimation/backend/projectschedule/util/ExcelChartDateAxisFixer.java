@@ -20,6 +20,8 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
 
+import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
+
 public class ExcelChartDateAxisFixer {
 
     public static byte[] fixDateAxis(byte[] workbookBytes) throws Exception {
@@ -122,7 +124,7 @@ public class ExcelChartDateAxisFixer {
                             zos.closeEntry();
 
                         } catch (Exception e) {
-                            throw new RuntimeException(e);
+                            throw new ProjectScheduleFailedException("Failed to zip project schedule workbook", e);
                         }
                     });
         }

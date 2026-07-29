@@ -74,7 +74,6 @@ public class GeminiClient {
         } catch (AiGenerationFailedException ex) {
             throw ex;
         } catch (RestClientException ex) {
-        	ex.printStackTrace();
             throw new AiGenerationFailedException("Gemini API request failed or timed out", ex);
         } catch (Exception ex) {
             throw new AiGenerationFailedException("Unexpected error while calling Gemini API", ex);
@@ -226,9 +225,6 @@ public class GeminiClient {
 	        );
 	
 	    } catch (Exception ex) {
-	
-	    	ex.printStackTrace();
-
 	        throw new AiGenerationFailedException(
 	                "Unexpected error while calling Gemini multimodal API: "
 	                        + ex.getMessage(),

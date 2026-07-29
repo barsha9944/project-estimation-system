@@ -1,5 +1,10 @@
 package com.projectestimation.backend.auth.service;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import com.projectestimation.backend.auth.dto.LoginRequest;
 import com.projectestimation.backend.auth.dto.LoginResponse;
 import com.projectestimation.backend.auth.dto.RegisterRequest;
@@ -7,12 +12,8 @@ import com.projectestimation.backend.auth.dto.RegisterResponse;
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.auth.repository.UserRepository;
 import com.projectestimation.backend.common.exception.BadRequestException;
+import com.projectestimation.backend.constant.ProjectEstimationConstantDev;
 import com.projectestimation.backend.security.jwt.JwtService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
@@ -22,8 +23,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
-    @Value("${app.security.jwt-expiration-seconds}")
-    private long jwtExpirationSeconds;
+//    @Value("${app.security.jwt-expiration-seconds}")
+//    private long jwtExpirationSeconds;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -63,7 +64,7 @@ public class AuthService {
         return new LoginResponse(
                 token,
                 "Bearer",
-                jwtExpirationSeconds,
+                Long.valueOf(ProjectEstimationConstantDev.APP_SECURITY_JWT_EXPIRATION_SECONDS),
                 user.getId(),
                 user.getFullName(),
                 user.getEmail()

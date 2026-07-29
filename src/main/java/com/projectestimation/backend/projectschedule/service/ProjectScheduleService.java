@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.projectestimation.backend.auth.model.User;
+import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimationActor;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
@@ -72,12 +73,11 @@ public class ProjectScheduleService {
 			User user
 
 	) {
-
 		Opportunity opportunity = opportunityRepository.findById(opportunityId)
-				.orElseThrow(() -> new RuntimeException("Opportunity not found."));
+				.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found."));
 
 		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(opportunityId)
-				.orElseThrow(() -> new RuntimeException("Estimation Analysis not found."));
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation Analysis not found."));
 
 		List<EstimationActor> actors = estimationActorRepository.findByEstimationAnalysisId(analysis.getId());
 
@@ -92,15 +92,21 @@ public class ProjectScheduleService {
 
 		double hoursWithBuffer = request.getEstimatedHours() * (1 + request.getBufferPercentage() / 100.0);
 
-		int durationDays = (int) Math.ceil(hoursWithBuffer / (request.getTeamSize() * request.getWorkingHoursPerDay()));
+		int durationDays = (int) Math
+				.ceil(hoursWithBuffer / (request.getTeamSize() * request.getWorkingHoursPerDay()));
 
 		LocalDate projectEndDate = calculateProjectEndDate(request.getProjectStartDate(), durationDays,
 				request.getWorkingDaysPerWeek());
 
-		AiProjectScheduleResult result = orchestrator.generate(opportunity, analysis, actorText, useCaseText,
-				request.getProjectStartDate().toString(), request.getTeamSize(), request.getWorkingDaysPerWeek(),
-				request.getWorkingHoursPerDay(), request.getBufferPercentage(), durationDays,
-				request.getEstimatedHours());
+		AiProjectScheduleResult result;
+		try {
+			result = orchestrator.generate(opportunity, analysis, actorText, useCaseText,
+					request.getProjectStartDate().toString(), request.getTeamSize(), request.getWorkingDaysPerWeek(),
+					request.getWorkingHoursPerDay(), request.getBufferPercentage(), durationDays,
+					request.getEstimatedHours());
+		} catch (Exception ex) {
+			throw new ProjectScheduleFailedException("Failed to generate project schedule", ex);
+		}
 
 		ProjectScheduleResponse response = result.schedule();
 
@@ -111,7 +117,6 @@ public class ProjectScheduleService {
 		response.setEstimatedHours(request.getEstimatedHours());
 
 		return response;
-
 	}
 
 	@Transactional
@@ -134,10 +139,10 @@ public class ProjectScheduleService {
 		}
 
 		Opportunity opportunity = opportunityRepository.findById(opportunityId)
-				.orElseThrow(() -> new RuntimeException("Opportunity not found."));
+				.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found."));
 
 		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(opportunityId)
-				.orElseThrow(() -> new RuntimeException("Estimation analysis not found."));
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation analysis not found."));
 
 		schedule.setOpportunity(opportunity);
 
@@ -255,7 +260,7 @@ public class ProjectScheduleService {
 	public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 
 		ProjectSchedule schedule = projectScheduleRepository.findByOpportunityIdWithTasks(opportunityId)
-				.orElseThrow(() -> new RuntimeException("Project schedule not found."));
+				.orElseThrow(() -> new ResourceNotFoundException("Project schedule not found."));
 
 		ProjectScheduleResponse response = new ProjectScheduleResponse();
 
