@@ -166,7 +166,11 @@ public class GeminiProjectSchedulePromptBuilder {
 				   - Code Review
 				   - Unit Testing
 				
-				20. For System Integration Testing (SIT) and User Acceptance Testing (UAT), do not generate additional task breakdowns unless absolutely necessary.
+				20. For System Integration Testing (SIT) and User Acceptance Testing (UAT), generate exactly two task breakdowns:
+				   - Testing
+				   - Debugging
+				
+				   Do not generate any other task breakdowns such as Test Execution, Defect Verification, Regression Testing, Bug Fixing or Root Cause Analysis.
 				
 				21. The sum of the task breakdown durations must always equal the parent task duration.
 				
@@ -202,6 +206,7 @@ public class GeminiProjectSchedulePromptBuilder {
 					  Coding
 					  Code Review
 					  Unit Testing
+					  
 					
 					The first task breakdown starts on the parent task start date and the last task breakdown ends on the parent task end date.
 					
