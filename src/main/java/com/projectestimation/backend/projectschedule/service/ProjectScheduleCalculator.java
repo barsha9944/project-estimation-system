@@ -17,412 +17,360 @@ import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTask
 @Component
 public class ProjectScheduleCalculator {
 
-	public ProjectScheduleResponse recalculate(
-        RecalculateProjectScheduleRequest request
-) {
+	public ProjectScheduleResponse recalculate(RecalculateProjectScheduleRequest request) {
 
-    return switch (request.getEditedField()) {
+		return switch (request.getEditedField()) {
 
-        case "plannedStartDate" ->
-                recalculateFromPlannedStart(request);
+		case "plannedStartDate" -> recalculateFromPlannedStart(request);
 
-        case "plannedEndDate" ->
-                recalculateFromPlannedEnd(request);
+		case "plannedEndDate" -> recalculateFromPlannedEnd(request);
 
-        case "actualStartDate" ->
-                recalculateFromActualStart(request);
+		case "actualStartDate" -> recalculateFromActualStart(request);
 
-        case "actualEndDate" ->
-                recalculateFromActualEnd(request);
+		case "actualEndDate" -> recalculateFromActualEnd(request);
 
-        default ->
-                throw new BadRequestException(
-                        "Unsupported edited field : "
-                                + request.getEditedField()
-                );
+		default -> throw new BadRequestException("Unsupported edited field : " + request.getEditedField());
 
-    };
-
-}
-	
-	private ProjectScheduleResponse recalculateFromPlannedStart(
-	        RecalculateProjectScheduleRequest request
-	) {
-
-	    ProjectScheduleResponse response = new ProjectScheduleResponse();
-
-	    response.setProjectStartDate(request.getProjectStartDate());
-	    response.setTeamSize(request.getTeamSize());
-	    response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
-	    response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
-	    response.setBufferPercentage(request.getBufferPercentage());
-	    response.setEstimatedHours(request.getEstimatedHours());
-	    response.setCompletedTasks(request.getCompletedTasks());
-	    response.setCriticalTasks(request.getCriticalTasks());
-	    response.setTotalTasks(request.getTasks().size());
-
-	    List<ProjectScheduleTaskResponse> taskResponses =
-	            new ArrayList<>();
-
-	    int editedIndex = findEditedTaskIndex(request);
-
-	    LocalDate currentStart = null;
-
-	    for (int i = 0; i < request.getTasks().size(); i++) {
-
-	        SaveProjectScheduleTaskRequest taskRequest =
-	                request.getTasks().get(i);
-
-	        ProjectScheduleTaskResponse task =
-	                new ProjectScheduleTaskResponse();
-
-	        task.setId(taskRequest.getId());
-	        task.setSequence(taskRequest.getSequence());
-	        task.setTaskName(taskRequest.getTaskName());
-	        task.setDuration(taskRequest.getDuration());
-	        task.setStatus(taskRequest.getStatus());
-	        task.setPredecessor(taskRequest.getPredecessor());
-
-	        task.setActualStartDate(taskRequest.getActualStartDate());
-	        task.setActualEndDate(taskRequest.getActualEndDate());
-
-	        if (i < editedIndex) {
-
-	            task.setPlannedStartDate(
-	                    taskRequest.getPlannedStartDate()
-	            );
-
-	            task.setPlannedEndDate(
-	                    taskRequest.getPlannedEndDate()
-	            );
-
-	        } else {
-
-	            if (i == editedIndex) {
-
-	                currentStart =
-	                        taskRequest.getPlannedStartDate();
-
-	            }
-
-	            task.setPlannedStartDate(currentStart);
-
-	            LocalDate plannedEnd =
-	                    calculateWorkingEndDate(
-	                            currentStart,
-	                            taskRequest.getDuration()
-	                    );
-
-	            task.setPlannedEndDate(plannedEnd);
-
-	            currentStart =
-	                    nextWorkingDay(plannedEnd);
-
-	        }
-
-	        taskResponses.add(task);
-
-	    }
-
-	    response.setTasks(taskResponses);
-
-	    if (!taskResponses.isEmpty()) {
-
-	        response.setDurationDays(
-
-	                (int) ChronoUnit.DAYS.between(
-
-	                        taskResponses.get(0).getPlannedStartDate(),
-
-	                        taskResponses.get(taskResponses.size() - 1)
-	                                .getPlannedEndDate()
-
-	                ) + 1
-
-	        );
-
-	    }
-
-	    return response;
+		};
 
 	}
-	
-	private ProjectScheduleResponse recalculateFromPlannedEnd(
-	        RecalculateProjectScheduleRequest request
-	) {
 
-	    throw new UnsupportedOperationException(
-	            "Recalculation from plannedEndDate is not supported yet."
-	    );
+	private ProjectScheduleResponse recalculateFromPlannedStart(RecalculateProjectScheduleRequest request) {
 
-	}
-	
-	private ProjectScheduleResponse recalculateFromActualStart(
-	        RecalculateProjectScheduleRequest request
-	) {
+		ProjectScheduleResponse response = new ProjectScheduleResponse();
 
-	    ProjectScheduleResponse response = new ProjectScheduleResponse();
+		response.setProjectStartDate(request.getProjectStartDate());
+		response.setTeamSize(request.getTeamSize());
+		response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
+		response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
+		response.setBufferPercentage(request.getBufferPercentage());
+		response.setEstimatedHours(request.getEstimatedHours());
+		response.setCompletedTasks(request.getCompletedTasks());
+		response.setCriticalTasks(request.getCriticalTasks());
+		response.setTotalTasks(request.getTasks().size());
 
-	    response.setProjectStartDate(request.getProjectStartDate());
-	    response.setTeamSize(request.getTeamSize());
-	    response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
-	    response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
-	    response.setBufferPercentage(request.getBufferPercentage());
-	    response.setEstimatedHours(request.getEstimatedHours());
-	    response.setCompletedTasks(request.getCompletedTasks());
-	    response.setCriticalTasks(request.getCriticalTasks());
-	    response.setTotalTasks(request.getTasks().size());
+		List<ProjectScheduleTaskResponse> taskResponses = new ArrayList<>();
 
-	    List<ProjectScheduleTaskResponse> taskResponses =
-	            new ArrayList<>();
+		int editedIndex = findEditedTaskIndex(request);
 
-	    int editedIndex = findEditedTaskIndex(request);
+		LocalDate currentStart = null;
 
-	    LocalDate currentStart = null;
+		for (int i = 0; i < request.getTasks().size(); i++) {
 
-	    for (int i = 0; i < request.getTasks().size(); i++) {
+			SaveProjectScheduleTaskRequest taskRequest = request.getTasks().get(i);
 
-	        SaveProjectScheduleTaskRequest taskRequest =
-	                request.getTasks().get(i);
+			ProjectScheduleTaskResponse task = new ProjectScheduleTaskResponse();
 
-	        ProjectScheduleTaskResponse task =
-	                new ProjectScheduleTaskResponse();
+			task.setId(taskRequest.getId());
+			task.setSequence(taskRequest.getSequence());
+			task.setTaskName(taskRequest.getTaskName());
+			task.setDuration(taskRequest.getDuration());
+			task.setStatus(taskRequest.getStatus());
+			task.setPredecessor(taskRequest.getPredecessor());
 
-	        task.setId(taskRequest.getId());
-	        task.setSequence(taskRequest.getSequence());
-	        task.setTaskName(taskRequest.getTaskName());
-	        task.setDuration(taskRequest.getDuration());
-	        task.setStatus(taskRequest.getStatus());
-	        task.setPredecessor(taskRequest.getPredecessor());
+//			task.setActualStartDate(taskRequest.getActualStartDate());
+//			task.setActualEndDate(taskRequest.getActualEndDate());
 
-	        task.setActualStartDate(taskRequest.getActualStartDate());
-	        task.setActualEndDate(taskRequest.getActualEndDate());
+			task.setActualStartDate(taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate()
+					: taskRequest.getPlannedStartDate());
 
-	        if (i < editedIndex) {
+			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate()
+					: taskRequest.getPlannedEndDate());
 
-	            task.setPlannedStartDate(taskRequest.getPlannedStartDate());
-	            task.setPlannedEndDate(taskRequest.getPlannedEndDate());
+			if (i < editedIndex) {
 
-	        } else {
+				task.setPlannedStartDate(taskRequest.getPlannedStartDate());
 
-	            if (i == editedIndex) {
+				task.setPlannedEndDate(taskRequest.getPlannedEndDate());
 
-	                currentStart = taskRequest.getActualStartDate();
+			} else {
 
-	            }
+				if (i == editedIndex) {
 
-	            task.setPlannedStartDate(currentStart);
+					currentStart = taskRequest.getPlannedStartDate();
 
-	            LocalDate plannedEnd =
-	                    calculateWorkingEndDate(
-	                            currentStart,
-	                            taskRequest.getDuration()
-	                    );
+				}
 
-	            task.setPlannedEndDate(plannedEnd);
+				task.setPlannedStartDate(currentStart);
 
-	            currentStart = nextWorkingDay(plannedEnd);
+				LocalDate plannedEnd = calculateWorkingEndDate(currentStart, taskRequest.getDuration());
 
-	        }
+				task.setPlannedEndDate(plannedEnd);
 
-	        taskResponses.add(task);
+				currentStart = nextWorkingDay(plannedEnd);
 
-	    }
+			}
 
-	    response.setTasks(taskResponses);
+			taskResponses.add(task);
 
-	    if (!taskResponses.isEmpty()) {
+		}
 
-	        response.setDurationDays(
-	                (int) ChronoUnit.DAYS.between(
-	                        taskResponses.get(0).getPlannedStartDate(),
-	                        taskResponses.get(taskResponses.size() - 1)
-	                                .getPlannedEndDate()
-	                ) + 1
-	        );
+		response.setTasks(taskResponses);
 
-	    }
+		if (!taskResponses.isEmpty()) {
 
-	    return response;
+			response.setDurationDays(
+
+					(int) ChronoUnit.DAYS.between(
+
+							taskResponses.get(0).getPlannedStartDate(),
+
+							taskResponses.get(taskResponses.size() - 1).getPlannedEndDate()
+
+					) + 1
+
+			);
+
+		}
+
+		return response;
 
 	}
-	
-	private ProjectScheduleResponse recalculateFromActualEnd(
-	        RecalculateProjectScheduleRequest request
-	) {
 
-	    ProjectScheduleResponse response = new ProjectScheduleResponse();
+	private ProjectScheduleResponse recalculateFromPlannedEnd(RecalculateProjectScheduleRequest request) {
 
-	    response.setProjectStartDate(request.getProjectStartDate());
-	    response.setTeamSize(request.getTeamSize());
-	    response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
-	    response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
-	    response.setBufferPercentage(request.getBufferPercentage());
-	    response.setEstimatedHours(request.getEstimatedHours());
-	    response.setCompletedTasks(request.getCompletedTasks());
-	    response.setCriticalTasks(request.getCriticalTasks());
-	    response.setTotalTasks(request.getTasks().size());
-
-	    List<ProjectScheduleTaskResponse> taskResponses =
-	            new ArrayList<>();
-
-	    int editedIndex = findEditedTaskIndex(request);
-
-	    LocalDate currentStart = null;
-
-	    for (int i = 0; i < request.getTasks().size(); i++) {
-
-	        SaveProjectScheduleTaskRequest taskRequest =
-	                request.getTasks().get(i);
-
-	        ProjectScheduleTaskResponse task =
-	                new ProjectScheduleTaskResponse();
-
-	        task.setId(taskRequest.getId());
-	        task.setSequence(taskRequest.getSequence());
-	        task.setTaskName(taskRequest.getTaskName());
-	        task.setDuration(taskRequest.getDuration());
-	        task.setStatus(taskRequest.getStatus());
-	        task.setPredecessor(taskRequest.getPredecessor());
-
-	        task.setActualStartDate(taskRequest.getActualStartDate());
-	        task.setActualEndDate(taskRequest.getActualEndDate());
-
-	        if (i < editedIndex) {
-
-	            task.setPlannedStartDate(taskRequest.getPlannedStartDate());
-	            task.setPlannedEndDate(taskRequest.getPlannedEndDate());
-
-	        } else if (i == editedIndex) {
-
-	            task.setPlannedStartDate(taskRequest.getPlannedStartDate());
-
-	            LocalDate end = taskRequest.getActualEndDate();
-
-	            if (end == null) {
-	                end = taskRequest.getPlannedEndDate();
-	            }
-
-	            task.setPlannedEndDate(end);
-
-	            currentStart = nextWorkingDay(end);
-
-	        } else {
-
-	            task.setPlannedStartDate(currentStart);
-
-	            LocalDate plannedEnd =
-	                    calculateWorkingEndDate(
-	                            currentStart,
-	                            taskRequest.getDuration()
-	                    );
-
-	            task.setPlannedEndDate(plannedEnd);
-
-	            currentStart = nextWorkingDay(plannedEnd);
-
-	        }
-
-	        taskResponses.add(task);
-
-	    }
-
-	    response.setTasks(taskResponses);
-
-	    if (!taskResponses.isEmpty()) {
-
-	        response.setDurationDays(
-
-	                (int) ChronoUnit.DAYS.between(
-
-	                        taskResponses.get(0).getPlannedStartDate(),
-
-	                        taskResponses.get(taskResponses.size() - 1)
-	                                .getPlannedEndDate()
-
-	                ) + 1
-
-	        );
-
-	    }
-
-	    return response;
+		throw new UnsupportedOperationException("Recalculation from plannedEndDate is not supported yet.");
 
 	}
-	
-	
-	private LocalDate calculateWorkingEndDate(
-	        LocalDate start,
-	        Integer duration
-	) {
 
-	    if (start == null || duration == null || duration <= 0) {
-	        return start;
-	    }
+	private ProjectScheduleResponse recalculateFromActualStart(RecalculateProjectScheduleRequest request) {
 
-	    LocalDate end = start;
+		ProjectScheduleResponse response = new ProjectScheduleResponse();
 
-	    int remainingDays = duration - 1;
+		response.setProjectStartDate(request.getProjectStartDate());
+		response.setTeamSize(request.getTeamSize());
+		response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
+		response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
+		response.setBufferPercentage(request.getBufferPercentage());
+		response.setEstimatedHours(request.getEstimatedHours());
+		response.setCompletedTasks(request.getCompletedTasks());
+		response.setCriticalTasks(request.getCriticalTasks());
+		response.setTotalTasks(request.getTasks().size());
 
-	    while (remainingDays > 0) {
+		List<ProjectScheduleTaskResponse> taskResponses = new ArrayList<>();
 
-	        end = end.plusDays(1);
+		int editedIndex = findEditedTaskIndex(request);
 
-	        if (isWorkingDay(end)) {
-	            remainingDays--;
-	        }
+		LocalDate currentStart = null;
 
-	    }
+		for (int i = 0; i < request.getTasks().size(); i++) {
 
-	    return end;
+			SaveProjectScheduleTaskRequest taskRequest = request.getTasks().get(i);
+
+			ProjectScheduleTaskResponse task = new ProjectScheduleTaskResponse();
+
+			task.setId(taskRequest.getId());
+			task.setSequence(taskRequest.getSequence());
+			task.setTaskName(taskRequest.getTaskName());
+			task.setDuration(taskRequest.getDuration());
+			task.setStatus(taskRequest.getStatus());
+			task.setPredecessor(taskRequest.getPredecessor());
+
+//			task.setActualStartDate(taskRequest.getActualStartDate());
+//			task.setActualEndDate(taskRequest.getActualEndDate());
+			task.setActualStartDate(taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate()
+					: taskRequest.getPlannedStartDate());
+
+			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate()
+					: taskRequest.getPlannedEndDate());
+
+			if (i < editedIndex) {
+
+				task.setPlannedStartDate(taskRequest.getPlannedStartDate());
+				task.setPlannedEndDate(taskRequest.getPlannedEndDate());
+
+			} else {
+
+				if (i == editedIndex) {
+
+					currentStart = taskRequest.getActualStartDate();
+
+				}
+
+				task.setPlannedStartDate(currentStart);
+
+				LocalDate plannedEnd = calculateWorkingEndDate(currentStart, taskRequest.getDuration());
+
+				task.setPlannedEndDate(plannedEnd);
+
+				currentStart = nextWorkingDay(plannedEnd);
+
+			}
+
+			taskResponses.add(task);
+
+		}
+
+		response.setTasks(taskResponses);
+
+		if (!taskResponses.isEmpty()) {
+
+			response.setDurationDays((int) ChronoUnit.DAYS.between(taskResponses.get(0).getPlannedStartDate(),
+					taskResponses.get(taskResponses.size() - 1).getPlannedEndDate()) + 1);
+
+		}
+
+		return response;
 
 	}
-	
-	
+
+	private ProjectScheduleResponse recalculateFromActualEnd(RecalculateProjectScheduleRequest request) {
+
+		ProjectScheduleResponse response = new ProjectScheduleResponse();
+
+		response.setProjectStartDate(request.getProjectStartDate());
+		response.setTeamSize(request.getTeamSize());
+		response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
+		response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
+		response.setBufferPercentage(request.getBufferPercentage());
+		response.setEstimatedHours(request.getEstimatedHours());
+		response.setCompletedTasks(request.getCompletedTasks());
+		response.setCriticalTasks(request.getCriticalTasks());
+		response.setTotalTasks(request.getTasks().size());
+
+		List<ProjectScheduleTaskResponse> taskResponses = new ArrayList<>();
+
+		int editedIndex = findEditedTaskIndex(request);
+
+		LocalDate currentStart = null;
+
+		for (int i = 0; i < request.getTasks().size(); i++) {
+
+			SaveProjectScheduleTaskRequest taskRequest = request.getTasks().get(i);
+
+			ProjectScheduleTaskResponse task = new ProjectScheduleTaskResponse();
+
+			task.setId(taskRequest.getId());
+			task.setSequence(taskRequest.getSequence());
+			task.setTaskName(taskRequest.getTaskName());
+			task.setDuration(taskRequest.getDuration());
+			task.setStatus(taskRequest.getStatus());
+			task.setPredecessor(taskRequest.getPredecessor());
+
+//	        task.setActualStartDate(taskRequest.getActualStartDate());
+//	        task.setActualEndDate(taskRequest.getActualEndDate());
+
+			task.setActualStartDate(taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate()
+					: taskRequest.getPlannedStartDate());
+
+			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate()
+					: taskRequest.getPlannedEndDate());
+
+			if (i < editedIndex) {
+
+				task.setPlannedStartDate(taskRequest.getPlannedStartDate());
+				task.setPlannedEndDate(taskRequest.getPlannedEndDate());
+
+			} else if (i == editedIndex) {
+
+				task.setPlannedStartDate(taskRequest.getPlannedStartDate());
+
+				LocalDate end = taskRequest.getActualEndDate();
+
+				if (end == null) {
+					end = taskRequest.getPlannedEndDate();
+				}
+
+				task.setPlannedEndDate(end);
+
+				currentStart = nextWorkingDay(end);
+
+			} else {
+
+				task.setPlannedStartDate(currentStart);
+
+				LocalDate plannedEnd = calculateWorkingEndDate(currentStart, taskRequest.getDuration());
+
+				task.setPlannedEndDate(plannedEnd);
+
+				currentStart = nextWorkingDay(plannedEnd);
+
+			}
+
+			taskResponses.add(task);
+
+		}
+
+		response.setTasks(taskResponses);
+
+		if (!taskResponses.isEmpty()) {
+
+			response.setDurationDays(
+
+					(int) ChronoUnit.DAYS.between(
+
+							taskResponses.get(0).getPlannedStartDate(),
+
+							taskResponses.get(taskResponses.size() - 1).getPlannedEndDate()
+
+					) + 1
+
+			);
+
+		}
+
+		return response;
+
+	}
+
+	private LocalDate calculateWorkingEndDate(LocalDate start, Integer duration) {
+
+		if (start == null || duration == null || duration <= 0) {
+			return start;
+		}
+
+		LocalDate end = start;
+
+		int remainingDays = duration - 1;
+
+		while (remainingDays > 0) {
+
+			end = end.plusDays(1);
+
+			if (isWorkingDay(end)) {
+				remainingDays--;
+			}
+
+		}
+
+		return end;
+
+	}
+
 	private LocalDate nextWorkingDay(LocalDate date) {
 
-	    LocalDate next = date.plusDays(1);
+		LocalDate next = date.plusDays(1);
 
-	    while (!isWorkingDay(next)) {
+		while (!isWorkingDay(next)) {
 
-	        next = next.plusDays(1);
+			next = next.plusDays(1);
 
-	    }
+		}
 
-	    return next;
+		return next;
 
 	}
-	
+
 	private boolean isWorkingDay(LocalDate date) {
 
-	    return date.getDayOfWeek() != DayOfWeek.SATURDAY
-	            && date.getDayOfWeek() != DayOfWeek.SUNDAY;
+		return date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY;
 
 	}
-	
-	private int findEditedTaskIndex(
-	        RecalculateProjectScheduleRequest request
-	) {
 
-	    for (int i = 0; i < request.getTasks().size(); i++) {
+	private int findEditedTaskIndex(RecalculateProjectScheduleRequest request) {
 
-	        if (request.getTasks()
-	                .get(i)
-	                .getSequence()
-	                .equals(request.getEditedSequence())) {
+		for (int i = 0; i < request.getTasks().size(); i++) {
 
-	            return i;
+			if (request.getTasks().get(i).getSequence().equals(request.getEditedSequence())) {
 
-	        }
+				return i;
 
-	    }
+			}
 
-	    throw new BadRequestException(
-	            "Edited task not found."
-	    );
+		}
+
+		throw new BadRequestException("Edited task not found.");
 
 	}
-	
-	
 
 }

@@ -191,9 +191,13 @@ public class ProjectScheduleService {
 
 			task.setPlannedEndDate(taskRequest.getPlannedEndDate());
 
-			task.setActualStartDate(taskRequest.getActualStartDate());
+			//task.setActualStartDate(taskRequest.getActualStartDate());
 
-			task.setActualEndDate(taskRequest.getActualEndDate());
+			//task.setActualEndDate(taskRequest.getActualEndDate());
+			task.setActualStartDate(
+					taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate() : taskRequest.getPlannedStartDate());
+
+			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate() : taskRequest.getPlannedEndDate());
 
 			task.setPredecessor(taskRequest.getPredecessor());
 
@@ -307,7 +311,7 @@ public class ProjectScheduleService {
 
 		response.setPlannedEndDate(task.getPlannedEndDate());
 
-		response.setActualStartDate(task.getActualStartDate());
+		//response.setActualStartDate(task.getActualStartDate());
 
 		response.setActualStartDate(
 				task.getActualStartDate() != null ? task.getActualStartDate() : task.getPlannedStartDate());
