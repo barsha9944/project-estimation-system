@@ -204,6 +204,23 @@ public class GeminiProjectSchedulePromptBuilder {
 					  Unit Testing
 					
 					The first task breakdown starts on the parent task start date and the last task breakdown ends on the parent task end date.
+					
+				
+				28. Every taskName must be concise and contain a maximum of 3 to 4 words.
+
+					Examples:
+					- Requirement Analysis
+					- Solution Design
+					- Database Design
+					- User Module Development
+					- API Development
+					- Payment Integration
+					- System Integration Testing
+					- User Acceptance Testing
+					- Production Deployment
+					- Project Closure
+					
+					Do not generate long descriptive task names or sentences.
 
     			====================================================
     			OUTPUT FORMAT
