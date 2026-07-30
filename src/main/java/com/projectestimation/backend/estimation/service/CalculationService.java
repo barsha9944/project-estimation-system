@@ -19,6 +19,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.projectestimation.backend.common.exception.BadRequestException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.dto.ActorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.ActorCalculationResponse;
@@ -199,7 +200,7 @@ public class CalculationService {
 	public TechnicalFactorCalculationResponse calculate(TechnicalFactorCalculationRequest request) {
 
 		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(request.getOpportunityId())
-				.orElseThrow(() -> new RuntimeException("Estimation Analysis not found"));
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation Analysis not found"));
 
 		estimationTechnicalFactorRepository.deleteByEstimationAnalysisId(analysis.getId());
 
@@ -236,7 +237,7 @@ public class CalculationService {
 	public EnvironmentalFactorCalculationResponse calculate(EnvironmentalFactorCalculationRequest request) {
 
 		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(request.getOpportunityId())
-				.orElseThrow(() -> new RuntimeException("Estimation Analysis not found"));
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation Analysis not found"));
 
 		estimationEnvironmentalFactorRepository.deleteByEstimationAnalysisId(analysis.getId());
 
@@ -269,11 +270,11 @@ public class CalculationService {
 	public FinalCalculationResponse calculateFinal(FinalCalculationRequest request) {
 
 		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(request.getOpportunityId())
-				.orElseThrow(() -> new RuntimeException("Estimation Analysis not found"));
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation Analysis not found"));
 
 		if (analysis.getUucp() == null || analysis.getTcf() == null || analysis.getEf() == null) {
 
-			throw new RuntimeException("UUCP, TCF and EF must be calculated before final calculation.");
+			throw new BadRequestException("UUCP, TCF and EF must be calculated before final calculation.");
 		}
 
 		double ucp = analysis.getUucp() * analysis.getTcf() * analysis.getEf();
@@ -301,7 +302,7 @@ public class CalculationService {
 	            estimationAnalysisRepository
 	                    .findByOpportunityId(request.getOpportunityId())
 	                    .orElseThrow(() ->
-	                            new RuntimeException("Estimation Analysis not found"));
+	                            new ResourceNotFoundException("Estimation Analysis not found"));
 
 	    List<EstimationActor> actors =
 	            estimationActorRepository
@@ -1378,7 +1379,7 @@ public class CalculationService {
 	            estimationAnalysisRepository
 	                    .findByOpportunityId(request.getOpportunityId())
 	                    .orElseThrow(() ->
-	                            new RuntimeException("Estimation Analysis not found"));
+	                            new ResourceNotFoundException("Estimation Analysis not found"));
 
 	    String opportunityName =
 	            analysis.getOpportunity().getOpportunityName();

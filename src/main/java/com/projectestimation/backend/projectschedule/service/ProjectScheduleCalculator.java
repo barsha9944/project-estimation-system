@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.projectestimation.backend.common.exception.BadRequestException;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleTaskResponse;
 import com.projectestimation.backend.projectschedule.dto.RecalculateProjectScheduleRequest;
@@ -35,7 +36,7 @@ public class ProjectScheduleCalculator {
                 recalculateFromActualEnd(request);
 
         default ->
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Unsupported edited field : "
                                 + request.getEditedField()
                 );
@@ -416,7 +417,7 @@ public class ProjectScheduleCalculator {
 
 	    }
 
-	    throw new RuntimeException(
+	    throw new BadRequestException(
 	            "Edited task not found."
 	    );
 

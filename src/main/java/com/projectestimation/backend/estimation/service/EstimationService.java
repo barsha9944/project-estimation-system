@@ -165,7 +165,7 @@ public class EstimationService {
 
         Opportunity opportunity =
                 opportunityRepository.findById(opportunityId)
-                        .orElseThrow();
+                        .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
         String html =
                 geminiService.generateAnalysisHtml(

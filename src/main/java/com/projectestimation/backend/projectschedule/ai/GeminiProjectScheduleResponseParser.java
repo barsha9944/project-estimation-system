@@ -3,6 +3,7 @@ package com.projectestimation.backend.projectschedule.ai;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
 
 @Component
@@ -18,10 +19,6 @@ public class GeminiProjectScheduleResponseParser {
 
     public ProjectScheduleResponse parse(String json) {
 
-    System.out.println("========== GEMINI RESPONSE ==========");
-    System.out.println(json);
-    System.out.println("=====================================");
-
     try {
 
         return objectMapper.readValue(
@@ -31,9 +28,7 @@ public class GeminiProjectScheduleResponseParser {
 
     } catch (Exception ex) {
 
-        ex.printStackTrace();
-
-        throw new RuntimeException(
+        throw new ProjectScheduleFailedException(
                 "Failed to parse Gemini response",
                 ex
         );

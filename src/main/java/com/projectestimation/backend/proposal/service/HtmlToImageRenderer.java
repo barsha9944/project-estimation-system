@@ -1,6 +1,7 @@
 package com.projectestimation.backend.proposal.service;
 
 import com.microsoft.playwright.*;
+import com.projectestimation.backend.common.exception.ProposalFailedException;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
@@ -51,7 +52,7 @@ public class HtmlToImageRenderer {
 
     } catch (Exception ex) {
 
-        throw new RuntimeException(
+        throw new ProposalFailedException(
                 "Failed to render HTML to image",
                 ex
         );

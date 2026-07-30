@@ -43,8 +43,6 @@ public class ProjectScheduleController {
             User user
 
     ) {
-    	
-    	System.out.println("Controller entered");
 
         ProjectScheduleResponse response =
                 projectScheduleService.generateProjectSchedule(
@@ -115,8 +113,6 @@ public class ProjectScheduleController {
     getProjectSchedule(
             @PathVariable Long opportunityId
     ) {
-
-    	System.out.print("get method");
     	
         ProjectScheduleResponse response =
                 projectScheduleService.getProjectSchedule(

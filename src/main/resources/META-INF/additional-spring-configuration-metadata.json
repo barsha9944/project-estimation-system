@@ -1,0 +1,32 @@
+{"properties": [
+  {
+    "name": "base_location",
+    "type": "java.lang.String",
+    "description": "A description for 'base_location'"
+  },
+  {
+    "name": "log_file_path",
+    "type": "java.lang.String",
+    "description": "A description for 'log_file_path'"
+  },
+  {
+    "name": "pandoc.executable",
+    "type": "java.lang.String",
+    "description": "A description for 'pandoc.executable'"
+  },
+  {
+    "name": "proposal.storage.path",
+    "type": "java.lang.String",
+    "description": "A description for 'proposal.storage.path'"
+  },
+  {
+    "name": "pandoc.temp-dir",
+    "type": "java.lang.String",
+    "description": "A description for 'pandoc.temp-dir'"
+  },
+  {
+    "name": "log_file_name",
+    "type": "java.lang.String",
+    "description": "A description for 'log_file_name'"
+  }
+]}
