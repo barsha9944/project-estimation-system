@@ -36,4 +36,8 @@ public class ProjectScheduleTaskBreakdown {
     private LocalDate plannedStartDate;
 
     private LocalDate plannedEndDate;
+    
+    private LocalDate actualStartDate;
+
+    private LocalDate actualEndDate;
 }
