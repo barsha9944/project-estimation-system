@@ -218,6 +218,11 @@ public class ProjectScheduleService {
 							breakdown.setPlannedStartDate(breakdownRequest.getPlannedStartDate());
 
 							breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
+							
+							breakdown.setActualStartDate(
+									breakdownRequest.getActualStartDate() != null ? breakdownRequest.getActualStartDate() : breakdownRequest.getPlannedStartDate());
+
+							breakdown.setActualEndDate(breakdownRequest.getActualEndDate() != null ? breakdownRequest.getActualEndDate() : breakdownRequest.getPlannedEndDate());
 
 							return breakdown;
 
@@ -308,7 +313,7 @@ public class ProjectScheduleService {
 
 		response.setPlannedEndDate(task.getPlannedEndDate());
 
-		response.setActualStartDate(task.getActualStartDate());
+//		response.setActualStartDate(task.getActualStartDate());
 
 		response.setActualStartDate(
 				task.getActualStartDate() != null ? task.getActualStartDate() : task.getPlannedStartDate());
@@ -333,6 +338,10 @@ public class ProjectScheduleService {
 		response.setPlannedStartDate(breakdown.getPlannedStartDate());
 
 		response.setPlannedEndDate(breakdown.getPlannedEndDate());
+		
+		response.setActualEndDate(breakdown.getActualEndDate());
+		
+		response.setActualStartDate(breakdown.getActualStartDate());
 
 		return response;
 	}
