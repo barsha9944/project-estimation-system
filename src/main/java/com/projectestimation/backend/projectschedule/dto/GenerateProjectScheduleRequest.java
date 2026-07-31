@@ -6,35 +6,42 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
+import org.springframework.boot.context.properties.bind.DefaultValue;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class GenerateProjectScheduleRequest {
 
-    @NotNull
-    private LocalDate projectStartDate;
+	@NotNull
+	private LocalDate projectStartDate;
 
-    @NotNull
-    @Min(1)
-    private Integer teamSize;
+	@JsonProperty("durationDays")
+	private int duration;
 
-    @NotNull
-    @Min(1)
-    @Max(7)
-    private Integer workingDaysPerWeek;
+	@NotNull
+	@Min(1)
+	private Integer teamSize;
 
-    @NotNull
-    @Min(1)
-    @Max(24)
-    private Integer workingHoursPerDay;
+	@NotNull
+	@Min(1)
+	@Max(7)
+	private Integer workingDaysPerWeek;
 
-    @NotNull
-    @Min(0)
-    @Max(100)
-    private Integer bufferPercentage;
-    
-    @NotNull
-    @Min(0)
-    private Double estimatedHours;
+	@NotNull
+	@Min(1)
+	@Max(24)
+	private Integer workingHoursPerDay;
 
-    public Double getEstimatedHours() {
+	@NotNull
+	@Min(0)
+	@Max(100)
+	private Integer bufferPercentage;
+
+	@NotNull
+	@Min(0)
+	private Double estimatedHours;
+
+	public Double getEstimatedHours() {
 		return estimatedHours;
 	}
 
@@ -43,42 +50,51 @@ public class GenerateProjectScheduleRequest {
 	}
 
 	public LocalDate getProjectStartDate() {
-        return projectStartDate;
-    }
+		return projectStartDate;
+	}
 
-    public void setProjectStartDate(LocalDate projectStartDate) {
-        this.projectStartDate = projectStartDate;
-    }
+	public void setProjectStartDate(LocalDate projectStartDate) {
+		this.projectStartDate = projectStartDate;
+	}
 
-    public Integer getTeamSize() {
-        return teamSize;
-    }
+	public Integer getTeamSize() {
+		return teamSize;
+	}
 
-    public void setTeamSize(Integer teamSize) {
-        this.teamSize = teamSize;
-    }
+	public void setTeamSize(Integer teamSize) {
+		this.teamSize = teamSize;
+	}
 
-    public Integer getWorkingDaysPerWeek() {
-        return workingDaysPerWeek;
-    }
+	public Integer getWorkingDaysPerWeek() {
+		return workingDaysPerWeek;
+	}
 
-    public void setWorkingDaysPerWeek(Integer workingDaysPerWeek) {
-        this.workingDaysPerWeek = workingDaysPerWeek;
-    }
+	public void setWorkingDaysPerWeek(Integer workingDaysPerWeek) {
+		this.workingDaysPerWeek = workingDaysPerWeek;
+	}
 
-    public Integer getWorkingHoursPerDay() {
-        return workingHoursPerDay;
-    }
+	public Integer getWorkingHoursPerDay() {
+		return workingHoursPerDay;
+	}
 
-    public void setWorkingHoursPerDay(Integer workingHoursPerDay) {
-        this.workingHoursPerDay = workingHoursPerDay;
-    }
+	public void setWorkingHoursPerDay(Integer workingHoursPerDay) {
+		this.workingHoursPerDay = workingHoursPerDay;
+	}
 
-    public Integer getBufferPercentage() {
-        return bufferPercentage;
-    }
+	public Integer getBufferPercentage() {
+		return bufferPercentage;
+	}
 
-    public void setBufferPercentage(Integer bufferPercentage) {
-        this.bufferPercentage = bufferPercentage;
-    }
+	public void setBufferPercentage(Integer bufferPercentage) {
+		this.bufferPercentage = bufferPercentage;
+	}
+
+	public int getDuration() {
+		return duration;
+	}
+
+	public void setDuration(int duration) {
+		this.duration = duration;
+	}
+
 }

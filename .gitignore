@@ -4,3 +4,6 @@
 .project
 /.settings
 /target
+/.vscode
+/logs
+src/main/java/com/projectestimation/backend/estimation/config/GeminiProperties.java
