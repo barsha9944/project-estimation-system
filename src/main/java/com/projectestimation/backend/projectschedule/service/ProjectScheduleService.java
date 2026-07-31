@@ -92,9 +92,9 @@ public class ProjectScheduleService {
 
 		double hoursWithBuffer = request.getEstimatedHours() * (1 + request.getBufferPercentage() / 100.0);
 
-		int durationDays = (int) Math
-				.ceil(hoursWithBuffer / (request.getTeamSize() * request.getWorkingHoursPerDay()));
-
+		int durationDays = request.getDuration() > 0 ? request.getDuration()
+				: (int) Math.ceil(hoursWithBuffer / (request.getTeamSize() * request.getWorkingHoursPerDay()));
+		System.out.println("Duration days : " + durationDays);
 		LocalDate projectEndDate = calculateProjectEndDate(request.getProjectStartDate(), durationDays,
 				request.getWorkingDaysPerWeek());
 
@@ -192,13 +192,14 @@ public class ProjectScheduleService {
 
 			task.setPlannedEndDate(taskRequest.getPlannedEndDate());
 
-			//task.setActualStartDate(taskRequest.getActualStartDate());
+			// task.setActualStartDate(taskRequest.getActualStartDate());
 
-			//task.setActualEndDate(taskRequest.getActualEndDate());
-			task.setActualStartDate(
-					taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate() : taskRequest.getPlannedStartDate());
+			// task.setActualEndDate(taskRequest.getActualEndDate());
+			task.setActualStartDate(taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate()
+					: taskRequest.getPlannedStartDate());
 
-			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate() : taskRequest.getPlannedEndDate());
+			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate()
+					: taskRequest.getPlannedEndDate());
 
 			task.setPredecessor(taskRequest.getPredecessor());
 
@@ -222,11 +223,14 @@ public class ProjectScheduleService {
 							breakdown.setPlannedStartDate(breakdownRequest.getPlannedStartDate());
 
 							breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
-							
-							breakdown.setActualStartDate(
-									breakdownRequest.getActualStartDate() != null ? breakdownRequest.getActualStartDate() : breakdownRequest.getPlannedStartDate());
 
-							breakdown.setActualEndDate(breakdownRequest.getActualEndDate() != null ? breakdownRequest.getActualEndDate() : breakdownRequest.getPlannedEndDate());
+							breakdown.setActualStartDate(breakdownRequest.getActualStartDate() != null
+									? breakdownRequest.getActualStartDate()
+									: breakdownRequest.getPlannedStartDate());
+
+							breakdown.setActualEndDate(
+									breakdownRequest.getActualEndDate() != null ? breakdownRequest.getActualEndDate()
+											: breakdownRequest.getPlannedEndDate());
 
 							return breakdown;
 
@@ -317,7 +321,6 @@ public class ProjectScheduleService {
 
 		response.setPlannedEndDate(task.getPlannedEndDate());
 
-
 		response.setActualStartDate(
 				task.getActualStartDate() != null ? task.getActualStartDate() : task.getPlannedStartDate());
 
@@ -341,9 +344,9 @@ public class ProjectScheduleService {
 		response.setPlannedStartDate(breakdown.getPlannedStartDate());
 
 		response.setPlannedEndDate(breakdown.getPlannedEndDate());
-		
+
 		response.setActualEndDate(breakdown.getActualEndDate());
-		
+
 		response.setActualStartDate(breakdown.getActualStartDate());
 
 		return response;
@@ -373,6 +376,7 @@ public class ProjectScheduleService {
 				completedWorkingDays++;
 			}
 		}
+		System.out.println("end date :: "+currentDate);
 
 		return currentDate;
 	}
