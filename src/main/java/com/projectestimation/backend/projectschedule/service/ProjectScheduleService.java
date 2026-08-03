@@ -326,6 +326,8 @@ public class ProjectScheduleService {
 		response.setActualEndDate(task.getActualEndDate() != null ? task.getActualEndDate() : task.getPlannedEndDate());
 
 		response.setStatus(task.getStatus());
+		
+		response.setPredecessor(task.getPredecessor());
 
 		response.setTaskBreakdowns(task.getTaskBreakdowns().stream().map(this::mapTaskBreakdownResponse).toList());
 
