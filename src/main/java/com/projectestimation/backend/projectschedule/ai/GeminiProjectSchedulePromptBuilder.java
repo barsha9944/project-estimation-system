@@ -167,10 +167,20 @@ public class GeminiProjectSchedulePromptBuilder {
 				   - Unit Testing
 				
 				20. For System Integration Testing (SIT) and User Acceptance Testing (UAT), generate exactly two task breakdowns:
+
 				   - Testing
 				   - Debugging
 				
-				   Do not generate any other task breakdowns such as Test Execution, Defect Verification, Regression Testing, Bug Fixing or Root Cause Analysis.
+				   Rules:
+				
+				   - Testing must always start on the parent task plannedStartDate.
+				   - Debugging must start immediately after Testing ends.
+				   - The parent task plannedEndDate must equal the Debugging plannedEndDate.
+				   - The sum of the Testing and Debugging durations must exactly equal the parent task duration.
+				   - Allocate approximately 70%% of the parent task duration to Testing and 30%% to Debugging.
+				   - If rounding is required, allocate the remaining day to Testing.
+				   - Neither Testing nor Debugging may have a duration of zero.
+				   - Do not generate any other task breakdowns.
 				
 				21. The sum of the task breakdown durations must always equal the parent task duration.
 				
@@ -195,6 +205,16 @@ public class GeminiProjectSchedulePromptBuilder {
 				26. Do not generate equal duration tasks. Allocate effort realistically according to project complexity.
 					
 				27. Task breakdowns must execute sequentially within the parent task.
+
+					The first task breakdown must always begin on the parent task plannedStartDate.
+					
+					The last task breakdown must always end on the parent task plannedEndDate.
+					
+					There must be no gaps or overlaps between task breakdowns.
+					
+					The combined duration of all task breakdowns must exactly equal the parent task duration.
+					
+					No task breakdown may have a duration of zero.
 
 					For example:
 					
@@ -242,8 +262,8 @@ public class GeminiProjectSchedulePromptBuilder {
 				      "sequence": 1,
 				      "taskName": "",
 				      "duration": number,
-				      "plannedStartDate": "yyyy-MM-dd",
-				      "plannedEndDate": "yyyy-MM-dd",
+				      "plannedTaskStartDate": "yyyy-MM-dd",
+				      "plannedTaskEndDate": "yyyy-MM-dd",
 				      "actualStartDate": null,
 				      "actualEndDate": null,
 				      "predecessor": "",
@@ -272,6 +292,10 @@ public class GeminiProjectSchedulePromptBuilder {
 				- The last task plannedEndDate must correspond to the required project duration.
 				- Do not return a schedule longer or shorter than the required duration.
 				- If parallel tasks are created, ensure the overall project still completes within the required duration.
+				- Every parent task plannedStartDate must equal the first task breakdown plannedStartDate.
+				- Every parent task plannedEndDate must equal the last task breakdown plannedEndDate.
+				- The sum of all task breakdown durations must equal the parent task duration.
+				- No task breakdown may have a duration of zero.
     			"""
     			.formatted(
 
