@@ -10,7 +10,7 @@ import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
 import com.projectestimation.backend.projectmetrics.service.ProjectMetricsService;
 
 @RestController
-@RequestMapping("/api/project-metrics")
+@RequestMapping("/api/v1/project-metrics")
 public class ProjectMetricsController {
 
     private final ProjectMetricsService projectMetricsService;
