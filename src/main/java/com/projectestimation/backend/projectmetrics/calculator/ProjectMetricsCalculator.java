@@ -1,6 +1,7 @@
 package com.projectestimation.backend.projectmetrics.calculator;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
@@ -10,13 +11,11 @@ import com.projectestimation.backend.opportunity.repository.OpportunityRepositor
 import com.projectestimation.backend.projectmetrics.dto.AnalysisMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.CodingMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.DesignMetricsResponse;
-import com.projectestimation.backend.projectmetrics.dto.OtherActivityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
-import com.projectestimation.backend.projectmetrics.dto.QualityMetricsResponse;
-import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SummaryMetricsResponse;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
@@ -48,6 +47,7 @@ public class ProjectMetricsCalculator {
         this.projectScheduleRepository = projectScheduleRepository;
     }
 
+    @Transactional(readOnly = true)
     public ProjectMetricsResponse calculate(
             Long opportunityId) {
 
@@ -78,7 +78,11 @@ public class ProjectMetricsCalculator {
     	        new SummaryMetricsResponse();
     	AnalysisMetricsResponse analysisResponse =
     	        new AnalysisMetricsResponse();
-    	
+    	DesignMetricsResponse designResponse =
+    	        new DesignMetricsResponse();
+    	CodingMetricsResponse codingResponse =
+    	        new CodingMetricsResponse();
+ 
     	
     	summary.setProjectName(
     	        opportunity.getOpportunityName()
@@ -253,12 +257,136 @@ public class ProjectMetricsCalculator {
 
     	analysisResponse.setDefectRate(null);
     	
+    	ProjectScheduleTask designTask =
+    	        getDesignTask(schedule);
+    	
+    	designResponse.setPlannedDuration(
+    	        designTask.getDuration()
+    	);
+
+    	designResponse.setActualDuration(
+    	        designTask.getDuration()
+    	);
+
+    	designResponse.setScheduleVariance(
+    	        calculateScheduleVariance(
+    	                designResponse.getPlannedDuration(),
+    	                designResponse.getActualDuration()
+    	        )
+    	);
+
+    	designResponse.setPlannedEffort(
+    	        calculateTaskEffort(
+    	                designTask.getDuration(),
+    	                schedule
+    	        )
+    	);
+
+    	designResponse.setActualEffort(
+    	        calculateTaskEffort(
+    	                designTask.getDuration(),
+    	                schedule
+    	        )
+    	);
+
+    	designResponse.setProductivity(
+    	        calculateProductivity(
+    	                analysis.getUcp(),
+    	                designResponse.getActualEffort()
+    	        )
+    	);
+
+    	designResponse.setEffortVariance(
+    	        calculateEffortVariance(
+    	                designResponse.getPlannedEffort(),
+    	                designResponse.getActualEffort()
+    	        )
+    	);
+    	
+    	designResponse.setEffortInAnalysis(null);
+
+    	designResponse.setReviewDefects(null);
+
+    	designResponse.setReviewEffort(null);
+
+    	designResponse.setDefectDensity(null);
+
+    	designResponse.setDefectDetectionRate(null);
+
+    	designResponse.setDefectRate(null);
+    	
+    	codingResponse.setPlannedDuration(
+    	        getCodingTaskDuration(schedule)
+    	);
+    	
+    	codingResponse.setActualDuration(
+    	        getCodingTaskDuration(schedule)
+    	);
+    	
+    	codingResponse.setScheduleVariance(
+    	        calculateScheduleVariance(
+    	                codingResponse.getPlannedDuration(),
+    	                codingResponse.getActualDuration()
+    	        )
+    	);
+    	
+    	codingResponse.setPlannedEffort(
+    	        calculateCodingPlannedEffort(schedule)
+    	);
+    	
+    	codingResponse.setActualEffort(
+    	        calculateCodingPlannedEffort(schedule)
+    	);
+    	
+    	codingResponse.setCodingEffort(
+    	        calculateBreakdownEffort(
+    	                schedule,
+    	                "Coding")
+    	);
+    	
+    	codingResponse.setCodeReviewEffort(
+    	        calculateBreakdownEffort(
+    	                schedule,
+    	                "Code Review")
+    	);
+    	
+    	codingResponse.setUnitTestingEffort(
+    	        calculateBreakdownEffort(
+    	                schedule,
+    	                "Unit Testing")
+    	);
+    	
+    	codingResponse.setProductivity(
+
+    	        calculateProductivity(
+
+    	                analysis.getUcp(),
+
+    	                codingResponse.getActualEffort()
+
+    	        )
+
+    	);
+    	
+    	codingResponse.setEffortVariance(
+
+    	        calculateEffortVariance(
+
+    	                codingResponse.getPlannedEffort(),
+
+    	                codingResponse.getActualEffort()
+
+    	        )
+
+    	);
     	ProjectMetricsResponse response =
     	        new ProjectMetricsResponse();
     	
 
     	response.setSummary(summary);
     	response.setAnalysis(analysisResponse);
+    	response.setDesign(designResponse);
+    	response.setCoding(codingResponse);
     
 //    	response.setSummary(new SummaryMetricsResponse());
 //    	response.setAnalysis(new AnalysisMetricsResponse());
@@ -360,6 +488,77 @@ public class ProjectMetricsCalculator {
             ProjectSchedule schedule) {
 
         return duration
+                * schedule.getWorkingHoursPerDay()
+                * schedule.getTeamSize()
+                * 1.0;
+    }
+    
+    private ProjectScheduleTask getDesignTask(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskName()
+                                .equalsIgnoreCase("Solution Design"))
+                .findFirst()
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Solution Design task not found"));
+    }
+    
+    private Integer getBreakdownDuration(
+            ProjectSchedule schedule,
+            String activityName) {
+
+        return schedule.getTasks()
+                .stream()
+                .flatMap(task -> task.getTaskBreakdowns().stream())
+                .filter(b ->
+                        b.getActivityName()
+                                .equalsIgnoreCase(activityName))
+                .map(ProjectScheduleTaskBreakdown::getDuration)
+                .reduce(0, Integer::sum);
+    }
+    
+    private Integer getCodingTaskDuration(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskBreakdowns()
+                                .stream()
+                                .anyMatch(b ->
+                                        b.getActivityName()
+                                                .equalsIgnoreCase("Coding")))
+                .map(ProjectScheduleTask::getDuration)
+                .reduce(0, Integer::sum);
+    }
+    
+    private Double calculateCodingPlannedEffort(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskBreakdowns()
+                                .stream()
+                                .anyMatch(b ->
+                                        b.getActivityName()
+                                                .equalsIgnoreCase("Coding")))
+                .mapToDouble(task ->
+                        calculateTaskEffort(
+                                task.getDuration(),
+                                schedule))
+                .sum();
+    }
+    
+    private Double calculateBreakdownEffort(
+            ProjectSchedule schedule,
+            String activityName) {
+
+        return getBreakdownDuration(schedule, activityName)
                 * schedule.getWorkingHoursPerDay()
                 * schedule.getTeamSize()
                 * 1.0;
