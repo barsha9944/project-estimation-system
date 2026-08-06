@@ -61,7 +61,7 @@ public class Proposal {
     private boolean generatedByAI = false;
 
     @Column(nullable = false)
-    private int version = 1;
+    private int version;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "generated_by")
