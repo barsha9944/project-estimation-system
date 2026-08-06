@@ -16,6 +16,7 @@ import com.projectestimation.backend.projectmetrics.dto.QualityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SummaryMetricsResponse;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
@@ -69,12 +70,14 @@ public class ProjectMetricsCalculator {
 
     	ProjectSchedule schedule =
     	        projectScheduleRepository
-    	        .findByOpportunityId(opportunityId)
+    	        .findByOpportunityIdWithTasks(opportunityId)
     	        .orElseThrow(() ->
     	                new ResourceNotFoundException("Project Schedule not found"));
 
     	SummaryMetricsResponse summary =
     	        new SummaryMetricsResponse();
+    	AnalysisMetricsResponse analysisResponse =
+    	        new AnalysisMetricsResponse();
     	
     	
     	summary.setProjectName(
@@ -99,21 +102,266 @@ public class ProjectMetricsCalculator {
     	        schedule.getDurationDays()
     	);
     	
+    	summary.setOriginalSize(
+    	        analysis.getUcp()
+    	);
+    	
+    	summary.setActualSize(
+    	        analysis.getUcp()
+    	);
+    	
+    	summary.setSizeVariance(
+
+    	        calculateSizeVariance(
+
+    	                summary.getOriginalSize(),
+
+    	                summary.getActualSize()
+
+    	        )
+
+    	);
+    	
+    	summary.setTotalActualEffortWithoutPm(
+    	        summary.getTotalPlannedEffortWithoutPm()
+    	);
+    	
+    	summary.setTotalActualEffort(
+    	        summary.getTotalActualEffortWithoutPm()
+    	);
+    	
+    	summary.setEffortVariance(
+
+    	        calculateEffortVariance(
+
+    	                summary.getTotalPlannedEffort(),
+
+    	                summary.getTotalActualEffort()
+
+    	        )
+
+    	);
+    	
+    	summary.setActualDuration(
+    	        schedule.getDurationDays()
+    	);
+    	
+    	summary.setScheduleVariance(
+
+    	        calculateScheduleVariance(
+
+    	                summary.getPlannedDuration(),
+
+    	                summary.getActualDuration()
+
+    	        )
+
+    	);
+    	
+    	summary.setActualOverallProductivity(
+
+    	        calculateProductivity(
+
+    	                summary.getActualSize(),
+
+    	                summary.getTotalActualEffort()
+
+    	        )
+
+    	);
+    	
+    	ProjectScheduleTask analysisTask =
+    	        getAnalysisTask(schedule);
+
+    	analysisResponse.setPlannedDuration(
+    	        analysisTask.getDuration()
+    	);
+    	
+    	analysisResponse.setActualDuration(
+    	        analysisTask.getDuration()
+    	);
+    	
+    	analysisResponse.setScheduleVariance(
+
+    	        calculateScheduleVariance(
+
+    	                analysisResponse.getPlannedDuration(),
+
+    	                analysisResponse.getActualDuration()
+
+    	        )
+
+    	);
+    	
+    	analysisResponse.setPlannedEffort(
+
+    	        calculateTaskEffort(
+
+    	                analysisTask.getDuration(),
+
+    	                schedule
+
+    	        )
+
+    	);
+    	
+    	analysisResponse.setActualEffort(
+
+    	        calculateTaskEffort(
+
+    	                analysisTask.getDuration(),
+
+    	                schedule
+
+    	        )
+
+    	);
+    	
+    	analysisResponse.setProductivity(
+
+    	        calculateProductivity(
+
+    	                analysis.getUcp(),
+
+    	                analysisResponse.getActualEffort()
+
+    	        )
+
+    	);
+    	
+    	analysisResponse.setEffortVariance(
+
+    	        calculateEffortVariance(
+
+    	                analysisResponse.getPlannedEffort(),
+
+    	                analysisResponse.getActualEffort()
+
+    	        )
+
+    	);
+    	
+    	analysisResponse.setEffortInAnalysis(null);
+
+    	analysisResponse.setReviewDefects(null);
+
+    	analysisResponse.setReviewEffort(null);
+    	
+    	analysisResponse.setDefectDensity(null);
+
+    	analysisResponse.setDefectDetectionRate(null);
+
+    	analysisResponse.setDefectRate(null);
     	
     	ProjectMetricsResponse response =
     	        new ProjectMetricsResponse();
+    	
 
     	response.setSummary(summary);
+    	response.setAnalysis(analysisResponse);
     
-    	response.setSummary(new SummaryMetricsResponse());
-    	response.setAnalysis(new AnalysisMetricsResponse());
-    	response.setDesign(new DesignMetricsResponse());
-    	response.setCoding(new CodingMetricsResponse());
-    	response.setSit(new SitMetricsResponse());
-    	response.setOtherActivity(new OtherActivityMetricsResponse());
-    	response.setQuality(new QualityMetricsResponse());
+//    	response.setSummary(new SummaryMetricsResponse());
+//    	response.setAnalysis(new AnalysisMetricsResponse());
+//    	response.setDesign(new DesignMetricsResponse());
+//    	response.setCoding(new CodingMetricsResponse());
+//    	response.setSit(new SitMetricsResponse());
+//    	response.setOtherActivity(new OtherActivityMetricsResponse());
+//    	response.setQuality(new QualityMetricsResponse());
 
     	return response;
-    	   }
+    }
+    
+    private double calculatePlannedEffort(
+            ProjectSchedule schedule) {
 
+        return schedule.getEstimatedHours();
+    }
+    
+    private int calculateActualDuration(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .map(ProjectScheduleTask::getDuration)
+                .reduce(0, Integer::sum);
+    }
+    
+    private int calculatePlannedDuration(
+            ProjectSchedule schedule) {
+
+        return schedule.getDurationDays();
+    }
+    
+    
+
+    private Double calculateSizeVariance(
+            Double originalSize,
+            Double actualSize) {
+
+        if (originalSize == null || originalSize == 0) {
+            return 0.0;
+        }
+
+        return ((actualSize - originalSize) * 100)
+                / originalSize;
+    }
+    
+    private Double calculateEffortVariance(
+            Double plannedEffort,
+            Double actualEffort) {
+
+        if (plannedEffort == null || plannedEffort == 0) {
+            return 0.0;
+        }
+
+        return ((actualEffort - plannedEffort) * 100)
+                / plannedEffort;
+    }
+    
+    private Double calculateScheduleVariance(
+            Integer plannedDuration,
+            Integer actualDuration) {
+
+        if (plannedDuration == null || plannedDuration == 0) {
+            return 0.0;
+        }
+
+        return ((actualDuration - plannedDuration) * 100.0)
+                / plannedDuration;
+    }
+    
+    private Double calculateProductivity(
+            Double actualSize,
+            Double actualEffort) {
+
+        if (actualEffort == null || actualEffort == 0) {
+            return 0.0;
+        }
+
+        return actualSize / actualEffort;
+    }
+    
+    private ProjectScheduleTask getAnalysisTask(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskName()
+                                .equalsIgnoreCase("Requirement Analysis"))
+                .findFirst()
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Requirement Analysis task not found"));
+    }
+    
+    private Double calculateTaskEffort(
+            Integer duration,
+            ProjectSchedule schedule) {
+
+        return duration
+                * schedule.getWorkingHoursPerDay()
+                * schedule.getTeamSize()
+                * 1.0;
+    }
 }
