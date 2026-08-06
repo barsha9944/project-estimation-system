@@ -11,7 +11,9 @@ import com.projectestimation.backend.opportunity.repository.OpportunityRepositor
 import com.projectestimation.backend.projectmetrics.dto.AnalysisMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.CodingMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.DesignMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.OtherActivityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SummaryMetricsResponse;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
@@ -82,6 +84,11 @@ public class ProjectMetricsCalculator {
     	        new DesignMetricsResponse();
     	CodingMetricsResponse codingResponse =
     	        new CodingMetricsResponse();
+    	SitMetricsResponse sitResponse =
+    	        new SitMetricsResponse();
+        OtherActivityMetricsResponse otherActivityMetricsResponse =
+        		new OtherActivityMetricsResponse();
+    	
  
     	
     	summary.setProjectName(
@@ -172,6 +179,16 @@ public class ProjectMetricsCalculator {
 
     	        )
 
+    	);
+    	
+    	ProjectScheduleTask uatTask =
+    	        getUatTask(schedule);
+    	
+    	summary.setPlannedUatEffort(
+    	        calculateTaskEffort(
+    	                uatTask.getDuration(),
+    	                schedule
+    	        )
     	);
     	
     	ProjectScheduleTask analysisTask =
@@ -379,6 +396,77 @@ public class ProjectMetricsCalculator {
     	        )
 
     	);
+    	
+    	ProjectScheduleTask sitTask =
+    	        getSitTask(schedule);
+    	
+    	sitResponse.setPlannedDuration(
+    	        sitTask.getDuration()
+    	);
+    	
+    	sitResponse.setActualDuration(
+    	        sitTask.getDuration()
+    	);
+    	
+    	sitResponse.setScheduleVariance(
+
+    	        calculateScheduleVariance(
+
+    	                sitResponse.getPlannedDuration(),
+
+    	                sitResponse.getActualDuration()
+
+    	        )
+
+    	);
+    	
+    	sitResponse.setPlannedEffort(
+
+    	        calculateTaskEffort(
+
+    	                sitTask.getDuration(),
+
+    	                schedule
+
+    	        )
+
+    	);
+    	
+    	sitResponse.setActualEffort(
+
+    	        calculateTaskEffort(
+
+    	                sitTask.getDuration(),
+
+    	                schedule
+
+    	        )
+
+    	);
+    	
+    	sitResponse.setEffortVariance(
+
+    	        calculateEffortVariance(
+
+    	                sitResponse.getPlannedEffort(),
+
+    	                sitResponse.getActualEffort()
+
+    	        )
+
+    	);
+    	
+    	sitResponse.setTestExecutionEffort(
+    	        calculateBreakdownEffort(
+    	                schedule,
+    	                "Testing"
+    	        )
+    	);
+    	
+    	sitResponse.setSitEffort(
+    	        calculateSitEffort(schedule)
+    	);
+    	
     	ProjectMetricsResponse response =
     	        new ProjectMetricsResponse();
     	
@@ -387,6 +475,8 @@ public class ProjectMetricsCalculator {
     	response.setAnalysis(analysisResponse);
     	response.setDesign(designResponse);
     	response.setCoding(codingResponse);
+    	response.setSit(sitResponse);
+    	response.setOtherActivity(otherActivityMetricsResponse);
     
 //    	response.setSummary(new SummaryMetricsResponse());
 //    	response.setAnalysis(new AnalysisMetricsResponse());
@@ -562,5 +652,40 @@ public class ProjectMetricsCalculator {
                 * schedule.getWorkingHoursPerDay()
                 * schedule.getTeamSize()
                 * 1.0;
+    }
+    
+    private ProjectScheduleTask getSitTask(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskName()
+                                .equalsIgnoreCase("System Integration Testing"))
+                .findFirst()
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "System Integration Testing task not found"));
+    }
+    
+    private Double calculateSitEffort(
+            ProjectSchedule schedule) {
+
+        return calculateBreakdownEffort(schedule, "Testing")
+                + calculateBreakdownEffort(schedule, "Debugging");
+    }
+    
+    private ProjectScheduleTask getUatTask(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskName()
+                                .equalsIgnoreCase("User Acceptance Testing"))
+                .findFirst()
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User Acceptance Testing task not found"));
     }
 }
