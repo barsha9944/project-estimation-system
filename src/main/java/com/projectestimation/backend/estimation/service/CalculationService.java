@@ -27,6 +27,11 @@ import com.projectestimation.backend.estimation.dto.ActorDto;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorDto;
+import com.projectestimation.backend.estimation.dto.EstimationActorResponse;
+import com.projectestimation.backend.estimation.dto.EstimationEnvironmentalFactorResponse;
+import com.projectestimation.backend.estimation.dto.EstimationResponse;
+import com.projectestimation.backend.estimation.dto.EstimationTechnicalFactorResponse;
+import com.projectestimation.backend.estimation.dto.EstimationUseCaseResponse;
 import com.projectestimation.backend.estimation.dto.FinalCalculationRequest;
 import com.projectestimation.backend.estimation.dto.FinalCalculationResponse;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
@@ -1388,5 +1393,138 @@ public class CalculationService {
 	            opportunityName.replaceAll("[\\\\/:*?\"<>|]", "_");
 
 	    return opportunityName + "_Estimate.xlsx";
+	}
+	
+	public EstimationResponse getEstimation(
+        Long opportunityId) {
+
+	    EstimationAnalysis analysis =
+	            estimationAnalysisRepository
+	                    .findByOpportunityId(opportunityId)
+	                    .orElseThrow(() ->
+	                            new ResourceNotFoundException(
+	                                    "Estimation not found"));
+	
+	    List<EstimationActor> actors =
+	            estimationActorRepository
+	                    .findByEstimationAnalysisId(
+	                            analysis.getId());
+	
+	    List<EstimationUseCase> useCases =
+	            estimationUseCaseRepository
+	                    .findByEstimationAnalysisId(
+	                            analysis.getId());
+	
+	    List<EstimationTechnicalFactor> technicalFactors =
+	            estimationTechnicalFactorRepository
+	                    .findByEstimationAnalysisId(
+	                            analysis.getId());
+	
+	    List<EstimationEnvironmentalFactor> environmentalFactors =
+	            estimationEnvironmentalFactorRepository
+	                    .findByEstimationAnalysisId(
+	                            analysis.getId());
+	
+	    EstimationResponse response =
+	            new EstimationResponse();
+	
+	    response.setActors(
+	
+	            actors.stream()
+	
+	                    .map(actor -> new EstimationActorResponse(
+	
+	                            actor.getActorName(),
+	
+	                            actor.getActorType()
+	
+	                    ))
+	
+	                    .toList()
+	
+	    );
+	    
+	    response.setUseCases(
+	
+	            useCases.stream()
+	
+	                    .map(useCase -> new EstimationUseCaseResponse(
+	
+	                            useCase.getUseCaseName(),
+	
+	                            useCase.getComplexity()
+	
+	                    ))
+	
+	                    .toList()
+	
+	    );
+	    
+	    response.setTechnicalFactors(
+	
+	            technicalFactors.stream()
+	
+	                    .map(factor ->
+	
+	                            new EstimationTechnicalFactorResponse(
+	
+	                                    factor.getFactorName(),
+	
+	                                    factor.getMultiplier(),
+	
+	                                    factor.getMagnitude(),
+	
+	                                    factor.getDescription()
+	
+	                            ))
+	
+	                    .toList()
+	
+	    );
+	    
+	    response.setEnvironmentalFactors(
+	
+	            environmentalFactors.stream()
+	
+	                    .map(factor ->
+	
+	                            new EstimationEnvironmentalFactorResponse(
+	
+	                                    factor.getFactorName(),
+	
+	                                    factor.getMultiplier(),
+	
+	                                    factor.getMagnitude(),
+	
+	                                    factor.getDescription()
+	
+	                            ))
+	
+	                    .toList()
+	
+	    );
+	    
+	    response.setActorWeight(
+	            analysis.getActorWeight());
+	
+	    response.setUucp(
+	            analysis.getUucp());
+	
+	    response.setTcf(
+	            analysis.getTcf());
+	
+	    response.setEf(
+	            analysis.getEf());
+	
+	    response.setUcp(
+	            analysis.getUcp());
+	
+	    response.setBenchmarkProductivityRatio(
+	            analysis.getBenchmarkProductivityRatio());
+	
+	    response.setHoursOfEffort(
+	            analysis.getHoursOfEffort());
+	    
+	    return response;
 	}
 }

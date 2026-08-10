@@ -64,11 +64,11 @@ public class ProjectMetricsCalculator {
     	        .orElseThrow(() ->
     	                new ResourceNotFoundException("Estimation not found"));
 
-    	Proposal proposal =
-    	        proposalRepository
-    	        .findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
-    	        .orElseThrow(() ->
-    	                new ResourceNotFoundException("Proposal not found"));
+//    	Proposal proposal =
+//    	        proposalRepository
+//    	        .findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
+//    	        .orElseThrow(() ->
+//    	                new ResourceNotFoundException("Proposal not found"));
 
     	ProjectSchedule schedule =
     	        projectScheduleRepository

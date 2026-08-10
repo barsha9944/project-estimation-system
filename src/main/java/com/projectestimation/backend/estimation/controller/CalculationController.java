@@ -5,6 +5,8 @@ import java.io.IOException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +16,7 @@ import com.projectestimation.backend.estimation.dto.ActorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.ActorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculationResponse;
+import com.projectestimation.backend.estimation.dto.EstimationResponse;
 import com.projectestimation.backend.estimation.dto.FinalCalculationRequest;
 import com.projectestimation.backend.estimation.dto.FinalCalculationResponse;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
@@ -101,4 +104,12 @@ public class CalculationController {
 	            .body(excel);
 	}
 
+	
+	@GetMapping("/{opportunityId}/estimation")
+	public ResponseEntity<EstimationResponse> getEstimation(
+	        @PathVariable Long opportunityId) {
+
+	    return ResponseEntity.ok(
+	            calculationService.getEstimation(opportunityId));
+	}
 }
