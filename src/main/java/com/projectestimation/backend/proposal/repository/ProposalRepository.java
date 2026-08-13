@@ -106,4 +106,6 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 		    """,
 		    nativeQuery = true)
 		List<Object[]> findProposalDetailsWithCount();
+		
+		boolean existsByOpportunityId(Long opportunityId);
 }

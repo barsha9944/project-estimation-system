@@ -56,6 +56,8 @@ import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepo
 import com.projectestimation.backend.opportunity.dto.DownloadEstimateRequest;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
+import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
 @Service
 @Transactional
@@ -67,13 +69,17 @@ public class CalculationService {
 	private final EstimationUseCaseRepository estimationUseCaseRepository;
 	private final EstimationTechnicalFactorRepository estimationTechnicalFactorRepository;
 	private final EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository;
-
+	private final ProposalRepository proposalRepository;
+	private final ProjectScheduleRepository projectScheduleRepository;
+	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
 			EstimationActorRepository estimationActorRepository,
 			EstimationUseCaseRepository estimationUseCaseRepository,
 			EstimationTechnicalFactorRepository estimationTechnicalFactorRepository,
-			EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository) {
+			EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository,
+			ProposalRepository proposalRepository,
+			ProjectScheduleRepository projectScheduleRepository) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -81,6 +87,8 @@ public class CalculationService {
 		this.estimationUseCaseRepository = estimationUseCaseRepository;
 		this.estimationTechnicalFactorRepository = estimationTechnicalFactorRepository;
 		this.estimationEnvironmentalFactorRepository = estimationEnvironmentalFactorRepository;
+		this.proposalRepository = proposalRepository;
+		this.projectScheduleRepository = projectScheduleRepository;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -1528,6 +1536,24 @@ public class CalculationService {
 	    response.setHoursOfEffort(
 	            analysis.getHoursOfEffort());
 	    
+	    response.setEstimationCompleted(
+	            estimationAnalysisRepository
+	                    .findByOpportunityId(opportunityId)
+	                    .isPresent());
+
+	    response.setProposalCompleted(
+	            proposalRepository
+	                    .existsByOpportunityId(opportunityId));
+
+	    response.setWorkScheduleCompleted(
+	    		projectScheduleRepository
+	                    .existsByOpportunityId(opportunityId));
+
+	    response.setSummaryMetricsCompleted(false);
+
+	    response.setNonFunctionalCompleted(false
+	            );
+	    
 	    return response;
 	}
 	
@@ -1606,41 +1632,54 @@ public class CalculationService {
 
 		System.out.println("Request Opportunity Id = " + request.getOpportunityId());
 		
-		Optional<EstimationAnalysis> existing =
-		        estimationAnalysisRepository.findByOpportunityId(
-		                request.getOpportunityId());
+//		Optional<EstimationAnalysis> existing =
+//		        estimationAnalysisRepository.findByOpportunityId(
+//		                request.getOpportunityId());
+//
+//		System.out.println("Existing Analysis Found = " + existing.isPresent());
+//
+//		existing.ifPresent(existingAnalysis -> {
+//
+//		    System.out.println("Analysis Id = " + existingAnalysis.getId());
+//
+//		    Long analysisId = existingAnalysis.getId();
+//
+//		    estimationActorRepository.deleteByEstimationAnalysisId(analysisId);
+//
+//		    estimationUseCaseRepository.deleteByEstimationAnalysisId(analysisId);
+//
+//		    estimationTechnicalFactorRepository.deleteByEstimationAnalysisId(analysisId);
+//
+//		    estimationEnvironmentalFactorRepository.deleteByEstimationAnalysisId(analysisId);
+//
+//		    estimationAnalysisRepository.delete(existingAnalysis);
+//		    estimationAnalysisRepository.flush();
+//		});
 
-		System.out.println("Existing Analysis Found = " + existing.isPresent());
+		Opportunity opportunity =
+		        opportunityRepository
+		                .findById(request.getOpportunityId())
+		                .orElseThrow(() ->
+		                        new ResourceNotFoundException(
+		                                "Opportunity not found"));
 
-		existing.ifPresent(existingAnalysis -> {
+		EstimationAnalysis analysis =
+		        estimationAnalysisRepository
+		                .findByOpportunityId(request.getOpportunityId())
+		                .orElse(new EstimationAnalysis());
 
-		    System.out.println("Analysis Id = " + existingAnalysis.getId());
+		analysis.setOpportunity(opportunity);
 
-		    Long analysisId = existingAnalysis.getId();
+		if (analysis.getId() != null) {
 
-		    estimationActorRepository.deleteByEstimationAnalysisId(analysisId);
+		    estimationActorRepository.deleteByEstimationAnalysisId(analysis.getId());
 
-		    estimationUseCaseRepository.deleteByEstimationAnalysisId(analysisId);
+		    estimationUseCaseRepository.deleteByEstimationAnalysisId(analysis.getId());
 
-		    estimationTechnicalFactorRepository.deleteByEstimationAnalysisId(analysisId);
+		    estimationTechnicalFactorRepository.deleteByEstimationAnalysisId(analysis.getId());
 
-		    estimationEnvironmentalFactorRepository.deleteByEstimationAnalysisId(analysisId);
-
-		    estimationAnalysisRepository.delete(existingAnalysis);
-		    estimationAnalysisRepository.flush();
-		});
-
-	    Opportunity opportunity =
-	            opportunityRepository
-	                    .findById(request.getOpportunityId())
-	                    .orElseThrow(() ->
-	                            new ResourceNotFoundException(
-	                                    "Opportunity not found"));
-
-	    EstimationAnalysis analysis =
-	            new EstimationAnalysis();
-
-	    analysis.setOpportunity(opportunity);
+		    estimationEnvironmentalFactorRepository.deleteByEstimationAnalysisId(analysis.getId());
+		}
 
 	    analysis.setActorWeight(
 	            request.getActorWeight());

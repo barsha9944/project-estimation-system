@@ -33,4 +33,6 @@ public interface ProjectScheduleRepository
     	Optional<ProjectSchedule> findByOpportunityIdWithTasksAndBreakdowns(
     	        @Param("opportunityId") Long opportunityId
     	);
+    
+    boolean existsByOpportunityId(Long opportunityId);
 }

@@ -32,4 +32,14 @@ public class EstimationResponse {
     private Double benchmarkProductivityRatio;
 
     private Double hoursOfEffort;
+    
+    private Boolean estimationCompleted;
+
+    private Boolean proposalCompleted;
+
+    private Boolean workScheduleCompleted;
+
+    private Boolean summaryMetricsCompleted;
+
+    private Boolean nonFunctionalCompleted;
 }
