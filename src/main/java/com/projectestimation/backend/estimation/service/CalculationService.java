@@ -1,8 +1,10 @@
 package com.projectestimation.backend.estimation.service;
 
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -34,6 +36,7 @@ import com.projectestimation.backend.estimation.dto.EstimationTechnicalFactorRes
 import com.projectestimation.backend.estimation.dto.EstimationUseCaseResponse;
 import com.projectestimation.backend.estimation.dto.FinalCalculationRequest;
 import com.projectestimation.backend.estimation.dto.FinalCalculationResponse;
+import com.projectestimation.backend.estimation.dto.SaveEstimationRequest;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorDto;
@@ -1526,5 +1529,160 @@ public class CalculationService {
 	            analysis.getHoursOfEffort());
 	    
 	    return response;
+	}
+	
+	private void saveActors(
+	        EstimationAnalysis analysis,
+	        List<ActorDto> actors) {
+	
+	    for (ActorDto dto : actors) {
+	
+	        EstimationActor actor = new EstimationActor();
+	
+	        actor.setEstimationAnalysis(analysis);
+	        actor.setActorName(dto.getActorName());
+	        actor.setActorType(dto.getActorType());
+	
+	        estimationActorRepository.save(actor);
+	    }
+	}
+	
+	private void saveUseCases(
+        EstimationAnalysis analysis,
+        List<UseCaseDto> useCases) {
+
+	    for (UseCaseDto dto : useCases) {
+	
+	        EstimationUseCase useCase = new EstimationUseCase();
+	
+	        useCase.setEstimationAnalysis(analysis);
+	        useCase.setUseCaseName(dto.getUseCaseName());
+	        useCase.setComplexity(dto.getComplexity());
+	
+	        estimationUseCaseRepository.save(useCase);
+	    }
+	}
+	
+	private void saveTechnicalFactors(
+        EstimationAnalysis analysis,
+        List<TechnicalFactorDto> technicalFactors) {
+
+	    for (TechnicalFactorDto dto : technicalFactors) {
+	
+	        EstimationTechnicalFactor factor =
+	                new EstimationTechnicalFactor();
+	
+	        factor.setEstimationAnalysis(analysis);
+	        factor.setFactorName(dto.getFactorName());
+	        factor.setMultiplier(dto.getMultiplier());
+	        factor.setMagnitude(dto.getMagnitude());
+	        factor.setDescription(dto.getDescription());
+	
+	        estimationTechnicalFactorRepository.save(factor);
+	    }
+	}
+	
+	private void saveEnvironmentalFactors(
+        EstimationAnalysis analysis,
+        List<EnvironmentalFactorDto> environmentalFactors) {
+
+	    for (EnvironmentalFactorDto dto : environmentalFactors) {
+	
+	        EstimationEnvironmentalFactor factor =
+	                new EstimationEnvironmentalFactor();
+	
+	        factor.setEstimationAnalysis(analysis);
+	        factor.setFactorName(dto.getFactorName());
+	        factor.setMultiplier(dto.getMultiplier());
+	        factor.setMagnitude(dto.getMagnitude());
+	        factor.setDescription(dto.getDescription());
+	
+	        estimationEnvironmentalFactorRepository.save(factor);
+	    }
+	}
+	
+	public EstimationResponse saveEstimation(
+	        SaveEstimationRequest request) {
+
+		System.out.println("Request Opportunity Id = " + request.getOpportunityId());
+		
+		Optional<EstimationAnalysis> existing =
+		        estimationAnalysisRepository.findByOpportunityId(
+		                request.getOpportunityId());
+
+		System.out.println("Existing Analysis Found = " + existing.isPresent());
+
+		existing.ifPresent(existingAnalysis -> {
+
+		    System.out.println("Analysis Id = " + existingAnalysis.getId());
+
+		    Long analysisId = existingAnalysis.getId();
+
+		    estimationActorRepository.deleteByEstimationAnalysisId(analysisId);
+
+		    estimationUseCaseRepository.deleteByEstimationAnalysisId(analysisId);
+
+		    estimationTechnicalFactorRepository.deleteByEstimationAnalysisId(analysisId);
+
+		    estimationEnvironmentalFactorRepository.deleteByEstimationAnalysisId(analysisId);
+
+		    estimationAnalysisRepository.delete(existingAnalysis);
+		    estimationAnalysisRepository.flush();
+		});
+
+	    Opportunity opportunity =
+	            opportunityRepository
+	                    .findById(request.getOpportunityId())
+	                    .orElseThrow(() ->
+	                            new ResourceNotFoundException(
+	                                    "Opportunity not found"));
+
+	    EstimationAnalysis analysis =
+	            new EstimationAnalysis();
+
+	    analysis.setOpportunity(opportunity);
+
+	    analysis.setActorWeight(
+	            request.getActorWeight());
+
+	    analysis.setUucp(
+	            request.getUucp());
+
+	    analysis.setTcf(
+	            request.getTcf());
+
+	    analysis.setEf(
+	            request.getEf());
+
+	    analysis.setUcp(
+	            request.getUcp());
+
+	    analysis.setBenchmarkProductivityRatio(
+	            request.getBenchmarkProductivityRatio());
+
+	    analysis.setHoursOfEffort(
+	            request.getHoursOfEffort());
+
+	    analysis =
+	            estimationAnalysisRepository.save(analysis);
+
+	    saveActors(
+	            analysis,
+	            request.getActors());
+
+	    saveUseCases(
+	            analysis,
+	            request.getUseCases());
+
+	    saveTechnicalFactors(
+	            analysis,
+	            request.getTechnicalFactors());
+
+	    saveEnvironmentalFactors(
+	            analysis,
+	            request.getEnvironmentalFactors());
+
+	    return getEstimation(
+	            request.getOpportunityId());
 	}
 }

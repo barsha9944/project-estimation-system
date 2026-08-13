@@ -19,6 +19,7 @@ import com.projectestimation.backend.estimation.dto.EnvironmentalFactorCalculati
 import com.projectestimation.backend.estimation.dto.EstimationResponse;
 import com.projectestimation.backend.estimation.dto.FinalCalculationRequest;
 import com.projectestimation.backend.estimation.dto.FinalCalculationResponse;
+import com.projectestimation.backend.estimation.dto.SaveEstimationRequest;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationRequest;
 import com.projectestimation.backend.estimation.dto.TechnicalFactorCalculationResponse;
 import com.projectestimation.backend.estimation.dto.UseCaseCalculationRequest;
@@ -74,6 +75,15 @@ public class CalculationController {
 	) {
 	    return calculationService.calculateFinal(request);
 	}
+	
+	@PostMapping("/save-estimation")
+    public ResponseEntity<EstimationResponse> saveEstimation(
+            @RequestBody SaveEstimationRequest request) {
+
+        return ResponseEntity.ok(
+                calculationService.saveEstimation(request));
+    }
+	
 	
 	@PostMapping("/download-estimate")
 	public ResponseEntity<byte[]> downloadEstimate(
