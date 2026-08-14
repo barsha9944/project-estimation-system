@@ -1,5 +1,6 @@
 package com.projectestimation.backend.estimation.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.projectestimation.backend.opportunity.model.Opportunity;
@@ -43,4 +44,10 @@ public class EstimationAnalysis {
     private Double benchmarkProductivityRatio;
     
     private Double hoursOfEffort;
+    
+    private String currency;
+
+    private BigDecimal hourlyRate;
+
+    private BigDecimal projectPrice;
 }

@@ -41,5 +41,4 @@ public class EstimationResponse {
 
     private Boolean summaryMetricsCompleted;
 
-    private Boolean nonFunctionalCompleted;
 }

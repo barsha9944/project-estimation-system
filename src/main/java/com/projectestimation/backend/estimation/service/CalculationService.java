@@ -1551,8 +1551,6 @@ public class CalculationService {
 
 	    response.setSummaryMetricsCompleted(false);
 
-	    response.setNonFunctionalCompleted(false
-	            );
 	    
 	    return response;
 	}
@@ -1701,6 +1699,12 @@ public class CalculationService {
 
 	    analysis.setHoursOfEffort(
 	            request.getHoursOfEffort());
+	    
+	    analysis.setCurrency(request.getCurrency());
+	    
+	    analysis.setHourlyRate(request.getHourlyRate());
+	    
+	    analysis.setProjectPrice(request.getProjectPrice());
 
 	    analysis =
 	            estimationAnalysisRepository.save(analysis);
