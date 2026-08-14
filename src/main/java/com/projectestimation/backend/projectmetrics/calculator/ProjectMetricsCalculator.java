@@ -1,5 +1,8 @@
 package com.projectestimation.backend.projectmetrics.calculator;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +16,14 @@ import com.projectestimation.backend.projectmetrics.dto.CodingMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.DesignMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.OtherActivityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.QualityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.SprintMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SummaryMetricsResponse;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
-import com.projectestimation.backend.proposal.model.Proposal;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
 @Component
@@ -86,8 +90,11 @@ public class ProjectMetricsCalculator {
     	        new CodingMetricsResponse();
     	SitMetricsResponse sitResponse =
     	        new SitMetricsResponse();
-        OtherActivityMetricsResponse otherActivityMetricsResponse =
-        		new OtherActivityMetricsResponse();
+    	OtherActivityMetricsResponse otherActivityMetricsResponse =
+    	        calculateOtherActivity(schedule);
+
+    	QualityMetricsResponse qualityResponse =
+    	        new QualityMetricsResponse();
     	
  
     	
@@ -183,12 +190,28 @@ public class ProjectMetricsCalculator {
     	
     	ProjectScheduleTask uatTask =
     	        getUatTask(schedule);
-    	
-    	summary.setPlannedUatEffort(
+
+    	Double plannedUatEffort =
     	        calculateTaskEffort(
     	                uatTask.getDuration(),
     	                schedule
-    	        )
+    	        );
+
+    	Integer actualUatDuration =
+    	        getActualTaskDuration(uatTask);
+
+    	Double actualUatEffort =
+    	        calculateTaskEffort(
+    	                actualUatDuration,
+    	                schedule
+    	        );
+
+    	qualityResponse.setPlannedUatEffort(
+    	        plannedUatEffort
+    	);
+
+    	qualityResponse.setActualUatEffort(
+    	        actualUatEffort
     	);
     	
     	ProjectScheduleTask analysisTask =
@@ -467,16 +490,24 @@ public class ProjectMetricsCalculator {
     	        calculateSitEffort(schedule)
     	);
     	
+    	List<SprintMetricsResponse> sprintMetrics =
+    	        calculateSprintMetrics(
+    	                schedule,
+    	                analysis.getUcp(),
+    	                analysisResponse,
+    	                designResponse,
+    	                codingResponse,
+    	                sitResponse,
+    	                otherActivityMetricsResponse
+    	        );
+    	
     	ProjectMetricsResponse response =
     	        new ProjectMetricsResponse();
     	
 
     	response.setSummary(summary);
-    	response.setAnalysis(analysisResponse);
-    	response.setDesign(designResponse);
-    	response.setCoding(codingResponse);
-    	response.setSit(sitResponse);
-    	response.setOtherActivity(otherActivityMetricsResponse);
+    	response.setQuality(qualityResponse);
+    	response.setSprints(sprintMetrics);
     
 //    	response.setSummary(new SummaryMetricsResponse());
 //    	response.setAnalysis(new AnalysisMetricsResponse());
@@ -626,6 +657,587 @@ public class ProjectMetricsCalculator {
                 .reduce(0, Integer::sum);
     }
     
+    private List<ProjectScheduleTask> getCodingTasks(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task ->
+                        task.getTaskBreakdowns()
+                                .stream()
+                                .anyMatch(b ->
+                                        b.getActivityName()
+                                                .equalsIgnoreCase("Coding")))
+                .toList();
+    }
+    
+    private double calculateSprintRatio(
+            ProjectScheduleTask codingTask,
+            int totalCodingDuration) {
+
+        if (totalCodingDuration == 0) {
+            return 0.0;
+        }
+
+        return (double) codingTask.getDuration()
+                / totalCodingDuration;
+    }
+    
+    private Double proportionalValue(
+            Double totalValue,
+            double ratio) {
+
+        if (totalValue == null) {
+            return null;
+        }
+
+        return totalValue * ratio;
+    }
+    
+    private Integer proportionalInteger(
+            Integer totalValue,
+            double ratio) {
+
+        if (totalValue == null) {
+            return null;
+        }
+
+        return (int) Math.round(totalValue * ratio);
+    }
+    
+    private DesignMetricsResponse calculateSprintDesign(
+            DesignMetricsResponse overall,
+            Double ucp,
+            double ratio) {
+
+        DesignMetricsResponse sprint =
+                new DesignMetricsResponse();
+
+        sprint.setPlannedDuration(
+                proportionalDuration(
+                        overall.getPlannedDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setActualDuration(
+                proportionalDuration(
+                        overall.getActualDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setScheduleVariance(
+                calculateScheduleVariance(
+                        sprint.getPlannedDuration(),
+                        sprint.getActualDuration()
+                )
+        );
+
+        sprint.setPlannedEffort(
+                proportionalValue(
+                        overall.getPlannedEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setActualEffort(
+                proportionalValue(
+                        overall.getActualEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setProductivity(
+                calculateProductivity(
+                        proportionalValue(ucp, ratio),
+                        sprint.getActualEffort()
+                )
+        );
+
+        sprint.setEffortVariance(
+                calculateEffortVariance(
+                        sprint.getPlannedEffort(),
+                        sprint.getActualEffort()
+                )
+        );
+
+        sprint.setEffortInAnalysis(
+                proportionalValue(
+                        overall.getEffortInAnalysis(),
+                        ratio
+                )
+        );
+
+        sprint.setReviewDefects(
+                proportionalInteger(
+                        overall.getReviewDefects(),
+                        ratio
+                )
+        );
+
+        sprint.setReviewEffort(
+                proportionalValue(
+                        overall.getReviewEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setDefectDensity(null);
+        sprint.setDefectDetectionRate(null);
+        sprint.setDefectRate(null);
+
+        return sprint;
+    }
+    
+    private CodingMetricsResponse calculateSprintCoding(
+            ProjectScheduleTask codingTask,
+            ProjectSchedule schedule,
+            Double ucp) {
+
+        CodingMetricsResponse sprint =
+                new CodingMetricsResponse();
+
+        int duration =
+                codingTask.getDuration();
+
+        sprint.setPlannedDuration(duration);
+
+        sprint.setActualDuration(duration);
+
+        sprint.setScheduleVariance(
+                calculateScheduleVariance(
+                        duration,
+                        duration
+                )
+        );
+
+        Double plannedEffort =
+                calculateTaskEffort(
+                        duration,
+                        schedule
+                );
+
+        sprint.setPlannedEffort(plannedEffort);
+
+        sprint.setActualEffort(plannedEffort);
+
+        sprint.setCodingEffort(
+                calculateTaskBreakdownEffort(
+                        codingTask,
+                        "Coding",
+                        schedule
+                )
+        );
+
+        sprint.setCodeReviewEffort(
+                calculateTaskBreakdownEffort(
+                        codingTask,
+                        "Code Review",
+                        schedule
+                )
+        );
+
+        sprint.setUnitTestingEffort(
+                calculateTaskBreakdownEffort(
+                        codingTask,
+                        "Unit Testing",
+                        schedule
+                )
+        );
+
+        sprint.setProductivity(
+                calculateProductivity(
+                        ucp,
+                        sprint.getCodingEffort()
+                )
+        );
+
+        sprint.setEffortVariance(
+                calculateEffortVariance(
+                        sprint.getPlannedEffort(),
+                        sprint.getActualEffort()
+                )
+        );
+
+        return sprint;
+    }
+    
+    private Double calculateTaskBreakdownEffort(
+            ProjectScheduleTask task,
+            String activityName,
+            ProjectSchedule schedule) {
+
+        Integer duration =
+                task.getTaskBreakdowns()
+                        .stream()
+                        .filter(b ->
+                                b.getActivityName()
+                                        .equalsIgnoreCase(activityName))
+                        .map(ProjectScheduleTaskBreakdown::getDuration)
+                        .reduce(0, Integer::sum);
+
+        return duration
+                * schedule.getWorkingHoursPerDay()
+                * schedule.getTeamSize()
+                * 1.0;
+    }
+    
+    private SitMetricsResponse calculateSprintSit(
+            SitMetricsResponse overall,
+            double ratio) {
+
+        SitMetricsResponse sprint =
+                new SitMetricsResponse();
+
+        sprint.setPlannedDuration(
+                proportionalDuration(
+                        overall.getPlannedDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setActualDuration(
+                proportionalDuration(
+                        overall.getActualDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setScheduleVariance(
+                calculateScheduleVariance(
+                        sprint.getPlannedDuration(),
+                        sprint.getActualDuration()
+                )
+        );
+
+        sprint.setPlannedEffort(
+                proportionalValue(
+                        overall.getPlannedEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setActualEffort(
+                proportionalValue(
+                        overall.getActualEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setEffortVariance(
+                calculateEffortVariance(
+                        sprint.getPlannedEffort(),
+                        sprint.getActualEffort()
+                )
+        );
+
+        sprint.setTotalTestConditions(
+                proportionalInteger(
+                        overall.getTotalTestConditions(),
+                        ratio
+                )
+        );
+
+        sprint.setTestCaseWritingEffort(
+                proportionalValue(
+                        overall.getTestCaseWritingEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setTestCaseReviewDefects(
+                proportionalInteger(
+                        overall.getTestCaseReviewDefects(),
+                        ratio
+                )
+        );
+
+        sprint.setTestCaseReviewEffort(
+                proportionalValue(
+                        overall.getTestCaseReviewEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setTestExecutionEffort(
+                proportionalValue(
+                        overall.getTestExecutionEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setTestCaseReviewDetectionRate(
+                overall.getTestCaseReviewDetectionRate()
+        );
+
+        sprint.setSitDefects(
+                proportionalInteger(
+                        overall.getSitDefects(),
+                        ratio
+                )
+        );
+
+        sprint.setSitEffort(
+                proportionalValue(
+                        overall.getSitEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setSitDetectionRate(
+                overall.getSitDetectionRate()
+        );
+
+        return sprint;
+    }
+    
+    private OtherActivityMetricsResponse calculateSprintOtherActivity(
+            OtherActivityMetricsResponse overall,
+            double ratio) {
+
+        OtherActivityMetricsResponse sprint =
+                new OtherActivityMetricsResponse();
+
+        sprint.setActualTotal(
+                proportionalValue(
+                        overall.getActualTotal(),
+                        ratio
+                )
+        );
+
+        sprint.setActualProjectManagement(
+                proportionalValue(
+                        overall.getActualProjectManagement(),
+                        ratio
+                )
+        );
+
+        sprint.setActualSupportGroup(
+                proportionalValue(
+                        overall.getActualSupportGroup(),
+                        ratio
+                )
+        );
+
+        sprint.setActualOthers(
+                proportionalValue(
+                        overall.getActualOthers(),
+                        ratio
+                )
+        );
+
+        sprint.setPlannedTotal(
+                proportionalValue(
+                        overall.getPlannedTotal(),
+                        ratio
+                )
+        );
+
+        sprint.setPlannedProjectManagement(
+                proportionalValue(
+                        overall.getPlannedProjectManagement(),
+                        ratio
+                )
+        );
+
+        sprint.setPlannedSupportGroup(
+                proportionalValue(
+                        overall.getPlannedSupportGroup(),
+                        ratio
+                )
+        );
+
+        sprint.setPlannedOthers(
+                proportionalValue(
+                        overall.getPlannedOthers(),
+                        ratio
+                )
+        );
+
+        return sprint;
+    }
+    private Integer proportionalDuration(
+            Integer totalDuration,
+            double ratio) {
+
+        if (totalDuration == null) {
+            return 0;
+        }
+
+        return (int) Math.round(
+                totalDuration * ratio
+        );
+    }
+    
+    private List<SprintMetricsResponse> calculateSprintMetrics(
+            ProjectSchedule schedule,
+            Double analysisUcp,
+            AnalysisMetricsResponse overallAnalysis,
+            DesignMetricsResponse overallDesign,
+            CodingMetricsResponse overallCoding,
+            SitMetricsResponse overallSit,
+            OtherActivityMetricsResponse overallOther) {
+
+        List<ProjectScheduleTask> codingTasks =
+                getCodingTasks(schedule);
+
+        List<SprintMetricsResponse> sprints =
+                new ArrayList<>();
+
+        if (codingTasks.isEmpty()) {
+            return sprints;
+        }
+
+        int totalCodingDuration =
+                codingTasks.stream()
+                        .mapToInt(ProjectScheduleTask::getDuration)
+                        .sum();
+
+        for (int i = 0; i < codingTasks.size(); i++) {
+
+            ProjectScheduleTask codingTask =
+                    codingTasks.get(i);
+
+            double ratio =
+                    calculateSprintRatio(
+                            codingTask,
+                            totalCodingDuration
+                    );
+
+            SprintMetricsResponse sprint =
+                    new SprintMetricsResponse();
+
+            sprint.setSprintNumber(i + 1);
+
+            sprint.setAnalysis(
+                    calculateSprintAnalysis(
+                            overallAnalysis,
+                            analysisUcp,
+                            ratio
+                    )
+            );
+
+            sprint.setDesign(
+                    calculateSprintDesign(
+                            overallDesign,
+                            analysisUcp,
+                            ratio
+                    )
+            );
+
+            sprint.setCoding(
+                    calculateSprintCoding(
+                            codingTask,
+                            schedule,
+                            analysisUcp
+                    )
+            );
+
+            sprint.setSit(
+                    calculateSprintSit(
+                            overallSit,
+                            ratio
+                    )
+            );
+
+            sprint.setOtherActivity(
+                    calculateSprintOtherActivity(
+                            overallOther,
+                            ratio
+                    )
+            );
+
+            sprints.add(sprint);
+        }
+
+        return sprints;
+    }
+    
+    private AnalysisMetricsResponse calculateSprintAnalysis(
+            AnalysisMetricsResponse overall,
+            Double ucp,
+            double ratio) {
+
+        AnalysisMetricsResponse sprint =
+                new AnalysisMetricsResponse();
+
+        sprint.setPlannedDuration(
+                proportionalDuration(
+                        overall.getPlannedDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setActualDuration(
+                proportionalDuration(
+                        overall.getActualDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setScheduleVariance(
+                calculateScheduleVariance(
+                        sprint.getPlannedDuration(),
+                        sprint.getActualDuration()
+                )
+        );
+
+        sprint.setPlannedEffort(
+                proportionalValue(
+                        overall.getPlannedEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setActualEffort(
+                proportionalValue(
+                        overall.getActualEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setProductivity(
+                calculateProductivity(
+                        proportionalValue(ucp, ratio),
+                        sprint.getActualEffort()
+                )
+        );
+
+        sprint.setEffortVariance(
+                calculateEffortVariance(
+                        sprint.getPlannedEffort(),
+                        sprint.getActualEffort()
+                )
+        );
+
+        sprint.setEffortInAnalysis(
+                proportionalValue(
+                        overall.getEffortInAnalysis(),
+                        ratio
+                )
+        );
+
+        sprint.setReviewDefects(
+                proportionalInteger(
+                        overall.getReviewDefects(),
+                        ratio
+                )
+        );
+
+        sprint.setReviewEffort(
+                proportionalValue(
+                        overall.getReviewEffort(),
+                        ratio
+                )
+        );
+        
+        sprint.setDefectDensity(null);
+        sprint.setDefectDetectionRate(null);
+        sprint.setDefectRate(null);
+
+        return sprint;
+    }
     private Double calculateCodingPlannedEffort(
             ProjectSchedule schedule) {
 
@@ -680,12 +1292,147 @@ public class ProjectMetricsCalculator {
 
         return schedule.getTasks()
                 .stream()
-                .filter(task ->
-                        task.getTaskName()
-                                .equalsIgnoreCase("User Acceptance Testing"))
+                .filter(task -> {
+
+                    String taskName =
+                            task.getTaskName() == null
+                                    ? ""
+                                    : task.getTaskName()
+                                            .trim()
+                                            .toLowerCase();
+
+                    return taskName.contains("user acceptance testing")
+                            || taskName.equals("uat")
+                            || taskName.contains("user acceptance test");
+                })
                 .findFirst()
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "User Acceptance Testing task not found"));
+    }
+    
+    private Integer getActualTaskDuration(
+            ProjectScheduleTask task) {
+
+        if (task.getActualStartDate() == null
+                || task.getActualEndDate() == null) {
+
+            return task.getDuration();
+        }
+
+        return (int) (
+                java.time.temporal.ChronoUnit.DAYS.between(
+                        task.getActualStartDate(),
+                        task.getActualEndDate()
+                ) + 1
+        );
+    }
+    private boolean isPrimaryActivity(String taskName) {
+
+        return taskName.contains("requirement analysis")
+                || taskName.contains("analysis")
+                || taskName.contains("solution design")
+                || taskName.contains("design")
+                || taskName.contains("coding")
+                || taskName.contains("development")
+                || taskName.contains("system integration testing")
+                || taskName.equals("sit")
+                || taskName.contains("user acceptance testing")
+                || taskName.equals("uat");
+    }
+    
+    private OtherActivityMetricsResponse calculateOtherActivity(
+            ProjectSchedule schedule) {
+
+        double plannedProjectManagement = 0.0;
+        double plannedSupportGroup = 0.0;
+        double plannedOthers = 0.0;
+
+        double actualProjectManagement = 0.0;
+        double actualSupportGroup = 0.0;
+        double actualOthers = 0.0;
+
+        for (ProjectScheduleTask task : schedule.getTasks()) {
+
+            String taskName =
+                    task.getTaskName() == null
+                            ? ""
+                            : task.getTaskName().trim().toLowerCase();
+
+            /*
+             * These are already represented by their own
+             * metrics and must NOT be counted as Other Activity.
+             */
+            if (isPrimaryActivity(taskName)) {
+                continue;
+            }
+
+            double plannedEffort =
+                    calculateTaskEffort(
+                            task.getDuration(),
+                            schedule
+                    );
+
+            double actualEffort = plannedEffort;
+
+            if (taskName.contains("project management")
+                    || taskName.equals("pm")) {
+
+                plannedProjectManagement += plannedEffort;
+                actualProjectManagement += actualEffort;
+
+            } else if (taskName.contains("support group")
+                    || taskName.contains("support")) {
+
+                plannedSupportGroup += plannedEffort;
+                actualSupportGroup += actualEffort;
+
+            } else {
+
+                plannedOthers += plannedEffort;
+                actualOthers += actualEffort;
+            }
+        }
+
+        OtherActivityMetricsResponse response =
+                new OtherActivityMetricsResponse();
+
+        response.setPlannedProjectManagement(
+                plannedProjectManagement
+        );
+
+        response.setPlannedSupportGroup(
+                plannedSupportGroup
+        );
+
+        response.setPlannedOthers(
+                plannedOthers
+        );
+
+        response.setPlannedTotal(
+                plannedProjectManagement
+                        + plannedSupportGroup
+                        + plannedOthers
+        );
+
+        response.setActualProjectManagement(
+                actualProjectManagement
+        );
+
+        response.setActualSupportGroup(
+                actualSupportGroup
+        );
+
+        response.setActualOthers(
+                actualOthers
+        );
+
+        response.setActualTotal(
+                actualProjectManagement
+                        + actualSupportGroup
+                        + actualOthers
+        );
+
+        return response;
     }
 }

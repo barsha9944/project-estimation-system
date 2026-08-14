@@ -40,7 +40,5 @@ public class SummaryMetricsResponse {
     private Double reviewEffectiveness;
 
     private Double testingEffectiveness;
-    
-    private Double plannedUatEffort;
 
 }
