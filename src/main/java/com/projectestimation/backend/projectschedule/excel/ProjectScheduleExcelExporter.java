@@ -85,46 +85,34 @@ public class ProjectScheduleExcelExporter {
 
     }
 
-    private void createProjectScheduleSheet(
+private void createProjectScheduleSheet(
         XSSFWorkbook workbook,
-        SaveProjectScheduleRequest request
-) {
+        SaveProjectScheduleRequest request) {
 
     Sheet sheet = workbook.createSheet("Project Schedule");
 
     CellStyle headerStyle = createTableHeaderStyle(workbook);
-
     CellStyle cellStyle = createTableCellStyle(workbook);
-
     CellStyle dateStyle = createDateCellStyle(workbook);
+
+    String[] columns = {
+            "Seq",
+            "Task",
+            "Task Breakdown",
+            "Planned Start",
+            "Planned End",
+            "Working Days",
+            "Actual Start",
+            "Actual End",
+            "Actual Working Days",
+            "Predecessor",
+            "Status"
+    };
 
     int rowIndex = 0;
 
     Row header = sheet.createRow(rowIndex++);
 
-    String[] columns = {
-
-            "Seq",
-
-            "Task",
-
-            "Duration",
-
-            "Planned Start",
-
-            "Planned End",
-
-            "Actual Start",
-
-            "Actual End",
-
-            "Predecessor",
-
-            "Status"
-
-    };
-
-    // Header
     for (int i = 0; i < columns.length; i++) {
 
         Cell cell = header.createCell(i);
@@ -132,93 +120,224 @@ public class ProjectScheduleExcelExporter {
         cell.setCellValue(columns[i]);
 
         cell.setCellStyle(headerStyle);
-
     }
 
-    // Data
+    if (request.getTasks() == null || request.getTasks().isEmpty()) {
+        return;
+    }
+
     for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
 
-        Row row = sheet.createRow(rowIndex++);
+        /*
+         * If the task has breakdowns, export one Excel row
+         * for every breakdown.
+         */
+        if (task.getTaskBreakdowns() != null
+                && !task.getTaskBreakdowns().isEmpty()) {
 
-        int col = 0;
+            for (var breakdown : task.getTaskBreakdowns()) {
 
-        Cell cell;
+                Row row = sheet.createRow(rowIndex++);
 
-        // Sequence
-        cell = row.createCell(col++);
-        cell.setCellValue(task.getSequence());
-        cell.setCellStyle(cellStyle);
+                int col = 0;
 
-        // Task
-        cell = row.createCell(col++);
-        cell.setCellValue(task.getTaskName());
-        cell.setCellStyle(cellStyle);
+                // Sequence
+                setNumericCell(
+                        row.createCell(col++),
+                        task.getSequence(),
+                        cellStyle
+                );
 
-        // Duration
-        cell = row.createCell(col++);
-        cell.setCellValue(task.getDuration());
-        cell.setCellStyle(cellStyle);
+                // Task
+                setStringCell(
+                        row.createCell(col++),
+                        task.getTaskName(),
+                        cellStyle
+                );
 
-        // Planned Start
-        cell = row.createCell(col++);
-        if (task.getPlannedStartDate() != null) {
-            cell.setCellValue(task.getPlannedStartDate());
+                // Breakdown
+                setStringCell(
+                        row.createCell(col++),
+                        breakdown.getActivityName(),
+                        cellStyle
+                );
+
+                // Planned Start
+                setDateCell(
+                        row.createCell(col++),
+                        breakdown.getPlannedStartDate(),
+                        dateStyle
+                );
+
+                // Planned End
+                setDateCell(
+                        row.createCell(col++),
+                        breakdown.getPlannedEndDate(),
+                        dateStyle
+                );
+
+                // Working Days
+                setNumericCell(
+                        row.createCell(col++),
+                        breakdown.getDuration(),
+                        cellStyle
+                );
+
+                // Actual Start
+                setDateCell(
+                        row.createCell(col++),
+                        breakdown.getActualStartDate(),
+                        dateStyle
+                );
+
+                // Actual End
+                setDateCell(
+                        row.createCell(col++),
+                        breakdown.getActualEndDate(),
+                        dateStyle
+                );
+
+                // Actual Working Days
+                setNumericCell(
+                        row.createCell(col++),
+                        calculateDays(
+                                breakdown.getActualStartDate(),
+                                breakdown.getActualEndDate()
+                        ),
+                        cellStyle
+                );
+
+                // Predecessor
+                setStringCell(
+                        row.createCell(col++),
+                        task.getPredecessor(),
+                        cellStyle
+                );
+
+                // Status
+                setStringCell(
+                        row.createCell(col++),
+                        task.getStatus(),
+                        cellStyle
+                );
+            }
+
+        } else {
+
+            /*
+             * Fallback for tasks without breakdowns.
+             */
+            Row row = sheet.createRow(rowIndex++);
+
+            int col = 0;
+
+            // Sequence
+            setNumericCell(
+                    row.createCell(col++),
+                    task.getSequence(),
+                    cellStyle
+            );
+
+            // Task
+            setStringCell(
+                    row.createCell(col++),
+                    task.getTaskName(),
+                    cellStyle
+            );
+
+            // Breakdown
+            setStringCell(
+                    row.createCell(col++),
+                    "",
+                    cellStyle
+            );
+
+            // Planned Start
+            setDateCell(
+                    row.createCell(col++),
+                    task.getPlannedStartDate(),
+                    dateStyle
+            );
+
+            // Planned End
+            setDateCell(
+                    row.createCell(col++),
+                    task.getPlannedEndDate(),
+                    dateStyle
+            );
+
+            // Working Days
+            setNumericCell(
+                    row.createCell(col++),
+                    task.getDuration(),
+                    cellStyle
+            );
+
+            // Actual Start
+            setDateCell(
+                    row.createCell(col++),
+                    task.getActualStartDate(),
+                    dateStyle
+            );
+
+            // Actual End
+            setDateCell(
+                    row.createCell(col++),
+                    task.getActualEndDate(),
+                    dateStyle
+            );
+
+            // Actual Working Days
+            setNumericCell(
+                    row.createCell(col++),
+                    calculateDays(
+                            task.getActualStartDate(),
+                            task.getActualEndDate()
+                    ),
+                    cellStyle
+            );
+
+            // Predecessor
+            setStringCell(
+                    row.createCell(col++),
+                    task.getPredecessor(),
+                    cellStyle
+            );
+
+            // Status
+            setStringCell(
+                    row.createCell(col++),
+                    task.getStatus(),
+                    cellStyle
+            );
         }
-        cell.setCellStyle(dateStyle);
-
-        // Planned End
-        cell = row.createCell(col++);
-        if (task.getPlannedEndDate() != null) {
-            cell.setCellValue(task.getPlannedEndDate());
-        }
-        cell.setCellStyle(dateStyle);
-
-        // Actual Start
-        cell = row.createCell(col++);
-        if (task.getActualStartDate() != null) {
-            cell.setCellValue(task.getActualStartDate());
-        }
-        cell.setCellStyle(dateStyle);
-
-        // Actual End
-        cell = row.createCell(col++);
-        if (task.getActualEndDate() != null) {
-            cell.setCellValue(task.getActualEndDate());
-        }
-        cell.setCellStyle(dateStyle);
-
-        // Predecessor
-        cell = row.createCell(col++);
-        cell.setCellValue(task.getPredecessor() == null ? "" : task.getPredecessor());
-        cell.setCellStyle(cellStyle);
-
-        // Status
-        cell = row.createCell(col++);
-        cell.setCellValue(task.getStatus() == null ? "" : task.getStatus());
-        cell.setCellStyle(cellStyle);
-
     }
 
-    // Auto-size columns
+    /*
+     * Format the sheet.
+     */
     for (int i = 0; i < columns.length; i++) {
-
         sheet.autoSizeColumn(i);
 
+        // Prevent extremely wide columns
+        if (sheet.getColumnWidth(i) > 15000) {
+            sheet.setColumnWidth(i, 15000);
+        }
     }
 
-    // Freeze Header Row
     sheet.createFreezePane(0, 1);
 
-    // Add Filters
-    sheet.setAutoFilter(
-            new CellRangeAddress(
-                    0,
-                    rowIndex - 1,
-                    0,
-                    columns.length - 1
-            )
-    );
+    if (rowIndex > 1) {
 
+        sheet.setAutoFilter(
+                new CellRangeAddress(
+                        0,
+                        rowIndex - 1,
+                        0,
+                        columns.length - 1
+                )
+        );
+    }
 }
    private void createHiddenGanttDataSheet(
         XSSFWorkbook workbook,
@@ -226,49 +345,115 @@ public class ProjectScheduleExcelExporter {
 
     Sheet sheet = workbook.createSheet("Gantt Data");
 
-    // Hide the sheet
-    workbook.setSheetHidden(workbook.getSheetIndex(sheet), true);
+    workbook.setSheetHidden(
+            workbook.getSheetIndex(sheet),
+            true
+    );
 
     Row header = sheet.createRow(0);
 
     header.createCell(0).setCellValue("Task");
     header.createCell(1).setCellValue("Offset");
     header.createCell(2).setCellValue("Duration");
+    header.createCell(3).setCellValue("Sequence");
+    header.createCell(4).setCellValue("Breakdown");
 
-    if (request.getTasks() == null || request.getTasks().isEmpty()) {
+    if (request.getTasks() == null
+            || request.getTasks().isEmpty()) {
         return;
     }
-
-    LocalDate projectStart = request.getTasks()
-            .stream()
-            .map(SaveProjectScheduleTaskRequest::getPlannedStartDate)
-            .filter(Objects::nonNull)
-            .min(LocalDate::compareTo)
-            .orElse(LocalDate.now());
 
     int rowIndex = 1;
 
     for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
 
-        if (task.getPlannedStartDate() == null ||
-                task.getPlannedEndDate() == null) {
-            continue;
+        /*
+         * Export breakdowns as individual Gantt rows.
+         */
+        if (task.getTaskBreakdowns() != null
+                && !task.getTaskBreakdowns().isEmpty()) {
+
+            for (var breakdown : task.getTaskBreakdowns()) {
+
+                LocalDate start =
+                        breakdown.getPlannedStartDate();
+
+                LocalDate end =
+                        breakdown.getPlannedEndDate();
+
+                if (start == null || end == null) {
+                    continue;
+                }
+
+                Row row = sheet.createRow(rowIndex++);
+
+                String label =
+                        task.getTaskName()
+                        + " - "
+                        + breakdown.getActivityName();
+
+                row.createCell(0)
+                        .setCellValue(label);
+
+                row.createCell(1)
+                        .setCellValue(
+                                DateUtil.getExcelDate(start)
+                        );
+
+                row.createCell(2)
+                        .setCellValue(
+                                DateUtil.getExcelDate(end)
+                                - DateUtil.getExcelDate(start)
+                                + 1
+                        );
+
+                row.createCell(3)
+                        .setCellValue(task.getSequence());
+
+                row.createCell(4)
+                        .setCellValue(
+                                breakdown.getActivityName()
+                        );
+            }
+
+        } else {
+
+            /*
+             * Fallback for tasks without breakdowns.
+             */
+            LocalDate start =
+                    task.getPlannedStartDate();
+
+            LocalDate end =
+                    task.getPlannedEndDate();
+
+            if (start == null || end == null) {
+                continue;
+            }
+
+            Row row = sheet.createRow(rowIndex++);
+
+            row.createCell(0)
+                    .setCellValue(task.getTaskName());
+
+            row.createCell(1)
+                    .setCellValue(
+                            DateUtil.getExcelDate(start)
+                    );
+
+            row.createCell(2)
+                    .setCellValue(
+                            DateUtil.getExcelDate(end)
+                            - DateUtil.getExcelDate(start)
+                            + 1
+                    );
+
+            row.createCell(3)
+                    .setCellValue(task.getSequence());
+
+            row.createCell(4)
+                    .setCellValue("");
         }
-
-        Row row = sheet.createRow(rowIndex++);
-
-        row.createCell(0).setCellValue(task.getTaskName());
-
-        double excelStartDate =
-                DateUtil.getExcelDate(task.getPlannedStartDate());
-
-        double excelEndDate =
-                DateUtil.getExcelDate(task.getPlannedEndDate());
-
-        row.createCell(1).setCellValue(excelStartDate);
-
-        row.createCell(2).setCellValue(
-                excelEndDate - excelStartDate + 1);
     }
 
     sheet.autoSizeColumn(0);
@@ -316,17 +501,18 @@ public class ProjectScheduleExcelExporter {
     // Try to display Excel serial numbers as dates
     valueAxis.setNumberFormat("dd-MMM");
     
+    int lastRow = dataSheet.getLastRowNum();
+
+    if (lastRow < 1) {
+        return;
+    }
+
     double minDate =
-            DateUtil.getExcelDate(
-                    dataSheet.getRow(1)
-                            .getCell(1)
-                            .getLocalDateTimeCellValue()
-                            .toLocalDate());
+            dataSheet.getRow(1)
+                    .getCell(1)
+                    .getNumericCellValue();
 
     valueAxis.setMinimum(minDate);
-
-    int lastRow =
-            dataSheet.getLastRowNum();
 
     XDDFDataSource<String> tasks =
             XDDFDataSourcesFactory.fromStringCellRange(
@@ -578,5 +764,60 @@ public class ProjectScheduleExcelExporter {
         style.setAlignment(HorizontalAlignment.CENTER);
 
         return style;
+    }
+    
+    private void setStringCell(
+            Cell cell,
+            String value,
+            CellStyle style) {
+
+        cell.setCellValue(
+                value == null ? "" : value
+        );
+
+        cell.setCellStyle(style);
+    }
+    
+    private void setNumericCell(
+            Cell cell,
+            Number value,
+            CellStyle style) {
+
+        if (value != null) {
+            cell.setCellValue(value.doubleValue());
+        } else {
+            cell.setCellValue("");
+        }
+
+        cell.setCellStyle(style);
+    }
+    
+    private void setDateCell(
+            Cell cell,
+            LocalDate value,
+            CellStyle style) {
+
+        if (value != null) {
+            cell.setCellValue(value);
+        } else {
+            cell.setCellValue("");
+        }
+
+        cell.setCellStyle(style);
+    }
+    
+    private int calculateDays(
+            LocalDate start,
+            LocalDate end) {
+
+        if (start == null || end == null) {
+            return 0;
+        }
+
+        return (int) (
+                end.toEpochDay()
+                - start.toEpochDay()
+                + 1
+        );
     }
 }
