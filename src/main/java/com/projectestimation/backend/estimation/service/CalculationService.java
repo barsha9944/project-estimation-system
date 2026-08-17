@@ -4,7 +4,6 @@ package com.projectestimation.backend.estimation.service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -56,6 +55,7 @@ import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepo
 import com.projectestimation.backend.opportunity.dto.DownloadEstimateRequest;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
 
@@ -71,6 +71,7 @@ public class CalculationService {
 	private final EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository;
 	private final ProposalRepository proposalRepository;
 	private final ProjectScheduleRepository projectScheduleRepository;
+	private final ProjectMetricsRepository projectMetricsRepository;
 	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
@@ -79,7 +80,8 @@ public class CalculationService {
 			EstimationTechnicalFactorRepository estimationTechnicalFactorRepository,
 			EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository,
 			ProposalRepository proposalRepository,
-			ProjectScheduleRepository projectScheduleRepository) {
+			ProjectScheduleRepository projectScheduleRepository,
+			ProjectMetricsRepository projectMetricsRepository) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -89,6 +91,7 @@ public class CalculationService {
 		this.estimationEnvironmentalFactorRepository = estimationEnvironmentalFactorRepository;
 		this.proposalRepository = proposalRepository;
 		this.projectScheduleRepository = projectScheduleRepository;
+		this.projectMetricsRepository = projectMetricsRepository;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -1549,7 +1552,10 @@ public class CalculationService {
 	    		projectScheduleRepository
 	                    .existsByOpportunityId(opportunityId));
 
-	    response.setSummaryMetricsCompleted(false);
+	    response.setSummaryMetricsCompleted(
+	            projectMetricsRepository
+	                    .findByOpportunity_Id(opportunityId)
+	                    .isPresent());
 
 	    
 	    return response;

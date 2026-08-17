@@ -1,6 +1,7 @@
 package com.projectestimation.backend.projectmetrics.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +28,16 @@ public class ProjectMetricsController {
 
         ProjectMetricsResponse response =
                 projectMetricsService.calculateMetrics(opportunityId);
+
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/{opportunityId}")
+    public ResponseEntity<ProjectMetricsResponse> getMetrics(
+            @PathVariable Long opportunityId) {
+
+        ProjectMetricsResponse response =
+                projectMetricsService.getMetrics(opportunityId);
 
         return ResponseEntity.ok(response);
     }
