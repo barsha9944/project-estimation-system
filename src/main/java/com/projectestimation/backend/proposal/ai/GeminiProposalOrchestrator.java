@@ -41,7 +41,6 @@ public class GeminiProposalOrchestrator {
     }
 
     public AiProposalResult generateProposal(Opportunity opportunity,
-                                             Parameters parameters,
                                              EstimationAnalysis analysis,
                                              ProposalType proposalType, String baseFileName) {
     	
@@ -87,7 +86,7 @@ public class GeminiProposalOrchestrator {
     	                    );
     	}
         
-        String prompt = promptBuilder.build(opportunity, parameters, analysis, proposalType, workflowsSection, workflowPlaceholderRules.toString());
+        String prompt = promptBuilder.build(opportunity, analysis, proposalType, workflowsSection, workflowPlaceholderRules.toString());
         try {
             String rawResponse = aiGateway.generateContent(prompt, "text/plain", PROPOSAL_MAX_OUTPUT_TOKENS);
             AiProposalResult parsed =
