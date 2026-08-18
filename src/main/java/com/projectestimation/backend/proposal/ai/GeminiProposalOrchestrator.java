@@ -46,6 +46,7 @@ public class GeminiProposalOrchestrator {
     	
     	List<String> workflowNames = List.of();
 
+    	
     	String workflowsSection = "";
 
     	String workflowPlaceholderRules = "";

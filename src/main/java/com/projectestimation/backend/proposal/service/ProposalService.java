@@ -85,6 +85,7 @@ public class ProposalService {
 		String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
 		String fileBaseName = "proposal-" + opportunity.getOpportunityName() + "-v" + nextVersion;
 
+		
 		Path proposalDir = Paths.get(proposalStoragePath, "opportunity-" + opportunityId, "proposal-v" + nextVersion);
 
 		try {
