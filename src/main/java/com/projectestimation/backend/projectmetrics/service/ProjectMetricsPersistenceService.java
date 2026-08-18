@@ -7,12 +7,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.projectmetrics.dto.AnalysisMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.CodingMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.DesignMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.OtherActivityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SprintMetricsResponse;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetrics;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetricsSprint;
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
-import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
@@ -42,12 +46,22 @@ public class ProjectMetricsPersistenceService {
     public void saveMetrics(
             Long opportunityId,
             ProjectMetricsResponse response) {
+    	
+    	System.out.println(
+    	        "========== SAVE METRICS CALLED =========="
+    	    );
+
+    	    System.out.println(
+    	        "Opportunity ID: " + opportunityId
+    	    );
 
         Opportunity opportunity = opportunityRepository
                 .findById(opportunityId)
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Opportunity not found: " + opportunityId));
+        
+        
 
 //        ProjectSchedule schedule = projectScheduleRepository
 //        		.findByOpportunityIdWithTasks(opportunityId)
@@ -60,13 +74,27 @@ public class ProjectMetricsPersistenceService {
          * If metrics already exist for this opportunity,
          * update them instead of creating duplicates.
          */
-        ProjectMetrics metrics = projectMetricsRepository
-                .findByOpportunity_Id(opportunityId)
-                .orElseGet(ProjectMetrics::new);
+        ProjectMetrics metrics =
+                projectMetricsRepository
+                        .findByOpportunityId(opportunityId)
+                        .orElse(null);
+        
+        System.out.println(
+                "Existing metrics ID: " +
+                (metrics == null ? "NULL" : metrics.getId())
+            );
+
+
+        if (metrics == null) {
+            metrics = new ProjectMetrics();
+            metrics.setOpportunity(opportunity);
+        }
 
         metrics.setOpportunity(opportunity);
 
         mapSummaryAndQuality(metrics, response);
+        
+        mapCumulativeMetrics(metrics, response);
 
         /*
          * Remove old sprint rows.
@@ -466,6 +494,260 @@ public class ProjectMetricsPersistenceService {
         }
 
         return sprint;
+    }
+    
+    private void mapCumulativeMetrics(
+            ProjectMetrics metrics,
+            ProjectMetricsResponse response) {
+
+        // =========================
+        // ANALYSIS
+        // =========================
+
+        AnalysisMetricsResponse analysis =
+                response.getAnalysis();
+
+        if (analysis != null) {
+
+            metrics.setAnalysisPlannedDuration(
+                    analysis.getPlannedDuration());
+
+            metrics.setAnalysisActualDuration(
+                    analysis.getActualDuration());
+
+            metrics.setAnalysisScheduleVariance(
+                    analysis.getScheduleVariance());
+
+            metrics.setAnalysisPlannedEffort(
+                    analysis.getPlannedEffort());
+
+            metrics.setAnalysisActualEffort(
+                    analysis.getActualEffort());
+
+            metrics.setAnalysisProductivity(
+                    analysis.getProductivity());
+
+            metrics.setAnalysisEffortVariance(
+                    analysis.getEffortVariance());
+
+            metrics.setAnalysisEffortInAnalysis(
+                    analysis.getEffortInAnalysis());
+
+            metrics.setAnalysisReviewDefects(
+                    analysis.getReviewDefects());
+
+            metrics.setAnalysisReviewEffort(
+                    analysis.getReviewEffort());
+
+            metrics.setAnalysisDefectDensity(
+                    analysis.getDefectDensity());
+
+            metrics.setAnalysisDefectDetectionRate(
+                    analysis.getDefectDetectionRate());
+
+            metrics.setAnalysisDefectRate(
+                    analysis.getDefectRate());
+        }
+
+
+        // =========================
+        // DESIGN
+        // =========================
+
+        DesignMetricsResponse design =
+                response.getDesign();
+
+        if (design != null) {
+
+            metrics.setDesignPlannedDuration(
+                    design.getPlannedDuration());
+
+            metrics.setDesignActualDuration(
+                    design.getActualDuration());
+
+            metrics.setDesignScheduleVariance(
+                    design.getScheduleVariance());
+
+            metrics.setDesignPlannedEffort(
+                    design.getPlannedEffort());
+
+            metrics.setDesignActualEffort(
+                    design.getActualEffort());
+
+            metrics.setDesignProductivity(
+                    design.getProductivity());
+
+            metrics.setDesignEffortVariance(
+                    design.getEffortVariance());
+
+            metrics.setDesignEffortInAnalysis(
+                    design.getEffortInAnalysis());
+
+            metrics.setDesignReviewDefects(
+                    design.getReviewDefects());
+
+            metrics.setDesignReviewEffort(
+                    design.getReviewEffort());
+
+            metrics.setDesignDefectDensity(
+                    design.getDefectDensity());
+
+            metrics.setDesignDefectDetectionRate(
+                    design.getDefectDetectionRate());
+
+            metrics.setDesignDefectRate(
+                    design.getDefectRate());
+        }
+
+
+        // =========================
+        // CODING
+        // =========================
+
+        CodingMetricsResponse coding =
+                response.getCoding();
+
+        if (coding != null) {
+
+            metrics.setCodingPlannedDuration(
+                    coding.getPlannedDuration());
+
+            metrics.setCodingActualDuration(
+                    coding.getActualDuration());
+
+            metrics.setCodingScheduleVariance(
+                    coding.getScheduleVariance());
+
+            metrics.setCodingPlannedEffort(
+                    coding.getPlannedEffort());
+
+            metrics.setCodingActualEffort(
+                    coding.getActualEffort());
+
+            metrics.setCodingEffortVariance(
+                    coding.getEffortVariance());
+
+            metrics.setCodingEffort(
+                    coding.getCodingEffort());
+
+            metrics.setCodeReviewDefects(
+                    coding.getCodeReviewDefects());
+
+            metrics.setCodeReviewEffort(
+                    coding.getCodeReviewEffort());
+
+            metrics.setCodingDefectDensity(
+                    coding.getDefectDensity());
+
+            metrics.setCodeReviewDetectionRate(
+                    coding.getCodeReviewDetectionRate());
+
+            metrics.setUnitTestingDefects(
+                    coding.getUnitTestingDefects());
+
+            metrics.setUnitTestingEffort(
+                    coding.getUnitTestingEffort());
+
+            metrics.setUnitTestingDetectionRate(
+                    coding.getUnitTestingDetectionRate());
+
+            metrics.setCodingDefectRate(
+                    coding.getDefectRate());
+
+            metrics.setCodingProductivity(
+                    coding.getProductivity());
+        }
+
+
+        // =========================
+        // SIT
+        // =========================
+
+        SitMetricsResponse sit =
+                response.getSit();
+
+        if (sit != null) {
+
+            metrics.setSitPlannedDuration(
+                    sit.getPlannedDuration());
+
+            metrics.setSitActualDuration(
+                    sit.getActualDuration());
+
+            metrics.setSitScheduleVariance(
+                    sit.getScheduleVariance());
+
+            metrics.setSitPlannedEffort(
+                    sit.getPlannedEffort());
+
+            metrics.setSitActualEffort(
+                    sit.getActualEffort());
+
+            metrics.setSitEffortVariance(
+                    sit.getEffortVariance());
+
+            metrics.setTotalTestConditions(
+                    sit.getTotalTestConditions());
+
+            metrics.setTestCaseWritingEffort(
+                    sit.getTestCaseWritingEffort());
+
+            metrics.setTestCaseReviewDefects(
+                    sit.getTestCaseReviewDefects());
+
+            metrics.setTestCaseReviewEffort(
+                    sit.getTestCaseReviewEffort());
+
+            metrics.setTestExecutionEffort(
+                    sit.getTestExecutionEffort());
+
+            metrics.setTestCaseReviewDetectionRate(
+                    sit.getTestCaseReviewDetectionRate());
+
+            metrics.setSitDefects(
+                    sit.getSitDefects());
+
+            metrics.setSitEffort(
+                    sit.getSitEffort());
+
+            metrics.setSitDetectionRate(
+                    sit.getSitDetectionRate());
+        }
+
+
+        // =========================
+        // OTHER ACTIVITY
+        // =========================
+
+        OtherActivityMetricsResponse other =
+                response.getOtherActivity();
+
+        if (other != null) {
+
+            metrics.setOtherActualTotal(
+                    other.getActualTotal());
+
+            metrics.setOtherActualProjectManagement(
+                    other.getActualProjectManagement());
+
+            metrics.setOtherActualSupportGroup(
+                    other.getActualSupportGroup());
+
+            metrics.setOtherActualOthers(
+                    other.getActualOthers());
+
+            metrics.setOtherPlannedTotal(
+                    other.getPlannedTotal());
+
+            metrics.setOtherPlannedProjectManagement(
+                    other.getPlannedProjectManagement());
+
+            metrics.setOtherPlannedSupportGroup(
+                    other.getPlannedSupportGroup());
+
+            metrics.setOtherPlannedOthers(
+                    other.getPlannedOthers());
+        }
     }
 }
     

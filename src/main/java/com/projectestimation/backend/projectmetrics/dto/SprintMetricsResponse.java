@@ -20,4 +20,6 @@ public class SprintMetricsResponse {
     private SitMetricsResponse sit;
 
     private OtherActivityMetricsResponse otherActivity;
+    
+    private String taskName;
 }

@@ -1554,8 +1554,7 @@ public class CalculationService {
 
 	    response.setSummaryMetricsCompleted(
 	            projectMetricsRepository
-	                    .findByOpportunity_Id(opportunityId)
-	                    .isPresent());
+	                    .existsByOpportunityId(opportunityId));
 
 	    
 	    return response;

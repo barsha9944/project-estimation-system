@@ -503,19 +503,19 @@ public class ProjectMetricsCalculator {
     	
     	ProjectMetricsResponse response =
     	        new ProjectMetricsResponse();
-    	
 
     	response.setSummary(summary);
     	response.setQuality(qualityResponse);
+
+    	// Overall / cumulative metrics
+    	response.setAnalysis(analysisResponse);
+    	response.setDesign(designResponse);
+    	response.setCoding(codingResponse);
+    	response.setSit(sitResponse);
+    	response.setOtherActivity(otherActivityMetricsResponse);
+
+    	// Individual coding sprint metrics
     	response.setSprints(sprintMetrics);
-    
-//    	response.setSummary(new SummaryMetricsResponse());
-//    	response.setAnalysis(new AnalysisMetricsResponse());
-//    	response.setDesign(new DesignMetricsResponse());
-//    	response.setCoding(new CodingMetricsResponse());
-//    	response.setSit(new SitMetricsResponse());
-//    	response.setOtherActivity(new OtherActivityMetricsResponse());
-//    	response.setQuality(new QualityMetricsResponse());
 
     	return response;
     }
@@ -1109,6 +1109,10 @@ public class ProjectMetricsCalculator {
                     new SprintMetricsResponse();
 
             sprint.setSprintNumber(i + 1);
+
+            sprint.setTaskName(
+                    codingTask.getTaskName()
+            );
 
             sprint.setAnalysis(
                     calculateSprintAnalysis(
