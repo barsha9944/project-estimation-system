@@ -15,7 +15,6 @@ import com.projectestimation.backend.projectmetrics.dto.QualityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SprintMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SummaryMetricsResponse;
-import com.projectestimation.backend.projectmetrics.excel.ProjectMetricsExcelExporter;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetrics;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetricsSprint;
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
@@ -29,18 +28,18 @@ public class ProjectMetricsService {
     
     private final ProjectMetricsRepository projectMetricsRepository;
     
-    private final ProjectMetricsExcelExporter excelExporter;
+    private final ProjectMetricsExcelService excelService;
 
     public ProjectMetricsService(
             ProjectMetricsCalculator calculator,
             ProjectMetricsPersistenceService persistenceService,
             ProjectMetricsRepository projectMetricsRepository,
-            ProjectMetricsExcelExporter excelExporter) {
+            ProjectMetricsExcelService excelService) {
 
         this.calculator = calculator;
         this.persistenceService = persistenceService;
         this.projectMetricsRepository = projectMetricsRepository;
-        this.excelExporter = excelExporter;
+        this.excelService = excelService;
     }
 
     @Transactional
@@ -797,9 +796,13 @@ public class ProjectMetricsService {
     @Transactional(readOnly = true)
     public byte[] downloadMetrics(Long opportunityId) {
 
-        ProjectMetricsResponse metrics =
-                getMetrics(opportunityId);
-
-        return excelExporter.export(metrics);
+        try {
+            return excelService.generateExcel(opportunityId);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Failed to generate project metrics Excel.",
+                    e
+            );
+        }
     }
 }

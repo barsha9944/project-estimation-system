@@ -15,6 +15,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.RegionUtil;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -607,14 +609,20 @@ public class ProjectMetricsExcelService {
     }
 
     private void createDataRows(
-            Sheet sheet,
-            ProjectMetrics metrics,
-            CellStyle dataStyle) {
+        Sheet sheet,
+        ProjectMetrics metrics,
+        CellStyle dataStyle) {
 
-        List<ProjectMetricsSprint> sprints =
-                metrics.getSprints();
+    List<ProjectMetricsSprint> sprints =
+            metrics.getSprints();
 
-        int rowIndex = 3;
+    int rowIndex = 3;
+
+    // =====================================================
+    // SPRINT ROWS
+    // =====================================================
+
+    if (sprints != null) {
 
         for (ProjectMetricsSprint sprint : sprints) {
 
@@ -624,11 +632,9 @@ public class ProjectMetricsExcelService {
 
             int column = 0;
 
-            /*
-             * ============================
-             * SUMMARY
-             * ============================
-             */
+            // =====================================================
+            // SUMMARY
+            // =====================================================
 
             setString(
                     row,
@@ -637,11 +643,6 @@ public class ProjectMetricsExcelService {
                     dataStyle
             );
 
-            /*
-             * Release No column now contains
-             * the coding task name.
-             */
-
             setString(
                     row,
                     column++,
@@ -649,26 +650,9 @@ public class ProjectMetricsExcelService {
                     dataStyle
             );
 
-            setNumber(
-                    row,
-                    column++,
-                    metrics.getOriginalSize(),
-                    dataStyle
-            );
-
-            setNumber(
-                    row,
-                    column++,
-                    metrics.getActualSize(),
-                    dataStyle
-            );
-
-            setNumber(
-                    row,
-                    column++,
-                    metrics.getSizeVariance(),
-                    dataStyle
-            );
+            setNumber(row, column++, metrics.getOriginalSize(), dataStyle);
+            setNumber(row, column++, metrics.getActualSize(), dataStyle);
+            setNumber(row, column++, metrics.getSizeVariance(), dataStyle);
 
             setNumber(
                     row,
@@ -747,11 +731,9 @@ public class ProjectMetricsExcelService {
                     dataStyle
             );
 
-            /*
-             * ============================
-             * ANALYSIS
-             * ============================
-             */
+            // =====================================================
+            // ANALYSIS
+            // =====================================================
 
             setNumber(row, column++, sprint.getAnalysisPlannedDuration(), dataStyle);
             setNumber(row, column++, sprint.getAnalysisActualDuration(), dataStyle);
@@ -767,11 +749,9 @@ public class ProjectMetricsExcelService {
             setNumber(row, column++, sprint.getAnalysisDefectDetectionRate(), dataStyle);
             setNumber(row, column++, sprint.getAnalysisDefectRate(), dataStyle);
 
-            /*
-             * ============================
-             * DESIGN
-             * ============================
-             */
+            // =====================================================
+            // DESIGN
+            // =====================================================
 
             setNumber(row, column++, sprint.getDesignPlannedDuration(), dataStyle);
             setNumber(row, column++, sprint.getDesignActualDuration(), dataStyle);
@@ -787,11 +767,9 @@ public class ProjectMetricsExcelService {
             setNumber(row, column++, sprint.getDesignDefectDetectionRate(), dataStyle);
             setNumber(row, column++, sprint.getDesignDefectRate(), dataStyle);
 
-            /*
-             * ============================
-             * CODING
-             * ============================
-             */
+            // =====================================================
+            // CODING
+            // =====================================================
 
             setNumber(row, column++, sprint.getCodingPlannedDuration(), dataStyle);
             setNumber(row, column++, sprint.getCodingActualDuration(), dataStyle);
@@ -810,11 +788,9 @@ public class ProjectMetricsExcelService {
             setNumber(row, column++, sprint.getCodingDefectRate(), dataStyle);
             setNumber(row, column++, sprint.getCodingProductivity(), dataStyle);
 
-            /*
-             * ============================
-             * SIT
-             * ============================
-             */
+            // =====================================================
+            // SIT
+            // =====================================================
 
             setNumber(row, column++, sprint.getSitPlannedDuration(), dataStyle);
             setNumber(row, column++, sprint.getSitActualDuration(), dataStyle);
@@ -832,11 +808,9 @@ public class ProjectMetricsExcelService {
             setNumber(row, column++, sprint.getSitEffort(), dataStyle);
             setNumber(row, column++, sprint.getSitDetectionRate(), dataStyle);
 
-            /*
-             * ============================
-             * OTHER ACTIVITY
-             * ============================
-             */
+            // =====================================================
+            // OTHER ACTIVITY
+            // =====================================================
 
             setNumber(row, column++, sprint.getOtherActualTotal(), dataStyle);
             setNumber(row, column++, sprint.getOtherActualProjectManagement(), dataStyle);
@@ -848,11 +822,9 @@ public class ProjectMetricsExcelService {
             setNumber(row, column++, sprint.getOtherPlannedSupportGroup(), dataStyle);
             setNumber(row, column++, sprint.getOtherPlannedOthers(), dataStyle);
 
-            /*
-             * ============================
-             * QUALITY / UAT
-             * ============================
-             */
+            // =====================================================
+            // QUALITY / UAT
+            // =====================================================
 
             setNumber(
                     row,
@@ -905,13 +877,303 @@ public class ProjectMetricsExcelService {
 
             setNumber(
                     row,
-                    column,
+                    column++,
                     metrics.getDefectRemovalEfficiency(),
                     dataStyle
             );
         }
     }
 
+    // =====================================================
+    // TOTAL / CUMULATIVE ROW
+    // =====================================================
+
+    createTotalRow(
+            sheet,
+            metrics,
+            dataStyle,
+            rowIndex
+    );
+}
+    
+    private void createTotalRow(
+            Sheet sheet,
+            ProjectMetrics metrics,
+            CellStyle dataStyle,
+            int rowIndex) {
+
+        Row row = sheet.createRow(rowIndex);
+
+        row.setHeightInPoints(28);
+
+        int column = 0;
+
+        // =====================================================
+        // SUMMARY
+        // =====================================================
+
+        setString(
+                row,
+                column++,
+                metrics.getProjectName(),
+                dataStyle
+        );
+
+        setString(
+                row,
+                column++,
+                "Total",
+                dataStyle
+        );
+
+        setNumber(row, column++, metrics.getOriginalSize(), dataStyle);
+        setNumber(row, column++, metrics.getActualSize(), dataStyle);
+        setNumber(row, column++, metrics.getSizeVariance(), dataStyle);
+
+        setNumber(
+                row,
+                column++,
+                metrics.getTotalPlannedEffortWithoutPm(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getTotalPlannedEffort(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getTotalActualEffortWithoutPm(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getTotalActualEffort(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getEffortVariance(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getPlannedDuration(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getActualDuration(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getScheduleVariance(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getActualOverallProductivity(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getReviewEffectiveness(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getTestingEffectiveness(),
+                dataStyle
+        );
+
+        // =====================================================
+        // CUMULATIVE ANALYSIS
+        // =====================================================
+
+        setNumber(row, column++, metrics.getAnalysisPlannedDuration(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisActualDuration(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisScheduleVariance(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisPlannedEffort(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisActualEffort(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisProductivity(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisEffortVariance(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisEffortInAnalysis(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisReviewDefects(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisReviewEffort(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisDefectDensity(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisDefectDetectionRate(), dataStyle);
+        setNumber(row, column++, metrics.getAnalysisDefectRate(), dataStyle);
+
+        // =====================================================
+        // CUMULATIVE DESIGN
+        // =====================================================
+
+        setNumber(row, column++, metrics.getDesignPlannedDuration(), dataStyle);
+        setNumber(row, column++, metrics.getDesignActualDuration(), dataStyle);
+        setNumber(row, column++, metrics.getDesignScheduleVariance(), dataStyle);
+        setNumber(row, column++, metrics.getDesignPlannedEffort(), dataStyle);
+        setNumber(row, column++, metrics.getDesignActualEffort(), dataStyle);
+        setNumber(row, column++, metrics.getDesignProductivity(), dataStyle);
+        setNumber(row, column++, metrics.getDesignEffortVariance(), dataStyle);
+        setNumber(row, column++, metrics.getDesignEffortInAnalysis(), dataStyle);
+        setNumber(row, column++, metrics.getDesignReviewDefects(), dataStyle);
+        setNumber(row, column++, metrics.getDesignReviewEffort(), dataStyle);
+        setNumber(row, column++, metrics.getDesignDefectDensity(), dataStyle);
+        setNumber(row, column++, metrics.getDesignDefectDetectionRate(), dataStyle);
+        setNumber(row, column++, metrics.getDesignDefectRate(), dataStyle);
+
+        // =====================================================
+        // CUMULATIVE CODING
+        // =====================================================
+
+        setNumber(row, column++, metrics.getCodingPlannedDuration(), dataStyle);
+        setNumber(row, column++, metrics.getCodingActualDuration(), dataStyle);
+        setNumber(row, column++, metrics.getCodingScheduleVariance(), dataStyle);
+        setNumber(row, column++, metrics.getCodingPlannedEffort(), dataStyle);
+        setNumber(row, column++, metrics.getCodingActualEffort(), dataStyle);
+        setNumber(row, column++, metrics.getCodingEffortVariance(), dataStyle);
+        setNumber(row, column++, metrics.getCodingEffort(), dataStyle);
+        setNumber(row, column++, metrics.getCodeReviewDefects(), dataStyle);
+        setNumber(row, column++, metrics.getCodeReviewEffort(), dataStyle);
+        setNumber(row, column++, metrics.getCodingDefectDensity(), dataStyle);
+        setNumber(row, column++, metrics.getCodeReviewDetectionRate(), dataStyle);
+        setNumber(row, column++, metrics.getUnitTestingDefects(), dataStyle);
+        setNumber(row, column++, metrics.getUnitTestingEffort(), dataStyle);
+        setNumber(row, column++, metrics.getUnitTestingDetectionRate(), dataStyle);
+        setNumber(row, column++, metrics.getCodingDefectRate(), dataStyle);
+        setNumber(row, column++, metrics.getCodingProductivity(), dataStyle);
+
+        // =====================================================
+        // CUMULATIVE SIT
+        // =====================================================
+
+        setNumber(row, column++, metrics.getSitPlannedDuration(), dataStyle);
+        setNumber(row, column++, metrics.getSitActualDuration(), dataStyle);
+        setNumber(row, column++, metrics.getSitScheduleVariance(), dataStyle);
+        setNumber(row, column++, metrics.getSitPlannedEffort(), dataStyle);
+        setNumber(row, column++, metrics.getSitActualEffort(), dataStyle);
+        setNumber(row, column++, metrics.getSitEffortVariance(), dataStyle);
+        setNumber(row, column++, metrics.getTotalTestConditions(), dataStyle);
+        setNumber(row, column++, metrics.getTestCaseWritingEffort(), dataStyle);
+        setNumber(row, column++, metrics.getTestCaseReviewDefects(), dataStyle);
+        setNumber(row, column++, metrics.getTestCaseReviewEffort(), dataStyle);
+        setNumber(row, column++, metrics.getTestExecutionEffort(), dataStyle);
+        setNumber(row, column++, metrics.getTestCaseReviewDetectionRate(), dataStyle);
+        setNumber(row, column++, metrics.getSitDefects(), dataStyle);
+        setNumber(row, column++, metrics.getSitEffort(), dataStyle);
+        setNumber(row, column++, metrics.getSitDetectionRate(), dataStyle);
+
+        // =====================================================
+        // CUMULATIVE OTHER ACTIVITY
+        // =====================================================
+
+        setNumber(row, column++, metrics.getOtherActualTotal(), dataStyle);
+        setNumber(row, column++, metrics.getOtherActualProjectManagement(), dataStyle);
+        setNumber(row, column++, metrics.getOtherActualSupportGroup(), dataStyle);
+        setNumber(row, column++, metrics.getOtherActualOthers(), dataStyle);
+
+        setNumber(row, column++, metrics.getOtherPlannedTotal(), dataStyle);
+        setNumber(row, column++, metrics.getOtherPlannedProjectManagement(), dataStyle);
+        setNumber(row, column++, metrics.getOtherPlannedSupportGroup(), dataStyle);
+        setNumber(row, column++, metrics.getOtherPlannedOthers(), dataStyle);
+
+        // =====================================================
+        // QUALITY / UAT
+        // =====================================================
+
+        setNumber(
+                row,
+                column++,
+                metrics.getAveragePreDeliveryDefectDensity(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getUatDefects(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getPostDeliveryDefectDensity(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getOverallDefectDensity(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getPlannedUatEffort(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getActualUatEffort(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getOverallDefectRate(),
+                dataStyle
+        );
+
+        setNumber(
+                row,
+                column++,
+                metrics.getDefectRemovalEfficiency(),
+                dataStyle
+        );
+    }
+
+    private CellStyle createTotalStyle(
+            XSSFWorkbook workbook) {
+
+        CellStyle style =
+                createStyle(
+                        workbook,
+                        "FFFF99",
+                        true,
+                        11
+                );
+
+        return style;
+    }
+    
+    
     private void writeHeaderArray(
             Row row,
             int startColumn,
@@ -943,9 +1205,9 @@ public class ProjectMetricsExcelService {
                 workbook.createCellStyle();
 
         style.setFillForegroundColor(
-                hexToIndexedColor(
-                        workbook,
-                        hexColor
+                new XSSFColor(
+                        java.awt.Color.decode("#" + hexColor),
+                        null
                 )
         );
 
@@ -974,9 +1236,7 @@ public class ProjectMetricsExcelService {
         font.setFontName("Calibri");
         font.setFontHeightInPoints((short) fontSize);
         font.setBold(bold);
-        font.setColor(
-                IndexedColors.BLACK.getIndex()
-        );
+        font.setColor(IndexedColors.BLACK.getIndex());
 
         style.setFont(font);
 
@@ -1056,14 +1316,17 @@ public class ProjectMetricsExcelService {
             int firstColumn,
             int lastColumn) {
 
-        sheet.addMergedRegion(
-                new CellRangeAddress(
+    	CellRangeAddress region =
+    	        new CellRangeAddress(
                         firstRow,
                         lastRow,
                         firstColumn,
                         lastColumn
-                )
-        );
+                );
+        
+        sheet.addMergedRegion(region);
+
+        applyBorderToMergedRegion(sheet, region);
     }
 
     private void setString(
@@ -1100,5 +1363,34 @@ public class ProjectMetricsExcelService {
                     value.doubleValue()
             );
         }
+    }
+    
+    private void applyBorderToMergedRegion(
+            Sheet sheet,
+            CellRangeAddress region) {
+
+        RegionUtil.setBorderTop(
+                BorderStyle.THIN,
+                region,
+                sheet
+        );
+
+        RegionUtil.setBorderBottom(
+                BorderStyle.THIN,
+                region,
+                sheet
+        );
+
+        RegionUtil.setBorderLeft(
+                BorderStyle.THIN,
+                region,
+                sheet
+        );
+
+        RegionUtil.setBorderRight(
+                BorderStyle.THIN,
+                region,
+                sheet
+        );
     }
 }
