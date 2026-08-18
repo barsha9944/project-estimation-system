@@ -13,7 +13,7 @@ import com.projectestimation.backend.parameters.model.Parameters;
 @Component
 public class GeminiProposalPromptBuilder {
 
-    public String build(Opportunity opportunity, Parameters parameters, EstimationAnalysis analysis, ProposalType proposalType, String workflowsSection,
+    public String build(Opportunity opportunity,  EstimationAnalysis analysis, ProposalType proposalType, String workflowsSection,
     		String workflowPlaceholderRules) {
 
         String processFlowPrompt = "";

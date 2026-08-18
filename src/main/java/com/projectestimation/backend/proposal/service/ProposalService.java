@@ -77,7 +77,7 @@ public class ProposalService {
 	@Transactional
 	public ProposalResponse generateForOpportunity(Long opportunityId, ProposalType proposalType, User user) {
 		Opportunity opportunity = loadOpportunity(opportunityId);
-		Parameters parameters = loadParameters(opportunityId);
+//		Parameters parameters = loadParameters(opportunityId);
 		EstimationAnalysis analysis = loadEstimationAnalysis(opportunityId);
 
 		int nextVersion = resolveNextVersion(opportunityId);
@@ -93,7 +93,7 @@ public class ProposalService {
 			throw new ProposalFailedException("Failed to create proposal directory", e);
 		}
 
-		AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, parameters, analysis,
+		AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, analysis,
 				proposalType, fileBaseName);
 
 		Path markdownFile = proposalDir.resolve("proposal.md");

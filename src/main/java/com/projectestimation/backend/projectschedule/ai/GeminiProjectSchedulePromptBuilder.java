@@ -264,8 +264,8 @@ public class GeminiProjectSchedulePromptBuilder {
 				      "duration": number,
 				      "plannedTaskStartDate": "yyyy-MM-dd",
 				      "plannedTaskEndDate": "yyyy-MM-dd",
-				      "actualStartDate": null,
-				      "actualEndDate": null,
+				      "actualStartDate": "yyyy-MM-dd",
+				      "actualEndDate": "yyyy-MM-dd",
 				      "predecessor": "",
 				      "status": "PLANNED",
 				      "taskBreakdowns": [
