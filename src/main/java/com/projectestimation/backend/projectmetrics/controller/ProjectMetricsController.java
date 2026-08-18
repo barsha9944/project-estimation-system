@@ -1,5 +1,7 @@
 package com.projectestimation.backend.projectmetrics.controller;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,5 +42,27 @@ public class ProjectMetricsController {
                 projectMetricsService.getMetrics(opportunityId);
 
         return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/{opportunityId}/download")
+    public ResponseEntity<byte[]> downloadMetrics(
+            @PathVariable Long opportunityId) {
+
+        byte[] excel =
+                projectMetricsService.downloadMetrics(
+                        opportunityId
+                );
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"Project_Metrics.xlsx\""
+                )
+                .contentType(
+                        MediaType.parseMediaType(
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                )
+                .body(excel);
     }
 }
