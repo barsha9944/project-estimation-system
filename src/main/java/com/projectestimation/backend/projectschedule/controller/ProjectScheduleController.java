@@ -1,5 +1,7 @@
 package com.projectestimation.backend.projectschedule.controller;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,142 +18,87 @@ import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse
 import com.projectestimation.backend.projectschedule.dto.RecalculateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.service.ProjectScheduleService;
+import com.projectestimation.backend.proposal.service.ProposalService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/opportunities/{opportunityId}/project-schedule")
 public class ProjectScheduleController {
+	private static final Logger log = LogManager.getLogger(ProjectScheduleController.class);
+	private final ProjectScheduleService projectScheduleService;
 
-	
-    private final ProjectScheduleService projectScheduleService;
+	@PostMapping("/generate")
+	public ResponseEntity<ApiResponse<ProjectScheduleResponse>> generateProjectSchedule(
 
-    @PostMapping("/generate")
-    public ResponseEntity<ApiResponse<ProjectScheduleResponse>>
-    generateProjectSchedule(
+			@PathVariable Long opportunityId,
 
-            @PathVariable Long opportunityId,
+			@Valid @RequestBody GenerateProjectScheduleRequest request,
 
-            @Valid
-            @RequestBody
-            GenerateProjectScheduleRequest request,
+			@AuthenticationPrincipal User user
 
-            @AuthenticationPrincipal
-            User user
+	) {
+		log.info("API /project-schedule/generate called");
+		ProjectScheduleResponse response = projectScheduleService.generateProjectSchedule(opportunityId, request, user);
 
-    ) {
+		return ResponseEntity.ok(ApiResponse.success("Project schedule generated successfully.", response));
 
-        ProjectScheduleResponse response =
-                projectScheduleService.generateProjectSchedule(
-                        opportunityId,
-                        request,
-                        user
-                );
+	}
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Project schedule generated successfully.",
-                        response
-                )
-        );
+	@PostMapping
+	public ResponseEntity<ApiResponse<Void>> saveProjectSchedule(
 
-    }
-    
-    
-    @PostMapping
-    public ResponseEntity<ApiResponse<Void>> saveProjectSchedule(
+			@PathVariable Long opportunityId,
 
-            @PathVariable Long opportunityId,
+			@Valid @RequestBody SaveProjectScheduleRequest request,
 
-            @Valid
-            @RequestBody
-            SaveProjectScheduleRequest request,
+			@AuthenticationPrincipal User user
 
-            @AuthenticationPrincipal
-            User user
+	) {
 
-    ) {
+		projectScheduleService.saveProjectSchedule(opportunityId, request, user);
 
-        projectScheduleService.saveProjectSchedule(
-                opportunityId,
-                request,
-                user
-        );
+		return ResponseEntity.ok(ApiResponse.success("Project schedule saved successfully.", null));
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Project schedule saved successfully.",
-                        null
-                )
-        );
+	}
 
-    }
-    
-    @PostMapping("/download")
-    public ResponseEntity<byte[]> downloadProjectSchedule(
+	@PostMapping("/download")
+	public ResponseEntity<byte[]> downloadProjectSchedule(
 
-            @PathVariable Long opportunityId,
+			@PathVariable Long opportunityId,
 
-            @RequestBody
-            SaveProjectScheduleRequest request
+			@RequestBody SaveProjectScheduleRequest request
 
-    ) {
+	) {
 
-        return projectScheduleService.downloadProjectSchedule(
-                opportunityId,
-                request
-        );
+		return projectScheduleService.downloadProjectSchedule(opportunityId, request);
 
-    }
-    
-    
-    @GetMapping
-    public ResponseEntity<ApiResponse<ProjectScheduleResponse>>
-    getProjectSchedule(
-            @PathVariable Long opportunityId
-    ) {
-    	
-        ProjectScheduleResponse response =
-                projectScheduleService.getProjectSchedule(
-                        opportunityId
-                );
+	}
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Project schedule fetched successfully.",
-                        response
-                )
-        );
+	@GetMapping
+	public ResponseEntity<ApiResponse<ProjectScheduleResponse>> getProjectSchedule(@PathVariable Long opportunityId) {
 
-    }
-    
-    
-    @PostMapping("/recalculate")
-    public ResponseEntity<ApiResponse<ProjectScheduleResponse>>
-    recalculateProjectSchedule(
+		ProjectScheduleResponse response = projectScheduleService.getProjectSchedule(opportunityId);
 
-            @PathVariable Long opportunityId,
+		return ResponseEntity.ok(ApiResponse.success("Project schedule fetched successfully.", response));
 
-            @RequestBody RecalculateProjectScheduleRequest request
+	}
 
-    ) {
+	@PostMapping("/recalculate")
+	public ResponseEntity<ApiResponse<ProjectScheduleResponse>> recalculateProjectSchedule(
 
-        ProjectScheduleResponse response =
-                projectScheduleService.recalculateProjectSchedule(
-                        opportunityId,
-                        request
-                );
+			@PathVariable Long opportunityId,
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Project schedule recalculated successfully.",
-                        response
-                )
-        );
+			@RequestBody RecalculateProjectScheduleRequest request
 
-    }
+	) {
+
+		ProjectScheduleResponse response = projectScheduleService.recalculateProjectSchedule(opportunityId, request);
+
+		return ResponseEntity.ok(ApiResponse.success("Project schedule recalculated successfully.", response));
+
+	}
 
 }
