@@ -1,42 +1,4 @@
-package com.projectestimation.backend.projectschedule.ai;
-
-import org.springframework.stereotype.Component;
-
-import com.projectestimation.backend.estimation.model.EstimationAnalysis;
-import com.projectestimation.backend.opportunity.model.Opportunity;
-
-@Component
-public class GeminiProjectSchedulePromptBuilder {
-
-	public String build(
-
-			Opportunity opportunity,
-
-			EstimationAnalysis analysis,
-
-			String actors,
-
-			String useCases,
-
-			String projectStartDate,
-
-			Integer teamSize,
-
-			Integer workingDays,
-
-			Integer workingHours,
-
-			Integer buffer,
-
-			Integer durationDays,
-
-			Double estimatedHours
-
-	) {
-
-		return """
-
-				You are a Senior IT Project Manager with expertise in enterprise software delivery.
+"""You are a Senior IT Project Manager with expertise in enterprise software delivery.
 
 							Generate a COMPLETE and REALISTIC project schedule STRICTLY as VALID JSON.
 
@@ -137,8 +99,8 @@ public class GeminiProjectSchedulePromptBuilder {
 							11. actualStartDate = plannedStartDate for every task.
 
 				12. actualEndDate = plannedEndDate for every task.
-
-				13. actualWorkingDays =
+				
+				13. actualWorkingDays = 
 
 				13. These values represent the initial baseline schedule before execution begins.
 
@@ -280,7 +242,7 @@ public class GeminiProjectSchedulePromptBuilder {
 				          "actualStartDate": "yyyy-MM-dd",
 				      		"actualEndDate": "yyyy-MM-dd",
 				      		"actualDuration: number,
-				      		"status": : "PLANNED",
+				      		"status": : "PLANNED"
 
 				        }
 				      ]
@@ -300,48 +262,5 @@ public class GeminiProjectSchedulePromptBuilder {
 				- Every parent task plannedStartDate must equal the first task breakdown plannedStartDate.
 				- Every parent task plannedEndDate must equal the last task breakdown plannedEndDate.
 				- The sum of all task breakdown durations must equal the parent task duration.
-				- No task breakd
+				- No task breakdown may have a duration of zero.
 							"""
-				.formatted(
-
-						opportunity.getOpportunityName(),
-
-						opportunity.getClientName(),
-
-						opportunity.getImplementationType().name(),
-
-						analysis.getActorWeight(),
-
-						analysis.getUucp(),
-
-						analysis.getTcf(),
-
-						analysis.getEf(),
-
-						analysis.getUcp(),
-
-						analysis.getHoursOfEffort(),
-
-						actors,
-
-						useCases,
-
-						projectStartDate,
-
-						teamSize,
-
-						workingDays,
-
-						workingHours,
-
-						buffer,
-
-						durationDays,
-
-						durationDays
-
-				);
-
-	}
-
-}

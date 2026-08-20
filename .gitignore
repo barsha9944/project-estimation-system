@@ -7,3 +7,4 @@
 /.vscode
 /logs
 src/main/java/com/projectestimation/backend/estimation/config/GeminiProperties.java
+src/main/java/com/projectestimation/backend/estimation/config/GeminiProperties.java

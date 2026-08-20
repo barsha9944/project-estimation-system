@@ -40,4 +40,6 @@ public class ProjectScheduleTaskBreakdown {
     private LocalDate actualStartDate;
 
     private LocalDate actualEndDate;
+    
+    private String status;
 }

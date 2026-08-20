@@ -2,10 +2,13 @@ package com.projectestimation.backend.projectschedule.service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,7 @@ import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.projectschedule.ai.AiProjectScheduleResult;
 import com.projectestimation.backend.projectschedule.ai.GeminiProjectScheduleOrchestrator;
+import com.projectestimation.backend.projectschedule.controller.ProjectScheduleController;
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleTaskResponse;
@@ -43,7 +47,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class ProjectScheduleService {
-
+	private static final Logger log = LogManager.getLogger(ProjectScheduleService.class);
 	private final OpportunityRepository opportunityRepository;
 
 	private final EstimationAnalysisRepository estimationAnalysisRepository;
@@ -70,8 +74,7 @@ public class ProjectScheduleService {
 
 			GenerateProjectScheduleRequest request,
 
-			User user
-	) {
+			User user) {
 		Opportunity opportunity = opportunityRepository.findById(opportunityId)
 				.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found."));
 
@@ -223,6 +226,8 @@ public class ProjectScheduleService {
 
 							breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
 
+							breakdown.setStatus(breakdownRequest.getStatus());
+
 							breakdown.setActualStartDate(breakdownRequest.getActualStartDate() != null
 									? breakdownRequest.getActualStartDate()
 									: breakdownRequest.getPlannedStartDate());
@@ -326,7 +331,7 @@ public class ProjectScheduleService {
 		response.setActualEndDate(task.getActualEndDate() != null ? task.getActualEndDate() : task.getPlannedEndDate());
 
 		response.setStatus(task.getStatus());
-		
+
 		response.setPredecessor(task.getPredecessor());
 
 		response.setTaskBreakdowns(task.getTaskBreakdowns().stream().map(this::mapTaskBreakdownResponse).toList());
@@ -349,7 +354,11 @@ public class ProjectScheduleService {
 		response.setActualEndDate(breakdown.getActualEndDate());
 
 		response.setActualStartDate(breakdown.getActualStartDate());
-
+		response.setStatus(breakdown.getStatus() != null ? breakdown.getStatus() : "Not Started");
+//		log.info("Actual duration :: {}. Start date : {}, End date:{}",
+//				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()),  breakdown.getActualStartDate(), breakdown.getActualEndDate());
+		response.setActualDuration(
+				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()));
 		return response;
 	}
 
@@ -377,7 +386,7 @@ public class ProjectScheduleService {
 				completedWorkingDays++;
 			}
 		}
-		System.out.println("end date :: "+currentDate);
+		System.out.println("end date :: " + currentDate);
 
 		return currentDate;
 	}
