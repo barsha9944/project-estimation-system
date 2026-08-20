@@ -11,15 +11,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TaskBreakdownResponse {
 
-    private String activityName;
+	private String activityName;
 
-    private Integer duration;
+	private Integer duration;
 
-    private LocalDate plannedStartDate;
+	private LocalDate plannedStartDate;
 
-    private LocalDate plannedEndDate;
-    
-    private LocalDate actualStartDate;
-    
-    private LocalDate actualEndDate;
+	private LocalDate plannedEndDate;
+
+	private LocalDate actualStartDate;
+
+	private LocalDate actualEndDate;
+
+	private Long actualDuration;
+	private String status;
 }

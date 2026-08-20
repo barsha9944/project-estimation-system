@@ -18,7 +18,6 @@ import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse
 import com.projectestimation.backend.projectschedule.dto.RecalculateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.service.ProjectScheduleService;
-import com.projectestimation.backend.proposal.service.ProposalService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
