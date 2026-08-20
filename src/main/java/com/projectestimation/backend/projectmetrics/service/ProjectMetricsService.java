@@ -805,4 +805,20 @@ public class ProjectMetricsService {
             );
         }
     }
+    
+    public String getProjectMetricsFileName(Long opportunityId) {
+
+	    String opportunityName =
+	            projectMetricsRepository
+	                    .findOpportunityNameByOpportunityId(opportunityId)
+	                    .orElseThrow(() ->
+	                            new RuntimeException(
+	                                    "Opportunity not found for opportunity ID "
+	                                            + opportunityId));
+	
+	    opportunityName =
+	            opportunityName.replaceAll("[\\\\/:*?\"<>|]", "_");
+	
+	    return opportunityName + "_Project_metrics.xlsx";
+    }
 }

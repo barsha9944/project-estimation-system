@@ -24,4 +24,14 @@ public interface ProjectMetricsRepository
     );
     
     boolean existsByOpportunityId(Long opportunityId);
+    
+    @Query("""
+    	    SELECT o.opportunityName
+    	    FROM ProjectMetrics pm
+    	    JOIN pm.opportunity o
+    	    WHERE pm.opportunity.id = :opportunityId
+    	""")
+    	Optional<String> findOpportunityNameByOpportunityId(
+    	        @Param("opportunityId") Long opportunityId
+    	);
 }

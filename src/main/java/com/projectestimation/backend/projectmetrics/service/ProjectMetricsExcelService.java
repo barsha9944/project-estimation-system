@@ -124,9 +124,11 @@ public class ProjectMetricsExcelService {
                     dataStyle
             );
 
-            sheet.createFreezePane(0, 3);
+         // Freeze only the 3 header rows.
+         // Data rows (Sprint 1, Sprint 2, Total) must scroll normally.
+//         sheet.createFreezePane(0, 3, 0, 3);
 
-            sheet.setDisplayGridlines(false);
+         sheet.setDisplayGridlines(false);
 
             workbook.write(outputStream);
 

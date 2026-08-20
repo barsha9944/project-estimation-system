@@ -53,10 +53,15 @@ public class ProjectMetricsController {
                         opportunityId
                 );
 
+        String fileName =
+                projectMetricsService.getProjectMetricsFileName(
+                        opportunityId
+                );
+
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"Project_Metrics.xlsx\""
+                        "attachment; filename=\"" + fileName + "\""
                 )
                 .contentType(
                         MediaType.parseMediaType(
