@@ -3,6 +3,7 @@ package com.projectestimation.backend.projectmetrics.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,4 +35,22 @@ public interface ProjectMetricsRepository
     	Optional<String> findOpportunityNameByOpportunityId(
     	        @Param("opportunityId") Long opportunityId
     	);
+    
+//    @Modifying
+//    @Query("""
+//        DELETE FROM ProjectMetrics p
+//        WHERE p.opportunity.id = :opportunityId
+//    """)
+//    void deleteByOpportunityId(
+//            @Param("opportunityId") Long opportunityId
+//    );
+    
+    @Modifying
+    @Query("""
+        DELETE FROM ProjectMetrics pm
+        WHERE pm.opportunity.id = :opportunityId
+    """)
+    int deleteByOpportunityId(
+            @Param("opportunityId") Long opportunityId
+    );
 }

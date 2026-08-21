@@ -24,9 +24,11 @@ import com.projectestimation.backend.estimation.repository.EstimationAnalysisRep
 import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.projectmetrics.model.ProjectMetrics;
+import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
+import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsSprintRepository;
 import com.projectestimation.backend.projectschedule.ai.AiProjectScheduleResult;
 import com.projectestimation.backend.projectschedule.ai.GeminiProjectScheduleOrchestrator;
-import com.projectestimation.backend.projectschedule.controller.ProjectScheduleController;
 import com.projectestimation.backend.projectschedule.dto.GenerateProjectScheduleRequest;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleResponse;
 import com.projectestimation.backend.projectschedule.dto.ProjectScheduleTaskResponse;
@@ -67,6 +69,10 @@ public class ProjectScheduleService {
 	private final ProjectScheduleExcelExporter projectScheduleExcelExporter;
 
 	private final ProjectScheduleCalculator projectScheduleCalculator;
+	
+	private final ProjectMetricsRepository projectMetricsRepository;
+
+	private final ProjectMetricsSprintRepository projectMetricsSprintRepository;
 
 	public ProjectScheduleResponse generateProjectSchedule(
 
@@ -176,7 +182,13 @@ public class ProjectScheduleService {
 
 		schedule = projectScheduleRepository.save(schedule);
 
-		projectScheduleTaskRepository.deleteByProjectScheduleId(schedule.getId());
+		deleteExistingProjectMetrics(opportunityId);
+
+		projectScheduleRepository.flush();
+
+		projectScheduleTaskRepository.deleteByProjectScheduleId(
+		        schedule.getId()
+		);
 
 		for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
 
@@ -401,4 +413,28 @@ public class ProjectScheduleService {
 
 		return true;
 	}
+	
+	private void deleteExistingProjectMetrics(Long opportunityId) {
+
+    ProjectMetrics metrics =
+            projectMetricsRepository
+                    .findByOpportunityId(opportunityId)
+                    .orElse(null);
+
+    if (metrics == null) {
+        return;
+    }
+
+    Long projectMetricsId = metrics.getId();
+
+    // FIRST: delete child sprint rows
+    projectMetricsSprintRepository.deleteByProjectMetricsId(
+            projectMetricsId
+    );
+
+    // THEN: delete parent project metrics row
+    projectMetricsRepository.deleteByOpportunityId(
+            opportunityId
+    );
+}
 }
