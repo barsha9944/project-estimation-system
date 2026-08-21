@@ -45,6 +45,63 @@ public class ProjectMetricsSprint {
     private Integer sprintNumber;
 
     private String taskName;
+    
+ // =========================
+ // SUMMARY
+ // =========================
+
+ private String projectName;
+
+ private String releaseNo;
+
+ private Double originalSize;
+
+ private Double actualSize;
+
+ private Double sizeVariance;
+
+ private Double totalPlannedEffortWithoutPm;
+
+ private Double totalPlannedEffort;
+
+ private Double totalActualEffortWithoutPm;
+
+ private Double totalActualEffort;
+
+ private Double effortVariance;
+
+ private Integer plannedDuration;
+
+ private Integer actualDuration;
+
+ private Double scheduleVariance;
+
+ private Double actualOverallProductivity;
+
+ private Double reviewEffectiveness;
+
+ private Double testingEffectiveness;
+
+
+ // =========================
+ // QUALITY / UAT
+ // =========================
+
+ private Double averagePreDeliveryDefectDensity;
+
+ private Integer uatDefects;
+
+ private Double postDeliveryDefectDensity;
+
+ private Double overallDefectDensity;
+
+ private Double plannedUatEffort;
+
+ private Double actualUatEffort;
+
+ private Double overallDefectRate;
+
+ private Double defectRemovalEfficiency;
 
     // =========================
     // ANALYSIS

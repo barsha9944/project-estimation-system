@@ -11,15 +11,47 @@ public class SprintMetricsResponse {
 
     private Integer sprintNumber;
 
+    private String taskName;
+
+    // =========================
+    // SPRINT SUMMARY
+    // =========================
+
+    private SummaryMetricsResponse summary;
+
+    // =========================
+    // SPRINT QUALITY / UAT
+    // =========================
+
+    private QualityMetricsResponse quality;
+
+    // =========================
+    // ANALYSIS
+    // =========================
+
     private AnalysisMetricsResponse analysis;
+
+    // =========================
+    // DESIGN
+    // =========================
 
     private DesignMetricsResponse design;
 
+    // =========================
+    // CODING
+    // =========================
+
     private CodingMetricsResponse coding;
+
+    // =========================
+    // SIT
+    // =========================
 
     private SitMetricsResponse sit;
 
+    // =========================
+    // OTHER ACTIVITY
+    // =========================
+
     private OtherActivityMetricsResponse otherActivity;
-    
-    private String taskName;
 }

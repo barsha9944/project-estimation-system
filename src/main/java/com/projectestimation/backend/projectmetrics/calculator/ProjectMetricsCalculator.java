@@ -494,6 +494,8 @@ public class ProjectMetricsCalculator {
     	        calculateSprintMetrics(
     	                schedule,
     	                analysis.getUcp(),
+    	                summary,
+    	                qualityResponse,
     	                analysisResponse,
     	                designResponse,
     	                codingResponse,
@@ -1070,9 +1072,221 @@ public class ProjectMetricsCalculator {
         );
     }
     
+    private SummaryMetricsResponse calculateSprintSummary(
+            SummaryMetricsResponse overall,
+            Double ucp,
+            double ratio) {
+
+        SummaryMetricsResponse sprint =
+                new SummaryMetricsResponse();
+
+        // =========================
+        // BASIC INFORMATION
+        // =========================
+
+        sprint.setProjectName(
+                overall.getProjectName()
+        );
+
+        sprint.setReleaseNo(
+                overall.getReleaseNo()
+        );
+
+        // =========================
+        // SIZE
+        // =========================
+
+        sprint.setOriginalSize(
+                proportionalValue(
+                        overall.getOriginalSize(),
+                        ratio
+                )
+        );
+
+        sprint.setActualSize(
+                proportionalValue(
+                        overall.getActualSize(),
+                        ratio
+                )
+        );
+
+        sprint.setSizeVariance(
+                calculateSizeVariance(
+                        sprint.getOriginalSize(),
+                        sprint.getActualSize()
+                )
+        );
+
+        // =========================
+        // EFFORT
+        // =========================
+
+        sprint.setTotalPlannedEffortWithoutPm(
+                proportionalValue(
+                        overall.getTotalPlannedEffortWithoutPm(),
+                        ratio
+                )
+        );
+
+        sprint.setTotalPlannedEffort(
+                proportionalValue(
+                        overall.getTotalPlannedEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setTotalActualEffortWithoutPm(
+                proportionalValue(
+                        overall.getTotalActualEffortWithoutPm(),
+                        ratio
+                )
+        );
+
+        sprint.setTotalActualEffort(
+                proportionalValue(
+                        overall.getTotalActualEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setEffortVariance(
+                calculateEffortVariance(
+                        sprint.getTotalPlannedEffort(),
+                        sprint.getTotalActualEffort()
+                )
+        );
+
+        // =========================
+        // DURATION
+        // =========================
+
+        sprint.setPlannedDuration(
+                proportionalDuration(
+                        overall.getPlannedDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setActualDuration(
+                proportionalDuration(
+                        overall.getActualDuration(),
+                        ratio
+                )
+        );
+
+        sprint.setScheduleVariance(
+                calculateScheduleVariance(
+                        sprint.getPlannedDuration(),
+                        sprint.getActualDuration()
+                )
+        );
+
+        // =========================
+        // PRODUCTIVITY
+        // =========================
+
+        sprint.setActualOverallProductivity(
+                calculateProductivity(
+                        sprint.getActualSize(),
+                        sprint.getTotalActualEffort()
+                )
+        );
+
+        // =========================
+        // EFFECTIVENESS
+        // =========================
+
+        sprint.setReviewEffectiveness(
+                overall.getReviewEffectiveness()
+        );
+
+        sprint.setTestingEffectiveness(
+                overall.getTestingEffectiveness()
+        );
+
+        return sprint;
+    }
+    
+    private QualityMetricsResponse calculateSprintQuality(
+            QualityMetricsResponse overall,
+            double ratio) {
+
+        QualityMetricsResponse sprint =
+                new QualityMetricsResponse();
+
+        // =========================
+        // DEFECT DENSITY
+        // =========================
+
+        sprint.setAveragePreDeliveryDefectDensity(
+                overall.getAveragePreDeliveryDefectDensity()
+        );
+
+        // =========================
+        // UAT DEFECTS
+        // =========================
+
+        sprint.setUatDefects(
+                proportionalInteger(
+                        overall.getUatDefects(),
+                        ratio
+                )
+        );
+
+        // =========================
+        // POST DELIVERY DEFECT DENSITY
+        // =========================
+
+        sprint.setPostDeliveryDefectDensity(
+                overall.getPostDeliveryDefectDensity()
+        );
+
+        // =========================
+        // OVERALL DEFECT DENSITY
+        // =========================
+
+        sprint.setOverallDefectDensity(
+                overall.getOverallDefectDensity()
+        );
+
+        // =========================
+        // UAT EFFORT
+        // =========================
+
+        sprint.setPlannedUatEffort(
+                proportionalValue(
+                        overall.getPlannedUatEffort(),
+                        ratio
+                )
+        );
+
+        sprint.setActualUatEffort(
+                proportionalValue(
+                        overall.getActualUatEffort(),
+                        ratio
+                )
+        );
+
+        // =========================
+        // DEFECT RATE
+        // =========================
+
+        sprint.setOverallDefectRate(
+                overall.getOverallDefectRate()
+        );
+
+        sprint.setDefectRemovalEfficiency(
+                overall.getDefectRemovalEfficiency()
+        );
+
+        return sprint;
+    }
+    
     private List<SprintMetricsResponse> calculateSprintMetrics(
             ProjectSchedule schedule,
             Double analysisUcp,
+            SummaryMetricsResponse overallSummary,
+            QualityMetricsResponse overallQuality,
             AnalysisMetricsResponse overallAnalysis,
             DesignMetricsResponse overallDesign,
             CodingMetricsResponse overallCoding,
@@ -1114,6 +1328,30 @@ public class ProjectMetricsCalculator {
                     codingTask.getTaskName()
             );
 
+         // =========================
+         // SUMMARY
+         // =========================
+
+         sprint.setSummary(
+                 calculateSprintSummary(
+                         overallSummary,
+                         analysisUcp,
+                         ratio
+                 )
+         );
+
+         // =========================
+         // QUALITY / UAT
+         // =========================
+
+         sprint.setQuality(
+                 calculateSprintQuality(
+                         overallQuality,
+                         ratio
+                 )
+         );
+         
+         
             sprint.setAnalysis(
                     calculateSprintAnalysis(
                             overallAnalysis,

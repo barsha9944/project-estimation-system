@@ -12,8 +12,10 @@ import com.projectestimation.backend.projectmetrics.dto.CodingMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.DesignMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.OtherActivityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.QualityMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SitMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.SprintMetricsResponse;
+import com.projectestimation.backend.projectmetrics.dto.SummaryMetricsResponse;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetrics;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetricsSprint;
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
@@ -243,258 +245,353 @@ public class ProjectMetricsPersistenceService {
     
     
     private ProjectMetricsSprint createSprintEntity(
-            SprintMetricsResponse response,
-            ProjectScheduleTask codingTask) {
+        SprintMetricsResponse response,
+        ProjectScheduleTask codingTask) {
 
-        ProjectMetricsSprint sprint =
-                new ProjectMetricsSprint();
+    ProjectMetricsSprint sprint =
+            new ProjectMetricsSprint();
 
-        sprint.setProjectScheduleTask(codingTask);
-        sprint.setSprintNumber(response.getSprintNumber());
-        sprint.setTaskName(codingTask.getTaskName());
+    sprint.setProjectScheduleTask(codingTask);
+    sprint.setSprintNumber(response.getSprintNumber());
+    sprint.setTaskName(codingTask.getTaskName());
 
-        // =========================
-        // ANALYSIS
-        // =========================
 
-        if (response.getAnalysis() != null) {
+    // =========================
+    // SUMMARY
+    // =========================
 
-            var analysis = response.getAnalysis();
+    SummaryMetricsResponse summary =
+            response.getSummary();
 
-            sprint.setAnalysisPlannedDuration(
-                    analysis.getPlannedDuration());
+    if (summary != null) {
 
-            sprint.setAnalysisActualDuration(
-                    analysis.getActualDuration());
+        sprint.setProjectName(
+                summary.getProjectName());
 
-            sprint.setAnalysisScheduleVariance(
-                    analysis.getScheduleVariance());
+        sprint.setReleaseNo(
+                summary.getReleaseNo());
 
-            sprint.setAnalysisPlannedEffort(
-                    analysis.getPlannedEffort());
+        sprint.setOriginalSize(
+                summary.getOriginalSize());
 
-            sprint.setAnalysisActualEffort(
-                    analysis.getActualEffort());
+        sprint.setActualSize(
+                summary.getActualSize());
 
-            sprint.setAnalysisProductivity(
-                    analysis.getProductivity());
+        sprint.setSizeVariance(
+                summary.getSizeVariance());
 
-            sprint.setAnalysisEffortVariance(
-                    analysis.getEffortVariance());
+        sprint.setTotalPlannedEffortWithoutPm(
+                summary.getTotalPlannedEffortWithoutPm());
 
-            sprint.setAnalysisEffortInAnalysis(
-                    analysis.getEffortInAnalysis());
+        sprint.setTotalPlannedEffort(
+                summary.getTotalPlannedEffort());
 
-            sprint.setAnalysisReviewDefects(
-                    analysis.getReviewDefects());
+        sprint.setTotalActualEffortWithoutPm(
+                summary.getTotalActualEffortWithoutPm());
 
-            sprint.setAnalysisReviewEffort(
-                    analysis.getReviewEffort());
+        sprint.setTotalActualEffort(
+                summary.getTotalActualEffort());
 
-            sprint.setAnalysisDefectDensity(
-                    analysis.getDefectDensity());
+        sprint.setEffortVariance(
+                summary.getEffortVariance());
 
-            sprint.setAnalysisDefectDetectionRate(
-                    analysis.getDefectDetectionRate());
+        sprint.setPlannedDuration(
+                summary.getPlannedDuration());
 
-            sprint.setAnalysisDefectRate(
-                    analysis.getDefectRate());
-        }
+        sprint.setActualDuration(
+                summary.getActualDuration());
 
-        // =========================
-        // DESIGN
-        // =========================
+        sprint.setScheduleVariance(
+                summary.getScheduleVariance());
 
-        if (response.getDesign() != null) {
+        sprint.setActualOverallProductivity(
+                summary.getActualOverallProductivity());
 
-            var design = response.getDesign();
+        sprint.setReviewEffectiveness(
+                summary.getReviewEffectiveness());
 
-            sprint.setDesignPlannedDuration(
-                    design.getPlannedDuration());
-
-            sprint.setDesignActualDuration(
-                    design.getActualDuration());
-
-            sprint.setDesignScheduleVariance(
-                    design.getScheduleVariance());
-
-            sprint.setDesignPlannedEffort(
-                    design.getPlannedEffort());
-
-            sprint.setDesignActualEffort(
-                    design.getActualEffort());
-
-            sprint.setDesignProductivity(
-                    design.getProductivity());
-
-            sprint.setDesignEffortVariance(
-                    design.getEffortVariance());
-
-            sprint.setDesignEffortInAnalysis(
-                    design.getEffortInAnalysis());
-
-            sprint.setDesignReviewDefects(
-                    design.getReviewDefects());
-
-            sprint.setDesignReviewEffort(
-                    design.getReviewEffort());
-
-            sprint.setDesignDefectDensity(
-                    design.getDefectDensity());
-
-            sprint.setDesignDefectDetectionRate(
-                    design.getDefectDetectionRate());
-
-            sprint.setDesignDefectRate(
-                    design.getDefectRate());
-        }
-
-        // =========================
-        // CODING
-        // =========================
-
-        if (response.getCoding() != null) {
-
-            var coding = response.getCoding();
-
-            sprint.setCodingPlannedDuration(
-                    coding.getPlannedDuration());
-
-            sprint.setCodingActualDuration(
-                    coding.getActualDuration());
-
-            sprint.setCodingScheduleVariance(
-                    coding.getScheduleVariance());
-
-            sprint.setCodingPlannedEffort(
-                    coding.getPlannedEffort());
-
-            sprint.setCodingActualEffort(
-                    coding.getActualEffort());
-
-            sprint.setCodingEffortVariance(
-                    coding.getEffortVariance());
-
-            sprint.setCodingEffort(
-                    coding.getCodingEffort());
-
-            sprint.setCodeReviewDefects(
-                    coding.getCodeReviewDefects());
-
-            sprint.setCodeReviewEffort(
-                    coding.getCodeReviewEffort());
-
-            sprint.setCodingDefectDensity(
-                    coding.getDefectDensity());
-
-            sprint.setCodeReviewDetectionRate(
-                    coding.getCodeReviewDetectionRate());
-
-            sprint.setUnitTestingDefects(
-                    coding.getUnitTestingDefects());
-
-            sprint.setUnitTestingEffort(
-                    coding.getUnitTestingEffort());
-
-            sprint.setUnitTestingDetectionRate(
-                    coding.getUnitTestingDetectionRate());
-
-            sprint.setCodingDefectRate(
-                    coding.getDefectRate());
-
-            sprint.setCodingProductivity(
-                    coding.getProductivity());
-        }
-        
-        // =========================
-        // SIT
-        // =========================
-
-        if (response.getSit() != null) {
-
-            var sit = response.getSit();
-
-            sprint.setSitPlannedDuration(
-                    sit.getPlannedDuration());
-
-            sprint.setSitActualDuration(
-                    sit.getActualDuration());
-
-            sprint.setSitScheduleVariance(
-                    sit.getScheduleVariance());
-
-            sprint.setSitPlannedEffort(
-                    sit.getPlannedEffort());
-
-            sprint.setSitActualEffort(
-                    sit.getActualEffort());
-
-            sprint.setSitEffortVariance(
-                    sit.getEffortVariance());
-
-            sprint.setTotalTestConditions(
-                    sit.getTotalTestConditions());
-
-            sprint.setTestCaseWritingEffort(
-                    sit.getTestCaseWritingEffort());
-
-            sprint.setTestCaseReviewDefects(
-                    sit.getTestCaseReviewDefects());
-
-            sprint.setTestCaseReviewEffort(
-                    sit.getTestCaseReviewEffort());
-
-            sprint.setTestExecutionEffort(
-                    sit.getTestExecutionEffort());
-
-            sprint.setTestCaseReviewDetectionRate(
-                    sit.getTestCaseReviewDetectionRate());
-
-            sprint.setSitDefects(
-                    sit.getSitDefects());
-
-            sprint.setSitEffort(
-                    sit.getSitEffort());
-
-            sprint.setSitDetectionRate(
-                    sit.getSitDetectionRate());
-        }
-
-        // =========================
-        // OTHER ACTIVITY
-        // =========================
-
-        if (response.getOtherActivity() != null) {
-
-            var other = response.getOtherActivity();
-
-            sprint.setOtherActualTotal(
-                    other.getActualTotal());
-
-            sprint.setOtherActualProjectManagement(
-                    other.getActualProjectManagement());
-
-            sprint.setOtherActualSupportGroup(
-                    other.getActualSupportGroup());
-
-            sprint.setOtherActualOthers(
-                    other.getActualOthers());
-
-            sprint.setOtherPlannedTotal(
-                    other.getPlannedTotal());
-
-            sprint.setOtherPlannedProjectManagement(
-                    other.getPlannedProjectManagement());
-
-            sprint.setOtherPlannedSupportGroup(
-                    other.getPlannedSupportGroup());
-
-            sprint.setOtherPlannedOthers(
-                    other.getPlannedOthers());
-        }
-
-        return sprint;
+        sprint.setTestingEffectiveness(
+                summary.getTestingEffectiveness());
     }
+
+
+    // =========================
+    // QUALITY / UAT
+    // =========================
+
+    QualityMetricsResponse quality =
+            response.getQuality();
+
+    if (quality != null) {
+
+        sprint.setAveragePreDeliveryDefectDensity(
+                quality.getAveragePreDeliveryDefectDensity());
+
+        sprint.setUatDefects(
+                quality.getUatDefects());
+
+        sprint.setPostDeliveryDefectDensity(
+                quality.getPostDeliveryDefectDensity());
+
+        sprint.setOverallDefectDensity(
+                quality.getOverallDefectDensity());
+
+        sprint.setPlannedUatEffort(
+                quality.getPlannedUatEffort());
+
+        sprint.setActualUatEffort(
+                quality.getActualUatEffort());
+
+        sprint.setOverallDefectRate(
+                quality.getOverallDefectRate());
+
+        sprint.setDefectRemovalEfficiency(
+                quality.getDefectRemovalEfficiency());
+    }
+
+
+    // =========================
+    // ANALYSIS
+    // =========================
+
+    if (response.getAnalysis() != null) {
+
+        var analysis = response.getAnalysis();
+
+        sprint.setAnalysisPlannedDuration(
+                analysis.getPlannedDuration());
+
+        sprint.setAnalysisActualDuration(
+                analysis.getActualDuration());
+
+        sprint.setAnalysisScheduleVariance(
+                analysis.getScheduleVariance());
+
+        sprint.setAnalysisPlannedEffort(
+                analysis.getPlannedEffort());
+
+        sprint.setAnalysisActualEffort(
+                analysis.getActualEffort());
+
+        sprint.setAnalysisProductivity(
+                analysis.getProductivity());
+
+        sprint.setAnalysisEffortVariance(
+                analysis.getEffortVariance());
+
+        sprint.setAnalysisEffortInAnalysis(
+                analysis.getEffortInAnalysis());
+
+        sprint.setAnalysisReviewDefects(
+                analysis.getReviewDefects());
+
+        sprint.setAnalysisReviewEffort(
+                analysis.getReviewEffort());
+
+        sprint.setAnalysisDefectDensity(
+                analysis.getDefectDensity());
+
+        sprint.setAnalysisDefectDetectionRate(
+                analysis.getDefectDetectionRate());
+
+        sprint.setAnalysisDefectRate(
+                analysis.getDefectRate());
+    }
+
+    // =========================
+    // DESIGN
+    // =========================
+
+    if (response.getDesign() != null) {
+
+        var design = response.getDesign();
+
+        sprint.setDesignPlannedDuration(
+                design.getPlannedDuration());
+
+        sprint.setDesignActualDuration(
+                design.getActualDuration());
+
+        sprint.setDesignScheduleVariance(
+                design.getScheduleVariance());
+
+        sprint.setDesignPlannedEffort(
+                design.getPlannedEffort());
+
+        sprint.setDesignActualEffort(
+                design.getActualEffort());
+
+        sprint.setDesignProductivity(
+                design.getProductivity());
+
+        sprint.setDesignEffortVariance(
+                design.getEffortVariance());
+
+        sprint.setDesignEffortInAnalysis(
+                design.getEffortInAnalysis());
+
+        sprint.setDesignReviewDefects(
+                design.getReviewDefects());
+
+        sprint.setDesignReviewEffort(
+                design.getReviewEffort());
+
+        sprint.setDesignDefectDensity(
+                design.getDefectDensity());
+
+        sprint.setDesignDefectDetectionRate(
+                design.getDefectDetectionRate());
+
+        sprint.setDesignDefectRate(
+                design.getDefectRate());
+    }
+
+    // =========================
+    // CODING
+    // =========================
+
+    if (response.getCoding() != null) {
+
+        var coding = response.getCoding();
+
+        sprint.setCodingPlannedDuration(
+                coding.getPlannedDuration());
+
+        sprint.setCodingActualDuration(
+                coding.getActualDuration());
+
+        sprint.setCodingScheduleVariance(
+                coding.getScheduleVariance());
+
+        sprint.setCodingPlannedEffort(
+                coding.getPlannedEffort());
+
+        sprint.setCodingActualEffort(
+                coding.getActualEffort());
+
+        sprint.setCodingEffortVariance(
+                coding.getEffortVariance());
+
+        sprint.setCodingEffort(
+                coding.getCodingEffort());
+
+        sprint.setCodeReviewDefects(
+                coding.getCodeReviewDefects());
+
+        sprint.setCodeReviewEffort(
+                coding.getCodeReviewEffort());
+
+        sprint.setCodingDefectDensity(
+                coding.getDefectDensity());
+
+        sprint.setCodeReviewDetectionRate(
+                coding.getCodeReviewDetectionRate());
+
+        sprint.setUnitTestingDefects(
+                coding.getUnitTestingDefects());
+
+        sprint.setUnitTestingEffort(
+                coding.getUnitTestingEffort());
+
+        sprint.setUnitTestingDetectionRate(
+                coding.getUnitTestingDetectionRate());
+
+        sprint.setCodingDefectRate(
+                coding.getDefectRate());
+
+        sprint.setCodingProductivity(
+                coding.getProductivity());
+    }
+
+    // =========================
+    // SIT
+    // =========================
+
+    if (response.getSit() != null) {
+
+        var sit = response.getSit();
+
+        sprint.setSitPlannedDuration(
+                sit.getPlannedDuration());
+
+        sprint.setSitActualDuration(
+                sit.getActualDuration());
+
+        sprint.setSitScheduleVariance(
+                sit.getScheduleVariance());
+
+        sprint.setSitPlannedEffort(
+                sit.getPlannedEffort());
+
+        sprint.setSitActualEffort(
+                sit.getActualEffort());
+
+        sprint.setSitEffortVariance(
+                sit.getEffortVariance());
+
+        sprint.setTotalTestConditions(
+                sit.getTotalTestConditions());
+
+        sprint.setTestCaseWritingEffort(
+                sit.getTestCaseWritingEffort());
+
+        sprint.setTestCaseReviewDefects(
+                sit.getTestCaseReviewDefects());
+
+        sprint.setTestCaseReviewEffort(
+                sit.getTestCaseReviewEffort());
+
+        sprint.setTestExecutionEffort(
+                sit.getTestExecutionEffort());
+
+        sprint.setTestCaseReviewDetectionRate(
+                sit.getTestCaseReviewDetectionRate());
+
+        sprint.setSitDefects(
+                sit.getSitDefects());
+
+        sprint.setSitEffort(
+                sit.getSitEffort());
+
+        sprint.setSitDetectionRate(
+                sit.getSitDetectionRate());
+    }
+
+    // =========================
+    // OTHER ACTIVITY
+    // =========================
+
+    if (response.getOtherActivity() != null) {
+
+        var other = response.getOtherActivity();
+
+        sprint.setOtherActualTotal(
+                other.getActualTotal());
+
+        sprint.setOtherActualProjectManagement(
+                other.getActualProjectManagement());
+
+        sprint.setOtherActualSupportGroup(
+                other.getActualSupportGroup());
+
+        sprint.setOtherActualOthers(
+                other.getActualOthers());
+
+        sprint.setOtherPlannedTotal(
+                other.getPlannedTotal());
+
+        sprint.setOtherPlannedProjectManagement(
+                other.getPlannedProjectManagement());
+
+        sprint.setOtherPlannedSupportGroup(
+                other.getPlannedSupportGroup());
+
+        sprint.setOtherPlannedOthers(
+                other.getPlannedOthers());
+    }
+
+    return sprint;
+}
     
     private void mapCumulativeMetrics(
             ProjectMetrics metrics,
