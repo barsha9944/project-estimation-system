@@ -27,4 +27,6 @@ public interface ProjectStatusReportRepository
             @Param("opportunityId") Long opportunityId,
             @Param("from") LocalDateTime from
     );
+    
+    long countByOpportunityId(Long opportunityId);
 }

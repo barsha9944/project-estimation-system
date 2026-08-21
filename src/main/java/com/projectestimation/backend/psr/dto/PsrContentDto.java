@@ -20,4 +20,10 @@ public class PsrContentDto {
     private String trainingOfProjectTeamMembers;
 
     private String issuesManagementAttention;
+
+    private String reportingStartDate;
+
+    private String reportingEndDate;
+    
+    private String reportDate;
 }

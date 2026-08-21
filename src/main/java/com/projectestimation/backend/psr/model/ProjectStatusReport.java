@@ -46,6 +46,8 @@ public class ProjectStatusReport {
     private LocalDateTime generatedAt;
 
     private LocalDate reportDate;
+    
+    private Integer version;
 
     // =========================
     // PSR CONTENT
@@ -73,6 +75,9 @@ public class ProjectStatusReport {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+    
+    @Column(columnDefinition = "TEXT")
+    private String markdownContent;
 
     @PrePersist
     public void onCreate() {

@@ -26,12 +26,14 @@ public class GeminiPsrOrchestrator {
 
     public AiPsrResult generate(
             String opportunityName,
-            PsrContentDto content
+            PsrContentDto content,
+            int psrVersion
     ) {
 
         String prompt = promptBuilder.build(
                 opportunityName,
-                content
+                content,
+                psrVersion
         );
 
         String markdown = geminiClient.generateContent(

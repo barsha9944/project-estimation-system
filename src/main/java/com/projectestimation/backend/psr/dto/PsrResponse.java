@@ -20,4 +20,6 @@ public class PsrResponse {
     private LocalDateTime generatedAt;
 
     private String status;
+
+    private String markdownContent;
 }

@@ -2,7 +2,6 @@ package com.projectestimation.backend.psr.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
-import com.projectestimation.backend.proposal.service.PandocDocxConverter;
 import com.projectestimation.backend.psr.ai.AiPsrResult;
 import com.projectestimation.backend.psr.ai.GeminiPsrOrchestrator;
 import com.projectestimation.backend.psr.dto.PsrContentDto;
@@ -37,6 +35,10 @@ public class PsrService {
     private final ObjectMapper objectMapper;
 
 
+    // ============================================================
+    // CHECK RECENT PSR
+    // ============================================================
+
     @Transactional(readOnly = true)
     public boolean hasRecentPsr(Long opportunityId) {
 
@@ -54,8 +56,14 @@ public class PsrService {
     }
 
 
+    // ============================================================
+    // BUILD PSR CONTENT
+    // ============================================================
+
     @Transactional(readOnly = true)
-    public PsrContentDto buildPsrContent(Long opportunityId) {
+    public PsrContentDto buildPsrContent(
+            Long opportunityId
+    ) {
 
         return psrScheduleDataService.buildPsrContent(
                 opportunityId
@@ -63,12 +71,18 @@ public class PsrService {
     }
 
 
-    @Transactional
-    public PsrResponse generatePsrIfRequired(Long opportunityId) {
+    // ============================================================
+    // GENERATE PSR
+    // ============================================================
 
-        // ============================================
+    @Transactional
+    public PsrResponse generatePsrIfRequired(
+            Long opportunityId
+    ) {
+
+        // ========================================================
         // CHECK WHETHER PSR WAS GENERATED IN LAST 15 DAYS
-        // ============================================
+        // ========================================================
 
         var recentPsr =
                 projectStatusReportRepository
@@ -76,11 +90,13 @@ public class PsrService {
                                 opportunityId
                         );
 
-        if (recentPsr.isPresent()
+        if (
+                recentPsr.isPresent()
                 && recentPsr.get().getGeneratedAt() != null
                 && recentPsr.get().getGeneratedAt().isAfter(
                         LocalDateTime.now().minusDays(15)
-                )) {
+                )
+        ) {
 
             ProjectStatusReport existingPsr =
                     recentPsr.get();
@@ -90,28 +106,41 @@ public class PsrService {
                     existingPsr.getFileName(),
                     existingPsr.getFileLocation(),
                     existingPsr.getGeneratedAt(),
-                    "ALREADY_EXISTS"
+                    "ALREADY_EXISTS",
+                    existingPsr.getMarkdownContent()
             );
         }
 
 
-        // ============================================
+        // ========================================================
         // GET OPPORTUNITY
-        // ============================================
+        // ========================================================
 
         Opportunity opportunity =
-                opportunityRepository.findById(opportunityId)
-                        .orElseThrow(() ->
-                                new IllegalStateException(
-                                        "Opportunity not found: "
-                                                + opportunityId
-                                )
-                        );
+                opportunityRepository.findById(
+                        opportunityId
+                )
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "Opportunity not found: "
+                                        + opportunityId
+                        )
+                );
 
 
-        // ============================================
-        // BUILD PSR CONTENT FROM PROJECT SCHEDULE
-        // ============================================
+        // ========================================================
+        // CALCULATE PSR VERSION
+        // ========================================================
+
+        int psrVersion =
+                (int) projectStatusReportRepository
+                        .countByOpportunityId(opportunityId)
+                        + 1;
+
+
+        // ========================================================
+        // BUILD PSR CONTENT
+        // ========================================================
 
         PsrContentDto content =
                 psrScheduleDataService.buildPsrContent(
@@ -119,46 +148,57 @@ public class PsrService {
                 );
 
 
-        // ============================================
+        // ========================================================
         // GEMINI
-        // ============================================
+        // ========================================================
 
         AiPsrResult aiResult =
                 geminiPsrOrchestrator.generate(
                         opportunity.getOpportunityName(),
-                        content
+                        content,
+                        psrVersion
                 );
 
 
-        // ============================================
+        // ========================================================
+        // GET MARKDOWN
+        // ========================================================
+
+        String markdown =
+                aiResult.markdownContent();
+
+
+        // ========================================================
         // FILE NAME
-        // ============================================
+        // ========================================================
 
         String baseFileName =
-                		"PSR"
+                "PSR"
                         + "_"
                         + LocalDate.now();
 
 
-        // ============================================
-        // MARKDOWN → DOCX USING PANDOC
-        // ============================================
+        // ========================================================
+        // MARKDOWN → DOCX
+        // ========================================================
 
         PsrDocxConverter.ConversionResult conversion =
                 psrDocxConverter.convertMarkdownToDocx(
-                        aiResult.markdownContent(),
+                        markdown,
                         baseFileName
                 );
 
 
-        // ============================================
+        // ========================================================
         // CREATE DATABASE RECORD
-        // ============================================
+        // ========================================================
 
         ProjectStatusReport report =
                 new ProjectStatusReport();
 
-        report.setOpportunity(opportunity);
+        report.setOpportunity(
+                opportunity
+        );
 
         report.setFileName(
                 baseFileName + ".docx"
@@ -177,9 +217,18 @@ public class PsrService {
         );
 
 
-        // ============================================
+        // ========================================================
+        // SAVE MARKDOWN
+        // ========================================================
+
+        report.setMarkdownContent(
+                markdown
+        );
+
+
+        // ========================================================
         // SAVE PSR CONTENT
-        // ============================================
+        // ========================================================
 
         try {
 
@@ -217,9 +266,9 @@ public class PsrService {
         );
 
 
-        // ============================================
+        // ========================================================
         // SAVE DATABASE RECORD
-        // ============================================
+        // ========================================================
 
         ProjectStatusReport savedReport =
                 projectStatusReportRepository.save(
@@ -227,16 +276,17 @@ public class PsrService {
                 );
 
 
-        // ============================================
+        // ========================================================
         // RETURN RESPONSE
-        // ============================================
+        // ========================================================
 
         return new PsrResponse(
                 savedReport.getId(),
                 savedReport.getFileName(),
                 savedReport.getFileLocation(),
                 savedReport.getGeneratedAt(),
-                "GENERATED"
+                "GENERATED",
+                savedReport.getMarkdownContent()
         );
     }
 }

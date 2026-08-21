@@ -99,72 +99,73 @@ public class PsrDocxConverter {
 
 
     private void executePandoc(
-            Path markdownFile,
-            Path docxFile
-    ) throws IOException, InterruptedException {
-
-        ProcessBuilder processBuilder =
-                new ProcessBuilder(
-                        "pandoc",
-                        markdownFile.toString(),
-                        "-o",
-                        docxFile.toString()
-                );
-
-        processBuilder.directory(
-                markdownFile
-                        .getParent()
-                        .toFile()
-        );
-
-        processBuilder.redirectErrorStream(true);
-
-        Process process =
-                processBuilder.start();
-
-        String processOutput =
-                new String(
-                        process.getInputStream()
-                                .readAllBytes()
-                );
-
-        boolean finished =
-                process.waitFor(
-                        60,
-                        TimeUnit.SECONDS
-                );
-
-        if (!finished) {
-
-            process.destroyForcibly();
-
-            throw new ProposalFailedException(
-                    "Pandoc conversion timed out"
-            );
-        }
-
-        if (process.exitValue() != 0) {
-
-            throw new ProposalFailedException(
-                    "Pandoc conversion failed: "
-                            + (
-                            processOutput.isBlank()
-                                    ? "unknown error"
-                                    : processOutput.trim()
-                    )
-            );
-        }
-
-        if (
-                !Files.exists(docxFile)
-                        || Files.size(docxFile) == 0
-        ) {
-
-            throw new ProposalFailedException(
-                    "Pandoc did not generate a valid PSR DOCX file"
-            );
-        }
-    }
+        Path markdownFile,
+        Path docxFile
+	) throws IOException, InterruptedException {
+	
+	    ProcessBuilder processBuilder =
+	            new ProcessBuilder(
+	                    "pandoc",
+	                    "--from=markdown+raw_html+fenced_divs",
+	                    markdownFile.toString(),
+	                    "-o",
+	                    docxFile.toString()
+	            );
+	
+	    processBuilder.directory(
+	            markdownFile
+	                    .getParent()
+	                    .toFile()
+	    );
+	
+	    processBuilder.redirectErrorStream(true);
+	
+	    Process process =
+	            processBuilder.start();
+	
+	    String processOutput =
+	            new String(
+	                    process.getInputStream()
+	                            .readAllBytes()
+	            );
+	
+	    boolean finished =
+	            process.waitFor(
+	                    60,
+	                    TimeUnit.SECONDS
+	            );
+	
+	    if (!finished) {
+	
+	        process.destroyForcibly();
+	
+	        throw new ProposalFailedException(
+	                "Pandoc conversion timed out"
+	        );
+	    }
+	
+	    if (process.exitValue() != 0) {
+	
+	        throw new ProposalFailedException(
+	                "Pandoc conversion failed: "
+	                        + (
+	                        processOutput.isBlank()
+	                                ? "unknown error"
+	                                : processOutput.trim()
+	                )
+	        );
+	    }
+	
+	    if (
+	            !Files.exists(docxFile)
+	                    || Files.size(docxFile) == 0
+	    ) {
+	
+	        throw new ProposalFailedException(
+	                "Pandoc did not generate a valid PSR DOCX file"
+	        );
+	    }
+	}
 
 
     private String sanitizeFileName(
