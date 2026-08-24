@@ -42,4 +42,6 @@ public class ProjectScheduleTaskBreakdown {
     private LocalDate actualEndDate;
     
     private String status;
+    
+    private Integer progress;
 }

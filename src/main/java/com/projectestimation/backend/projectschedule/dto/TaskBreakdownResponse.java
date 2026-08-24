@@ -25,4 +25,6 @@ public class TaskBreakdownResponse {
 
 	private Long actualDuration;
 	private String status;
+	
+	private Integer progress;
 }

@@ -22,5 +22,8 @@ public class SaveTaskBreakdownRequest {
     private LocalDate actualStartDate;
 
     private LocalDate actualEndDate;
+    
     private String status;
+    
+    private Integer progress;
 }

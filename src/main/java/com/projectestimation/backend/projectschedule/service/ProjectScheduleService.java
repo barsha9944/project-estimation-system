@@ -239,6 +239,8 @@ public class ProjectScheduleService {
 							breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
 
 							breakdown.setStatus(breakdownRequest.getStatus());
+							
+							breakdown.setProgress(breakdownRequest.getProgress());
 
 							breakdown.setActualStartDate(breakdownRequest.getActualStartDate() != null
 									? breakdownRequest.getActualStartDate()
@@ -367,6 +369,7 @@ public class ProjectScheduleService {
 
 		response.setActualStartDate(breakdown.getActualStartDate());
 		response.setStatus(breakdown.getStatus() != null ? breakdown.getStatus() : "Not Started");
+		response.setProgress(breakdown.getProgress());
 //		log.info("Actual duration :: {}. Start date : {}, End date:{}",
 //				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()),  breakdown.getActualStartDate(), breakdown.getActualEndDate());
 		response.setActualDuration(
