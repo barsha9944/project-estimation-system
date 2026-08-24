@@ -65,7 +65,7 @@ public class PsrScheduleDataService {
 	                                task.getTaskName(),
 	                                breakdown.getActivityName(),
 	                                status,
-	                                null,
+	                                breakdown.getProgress(),
 	                                breakdown.getPlannedEndDate() != null
 	                                        ? breakdown.getPlannedEndDate().toString()
 	                                        : null,

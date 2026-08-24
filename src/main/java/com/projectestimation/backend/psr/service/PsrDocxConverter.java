@@ -1,10 +1,12 @@
 package com.projectestimation.backend.psr.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.common.exception.ProposalFailedException;
@@ -56,14 +58,32 @@ public class PsrDocxConverter {
                             safeBaseName + ".docx"
                     );
 
-            // ============================================
-            // WRITE MARKDOWN
-            // ============================================
+         // ============================================
+         // COPY BEAS LOGO
+         // ============================================
 
-            Files.writeString(
-                    markdownFile,
-                    markdown
-            );
+         Path logoFile = copyBeasLogo(storageDir);
+
+
+         // ============================================
+         // ADD LOGO TO PSR MARKDOWN
+         // ============================================
+
+         String psrMarkdown =
+                 "![BEAS Logo](" 
+                 + logoFile.getFileName()
+                 + "){width=2.5in}\n\n"
+                 + markdown;
+
+
+         // ============================================
+         // WRITE MARKDOWN
+         // ============================================
+
+         Files.writeString(
+                 markdownFile,
+                 psrMarkdown
+         );
 
             // ============================================
             // MARKDOWN → DOCX
@@ -183,5 +203,39 @@ public class PsrDocxConverter {
             byte[] docxBytes,
             String generatedDocPath
     ) {
+    }
+    
+    private Path copyBeasLogo(Path storageDir)
+            throws IOException {
+
+        ClassPathResource logoResource =
+                new ClassPathResource(
+                        "psr/beas-logo.png"
+                );
+
+        if (!logoResource.exists()) {
+
+            throw new IOException(
+                    "BEAS logo not found in classpath: "
+                            + "psr/beas-logo.png"
+            );
+        }
+
+        Path logoFile =
+                storageDir.resolve(
+                        "beas-logo.png"
+                );
+
+        try (InputStream inputStream =
+                     logoResource.getInputStream()) {
+
+            Files.copy(
+                    inputStream,
+                    logoFile,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            );
+        }
+
+        return logoFile;
     }
 }
