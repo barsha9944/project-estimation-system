@@ -244,6 +244,97 @@ public class ProjectMetricsService {
                 sprint.getTaskName()
         );
         
+     // =========================
+     // SPRINT SUMMARY
+     // =========================
+
+     SummaryMetricsResponse summary =
+             new SummaryMetricsResponse();
+
+     summary.setProjectName(
+             sprint.getProjectName());
+
+     summary.setReleaseNo(
+             sprint.getReleaseNo());
+
+     summary.setOriginalSize(
+             sprint.getOriginalSize());
+
+     summary.setActualSize(
+             sprint.getActualSize());
+
+     summary.setSizeVariance(
+             sprint.getSizeVariance());
+
+     summary.setTotalPlannedEffortWithoutPm(
+             sprint.getTotalPlannedEffortWithoutPm());
+
+     summary.setTotalPlannedEffort(
+             sprint.getTotalPlannedEffort());
+
+     summary.setTotalActualEffortWithoutPm(
+             sprint.getTotalActualEffortWithoutPm());
+
+     summary.setTotalActualEffort(
+             sprint.getTotalActualEffort());
+
+     summary.setEffortVariance(
+             sprint.getEffortVariance());
+
+     summary.setPlannedDuration(
+             sprint.getPlannedDuration());
+
+     summary.setActualDuration(
+             sprint.getActualDuration());
+
+     summary.setScheduleVariance(
+             sprint.getScheduleVariance());
+
+     summary.setActualOverallProductivity(
+             sprint.getActualOverallProductivity());
+
+     summary.setReviewEffectiveness(
+             sprint.getReviewEffectiveness());
+
+     summary.setTestingEffectiveness(
+             sprint.getTestingEffectiveness());
+
+     response.setSummary(summary);
+
+
+     // =========================
+     // SPRINT QUALITY / UAT
+     // =========================
+
+     QualityMetricsResponse quality =
+             new QualityMetricsResponse();
+
+     quality.setAveragePreDeliveryDefectDensity(
+             sprint.getAveragePreDeliveryDefectDensity());
+
+     quality.setUatDefects(
+             sprint.getUatDefects());
+
+     quality.setPostDeliveryDefectDensity(
+             sprint.getPostDeliveryDefectDensity());
+
+     quality.setOverallDefectDensity(
+             sprint.getOverallDefectDensity());
+
+     quality.setPlannedUatEffort(
+             sprint.getPlannedUatEffort());
+
+     quality.setActualUatEffort(
+             sprint.getActualUatEffort());
+
+     quality.setOverallDefectRate(
+             sprint.getOverallDefectRate());
+
+     quality.setDefectRemovalEfficiency(
+             sprint.getDefectRemovalEfficiency());
+
+     response.setQuality(quality);
+     
         // =========================
         // ANALYSIS
         // =========================
