@@ -69,11 +69,16 @@ public class PsrDocxConverter {
          // ADD LOGO TO PSR MARKDOWN
          // ============================================
 
+         String formattedMarkdown =
+        	        formatPsrHeader(markdown);
+
+         
          String psrMarkdown =
-                 "![BEAS Logo](" 
-                 + logoFile.getFileName()
-                 + "){width=2.5in}\n\n"
-                 + markdown;
+        	        "![]("
+        	        + logoFile.getFileName()
+        	        + "){width=2.5in}\n\n"
+        	        + "<br><br><br>\n\n"
+        	        + formattedMarkdown;
 
 
          // ============================================
@@ -238,4 +243,116 @@ public class PsrDocxConverter {
 
         return logoFile;
     }
+    
+    private String formatPsrHeader(String markdown) {
+
+    String[] lines = markdown.split("\\R", -1);
+
+    StringBuilder result = new StringBuilder();
+
+    boolean headerStarted = false;
+    boolean headerFinished = false;
+    boolean waitingForDateValue = false;
+
+    for (String line : lines) {
+
+        String trimmed = line.trim();
+
+        // ============================================
+        // REPORT TITLE
+        // ============================================
+
+        if (!headerStarted
+                && trimmed.startsWith("Project Status Report")) {
+
+            headerStarted = true;
+
+            result.append("**")
+                    .append(trimmed)
+                    .append("**\n\n");
+
+            continue;
+        }
+
+        // ============================================
+        // REPORT INFORMATION
+        // ============================================
+
+        if (headerStarted && !headerFinished) {
+
+            // ----------------------------------------
+            // DATE LABEL
+            // ----------------------------------------
+
+            if (trimmed.startsWith("Date:")) {
+
+                result.append("**")
+                        .append(trimmed)
+                        .append("**\n\n");
+
+                waitingForDateValue = true;
+
+                continue;
+            }
+
+            // ----------------------------------------
+            // DATE VALUE
+            // ----------------------------------------
+
+            if (waitingForDateValue && !trimmed.isEmpty()) {
+
+                result.append(trimmed)
+                        .append("\n\n");
+
+                result.append("<br><br><br>\n\n");
+
+                waitingForDateValue = false;
+
+                continue;
+            }
+
+            // ----------------------------------------
+            // OTHER HEADER FIELDS
+            // ----------------------------------------
+
+            if (
+                trimmed.startsWith("Reported by:")
+                || trimmed.startsWith("Project Code:")
+                || trimmed.startsWith("Project Name:")
+                || trimmed.startsWith("Period of Reporting:")
+                || trimmed.startsWith("Periodicity:")
+            ) {
+
+                result.append("**")
+                        .append(trimmed)
+                        .append("**\n\n");
+
+                continue;
+            }
+
+            // ----------------------------------------
+            // FIRST SECTION
+            // ----------------------------------------
+
+            if (
+                trimmed.startsWith("Activities during the Period")
+                || trimmed.startsWith("Next Week Planned Activities")
+                || trimmed.matches("^\\d+\\..*")
+            ) {
+
+                headerFinished = true;
+
+                result.append(line)
+                        .append("\n");
+
+                continue;
+            }
+        }
+
+        result.append(line)
+                .append("\n");
+    }
+
+    return result.toString();
+}
 }
