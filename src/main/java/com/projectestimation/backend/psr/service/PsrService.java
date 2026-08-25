@@ -185,7 +185,8 @@ public class PsrService {
         PsrDocxConverter.ConversionResult conversion =
                 psrDocxConverter.convertMarkdownToDocx(
                         markdown,
-                        baseFileName
+                        baseFileName,
+                        opportunityId
                 );
 
 

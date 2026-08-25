@@ -25,7 +25,8 @@ public class PsrDocxConverter {
 
     public ConversionResult convertMarkdownToDocx(
             String markdown,
-            String baseFileName
+            String baseFileName,
+            Long opportunityId
     ) {
 
         try {
@@ -34,12 +35,17 @@ public class PsrDocxConverter {
             // PSR STORAGE DIRECTORY
             // ============================================
 
-            Path storageDir =
-                    Files.createDirectories(
-                            Path.of(
-                                    psrProperties.getStorageDir()
-                            )
-                    );
+        	Path baseStorageDir =
+        	        Path.of(
+        	                psrProperties.getStorageDir()
+        	        );
+
+        	Path storageDir =
+        	        Files.createDirectories(
+        	                baseStorageDir.resolve(
+        	                        String.valueOf(opportunityId)
+        	                )
+        	        );
 
             // ============================================
             // SAFE FILE NAME
