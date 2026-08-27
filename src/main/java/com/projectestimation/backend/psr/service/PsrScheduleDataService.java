@@ -65,7 +65,7 @@ public class PsrScheduleDataService {
 	                                task.getTaskName(),
 	                                breakdown.getActivityName(),
 	                                status,
-	                                null,
+	                                breakdown.getProgress(),
 	                                breakdown.getPlannedEndDate() != null
 	                                        ? breakdown.getPlannedEndDate().toString()
 	                                        : null,
@@ -74,25 +74,28 @@ public class PsrScheduleDataService {
 	                                        : null
 	                        );
 	
-	                // ============================================
-	                // COMPLETED ACTIVITIES
-	                // ============================================
-	
-	                if (isCompleted(status)) {
-	
-	                    activitiesPerformed.add(activity);
-	
-	                }
-	
-	                // ============================================
-	                // NOT COMPLETED ACTIVITIES
-	                // ============================================
-	
-	                else {
-	
-	                    nextWeekPlannedActivities.add(activity);
-	
-	                }
+	             // ============================================
+	             // ACTIVITIES DURING THE PERIOD
+	             // Completed + In Progress
+	             // ============================================
+
+	             if (isCompleted(status)
+	                     || isInProgress(status)) {
+
+	                 activitiesPerformed.add(activity);
+
+	             }
+
+	             // ============================================
+	             // NEXT WEEK PLANNED ACTIVITIES
+	             // Not Started
+	             // ============================================
+
+	             else {
+
+	                 nextWeekPlannedActivities.add(activity);
+
+	             }
 	            }
 	        }
 	    }
@@ -123,6 +126,16 @@ public class PsrScheduleDataService {
                 );
     }
 
+    private boolean isInProgress(String status) {
+
+        return status != null
+                && (
+                    status.equalsIgnoreCase("In Progress")
+                    || status.equalsIgnoreCase("In-Progress")
+                    || status.equalsIgnoreCase("InProgress")
+                );
+    }
+    
     private String getRiskStatus() {
 
         // Fixed value will be supplied from the PSR template.

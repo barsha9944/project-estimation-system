@@ -185,7 +185,8 @@ public class PsrService {
         PsrDocxConverter.ConversionResult conversion =
                 psrDocxConverter.convertMarkdownToDocx(
                         markdown,
-                        baseFileName
+                        baseFileName,
+                        opportunityId
                 );
 
 
@@ -217,6 +218,8 @@ public class PsrService {
         );
 
 
+        report.setVersion(psrVersion);
+        
         // ========================================================
         // SAVE MARKDOWN
         // ========================================================
