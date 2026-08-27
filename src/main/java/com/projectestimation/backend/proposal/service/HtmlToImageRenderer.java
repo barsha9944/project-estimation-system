@@ -51,7 +51,7 @@ public class HtmlToImageRenderer {
         browser.close();
 
     } catch (Exception ex) {
-
+ex.printStackTrace();
         throw new ProposalFailedException(
                 "Failed to render HTML to image",
                 ex
