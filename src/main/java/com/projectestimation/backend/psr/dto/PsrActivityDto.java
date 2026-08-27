@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PsrActivityDto {
 
+	private Long breakdownId;
+	
     private Integer sequence;
 
     private String taskName;

@@ -61,6 +61,7 @@ public class PsrScheduleDataService {
 	
 	                PsrActivityDto activity =
 	                        new PsrActivityDto(
+	                                breakdown.getId(),
 	                                task.getSequence(),
 	                                task.getTaskName(),
 	                                breakdown.getActivityName(),

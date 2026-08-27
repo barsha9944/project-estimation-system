@@ -77,7 +77,8 @@ public class PsrService {
 
     @Transactional
     public PsrResponse generatePsrIfRequired(
-            Long opportunityId
+            Long opportunityId,
+            Long breakdownId
     ) {
 
         // ========================================================
@@ -200,6 +201,8 @@ public class PsrService {
         report.setOpportunity(
                 opportunity
         );
+        
+        report.setStartBreakdownId(breakdownId);
 
         report.setFileName(
                 baseFileName + ".docx"

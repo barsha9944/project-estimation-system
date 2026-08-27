@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.projectestimation.backend.psr.dto.PsrResponse;
@@ -20,12 +21,14 @@ public class PsrController {
 
     @PostMapping("/generate")
     public ResponseEntity<PsrResponse> generatePsr(
-            @PathVariable Long opportunityId
+            @PathVariable Long opportunityId,
+            @RequestParam Long breakdownId
     ) {
 
         return ResponseEntity.ok(
                 psrService.generatePsrIfRequired(
-                        opportunityId
+                        opportunityId,
+                        breakdownId
                 )
         );
     }

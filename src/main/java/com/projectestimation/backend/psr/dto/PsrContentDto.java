@@ -26,4 +26,5 @@ public class PsrContentDto {
     private String reportingEndDate;
     
     private String reportDate;
+    
 }

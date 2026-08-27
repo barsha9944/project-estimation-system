@@ -53,6 +53,8 @@ public class ProjectStatusReport {
     // PSR CONTENT
     // =========================
 
+    private Long startBreakdownId;
+    
     @Column(columnDefinition = "TEXT")
     private String activitiesPerformed;
 

@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TaskBreakdownResponse {
 
+	private Long id;
+	
 	private String activityName;
 
 	private Integer duration;
@@ -27,4 +29,8 @@ public class TaskBreakdownResponse {
 	private String status;
 	
 	private Integer progress;
+	
+	private String psrFileName;
+	
+	private String psrMarkdown;
 }

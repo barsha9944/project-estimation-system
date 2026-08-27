@@ -4,7 +4,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
@@ -43,6 +48,9 @@ import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBr
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
+import com.projectestimation.backend.psr.dto.PsrActivityDto;
+import com.projectestimation.backend.psr.model.ProjectStatusReport;
+import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -69,10 +77,14 @@ public class ProjectScheduleService {
 	private final ProjectScheduleExcelExporter projectScheduleExcelExporter;
 
 	private final ProjectScheduleCalculator projectScheduleCalculator;
-	
+
 	private final ProjectMetricsRepository projectMetricsRepository;
 
 	private final ProjectMetricsSprintRepository projectMetricsSprintRepository;
+
+	private final ProjectStatusReportRepository projectStatusReportRepository;
+
+	private final ObjectMapper objectMapper;
 
 	public ProjectScheduleResponse generateProjectSchedule(
 
@@ -187,8 +199,7 @@ public class ProjectScheduleService {
 		projectScheduleRepository.flush();
 
 		projectScheduleTaskRepository.deleteByProjectScheduleId(
-		        schedule.getId()
-		);
+				schedule.getId());
 
 		for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
 
@@ -239,7 +250,7 @@ public class ProjectScheduleService {
 							breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
 
 							breakdown.setStatus(breakdownRequest.getStatus());
-							
+
 							breakdown.setProgress(breakdownRequest.getProgress());
 
 							breakdown.setActualStartDate(breakdownRequest.getActualStartDate() != null
@@ -296,28 +307,131 @@ public class ProjectScheduleService {
 		ProjectScheduleResponse response = new ProjectScheduleResponse();
 
 		response.setDurationDays(schedule.getDurationDays());
-
 		response.setTotalTasks(schedule.getTotalTasks());
-
 		response.setCompletedTasks(schedule.getCompletedTasks());
-
 		response.setCriticalTasks(schedule.getCriticalTasks());
-
 		response.setEstimatedHours(schedule.getEstimatedHours());
-
 		response.setBufferPercentage(schedule.getBufferPercentage());
-
 		response.setProjectStartDate(schedule.getProjectStartDate());
-
 		response.setProjectEndDate(schedule.getProjectEndDate());
-
 		response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
-
 		response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
-
 		response.setTeamSize(schedule.getTeamSize());
 
-		List<ProjectScheduleTaskResponse> tasks = schedule.getTasks().stream().map(this::mapTaskResponse).toList();
+		List<ProjectStatusReport> psrReports = projectStatusReportRepository
+				.findByOpportunityIdOrderByGeneratedAtAsc(
+						opportunityId);
+
+		List<ProjectScheduleTask> sortedTasks = schedule.getTasks()
+				.stream()
+				.sorted(Comparator.comparing(t -> t.getSequence() != null ? t.getSequence() : Integer.MAX_VALUE))
+				.toList();
+
+		// 1. Build flat list of breakdowns and map (sequence + activityType) to flat
+		// index
+		Map<String, Integer> keyToFlatIndex = new HashMap<>();
+		int flatIdx = 0;
+		for (ProjectScheduleTask task : sortedTasks) {
+			List<ProjectScheduleTaskBreakdown> sortedBreakdowns = task.getTaskBreakdowns()
+					.stream()
+					.sorted(Comparator.comparing(b -> b.getId() != null ? b.getId() : Long.MAX_VALUE))
+					.toList();
+			for (ProjectScheduleTaskBreakdown breakdown : sortedBreakdowns) {
+				keyToFlatIndex.put(buildPsrKey(task.getSequence(), breakdown.getActivityName()), flatIdx++);
+			}
+		}
+
+		// 2. Identify max index (genPoint) for each PSR based on its original JSON
+		// activities
+		class PsrMetadata {
+			ProjectStatusReport report;
+			int genPoint;
+		}
+		List<PsrMetadata> psrMetaList = new ArrayList<>();
+		for (ProjectStatusReport report : psrReports) {
+			int maxIdx = -1;
+			try {
+				if (report.getActivitiesPerformed() != null && !report.getActivitiesPerformed().isBlank()) {
+					List<PsrActivityDto> acts = objectMapper.readValue(report.getActivitiesPerformed(),
+							new TypeReference<List<PsrActivityDto>>() {
+							});
+					for (PsrActivityDto act : acts) {
+						String key = buildPsrKey(act.getSequence(), act.getActivityName());
+						if (keyToFlatIndex.containsKey(key)) {
+							maxIdx = Math.max(maxIdx, keyToFlatIndex.get(key));
+						}
+					}
+				}
+				/*
+				 * FIX EXPLANATION:
+				 * We explicitly DO NOT evaluate report.getNextWeekPlannedActivities() here.
+				 * Because nextWeekPlannedActivities inherently contains future project
+				 * breakdowns
+				 * beyond the point of PSR generation, including it forces the maxIdx to be
+				 * pushed to the end of the schedule, causing the PSR to map to every
+				 * future breakdown. The display boundary must purely be based on the
+				 * activitiesPerformed (which represents progress exactly up to the point of
+				 * generation).
+				 */
+			} catch (Exception ex) {
+				log.error("Failed to parse PSR activities for gen point calculation", ex);
+			}
+
+			if (maxIdx != -1) {
+				PsrMetadata meta = new PsrMetadata();
+				meta.report = report;
+				meta.genPoint = maxIdx;
+				psrMetaList.add(meta);
+			}
+		}
+
+		// 3. Apply PSR logic based on genPoint boundaries
+		List<ProjectScheduleTaskResponse> tasks = new ArrayList<>();
+		int currentFlatIdx = 0;
+
+		for (ProjectScheduleTask task : sortedTasks) {
+			ProjectScheduleTaskResponse taskResponse = mapTaskResponse(task);
+
+			List<ProjectScheduleTaskBreakdown> sortedBreakdowns = task.getTaskBreakdowns()
+					.stream()
+					.sorted(Comparator.comparing(b -> b.getId() != null ? b.getId() : Long.MAX_VALUE))
+					.toList();
+
+			List<TaskBreakdownResponse> breakdownResponses = new ArrayList<>();
+			for (ProjectScheduleTaskBreakdown breakdown : sortedBreakdowns) {
+				TaskBreakdownResponse br = mapTaskBreakdownResponse(breakdown);
+
+				ProjectStatusReport assignedReport = null;
+
+				if (!psrMetaList.isEmpty()) {
+					// Check subsequent PSRs (from latest backwards)
+					for (int i = psrMetaList.size() - 1; i >= 1; i--) {
+						PsrMetadata meta = psrMetaList.get(i);
+						if (currentFlatIdx >= meta.genPoint) {
+							assignedReport = meta.report;
+							break;
+						}
+					}
+					// If no subsequent PSR applied, check the FIRST PSR
+					if (assignedReport == null) {
+						PsrMetadata firstMeta = psrMetaList.get(0);
+						if (currentFlatIdx <= firstMeta.genPoint) {
+							assignedReport = firstMeta.report;
+						}
+					}
+				}
+
+				if (assignedReport != null) {
+					br.setPsrFileName(assignedReport.getFileName());
+					br.setPsrMarkdown(assignedReport.getMarkdownContent());
+				}
+
+				breakdownResponses.add(br);
+				currentFlatIdx++;
+			}
+			taskResponse.setTaskBreakdowns(breakdownResponses);
+			tasks.add(taskResponse);
+		}
 
 		response.setTasks(tasks);
 
@@ -330,25 +444,15 @@ public class ProjectScheduleService {
 		ProjectScheduleTaskResponse response = new ProjectScheduleTaskResponse();
 
 		response.setSequence(task.getSequence());
-
 		response.setTaskName(task.getTaskName());
-
 		response.setDuration(task.getDuration());
-
 		response.setPlannedStartDate(task.getPlannedStartDate());
-
 		response.setPlannedEndDate(task.getPlannedEndDate());
-
 		response.setActualStartDate(
 				task.getActualStartDate() != null ? task.getActualStartDate() : task.getPlannedStartDate());
-
 		response.setActualEndDate(task.getActualEndDate() != null ? task.getActualEndDate() : task.getPlannedEndDate());
-
 		response.setStatus(task.getStatus());
-
 		response.setPredecessor(task.getPredecessor());
-
-		response.setTaskBreakdowns(task.getTaskBreakdowns().stream().map(this::mapTaskBreakdownResponse).toList());
 
 		return response;
 	}
@@ -357,23 +461,18 @@ public class ProjectScheduleService {
 
 		TaskBreakdownResponse response = new TaskBreakdownResponse();
 
+		response.setId(breakdown.getId());
 		response.setActivityName(breakdown.getActivityName());
-
 		response.setDuration(breakdown.getDuration());
-
 		response.setPlannedStartDate(breakdown.getPlannedStartDate());
-
 		response.setPlannedEndDate(breakdown.getPlannedEndDate());
-
 		response.setActualEndDate(breakdown.getActualEndDate());
-
 		response.setActualStartDate(breakdown.getActualStartDate());
 		response.setStatus(breakdown.getStatus() != null ? breakdown.getStatus() : "Not Started");
 		response.setProgress(breakdown.getProgress());
-//		log.info("Actual duration :: {}. Start date : {}, End date:{}",
-//				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()),  breakdown.getActualStartDate(), breakdown.getActualEndDate());
 		response.setActualDuration(
 				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()));
+
 		return response;
 	}
 
@@ -416,28 +515,115 @@ public class ProjectScheduleService {
 
 		return true;
 	}
-	
+
 	private void deleteExistingProjectMetrics(Long opportunityId) {
 
-    ProjectMetrics metrics =
-            projectMetricsRepository
-                    .findByOpportunityId(opportunityId)
-                    .orElse(null);
+		ProjectMetrics metrics = projectMetricsRepository
+				.findByOpportunityId(opportunityId)
+				.orElse(null);
 
-    if (metrics == null) {
-        return;
-    }
+		if (metrics == null) {
+			return;
+		}
 
-    Long projectMetricsId = metrics.getId();
+		Long projectMetricsId = metrics.getId();
 
-    // FIRST: delete child sprint rows
-    projectMetricsSprintRepository.deleteByProjectMetricsId(
-            projectMetricsId
-    );
+		// FIRST: delete child sprint rows
+		projectMetricsSprintRepository.deleteByProjectMetricsId(
+				projectMetricsId);
 
-    // THEN: delete parent project metrics row
-    projectMetricsRepository.deleteByOpportunityId(
-            opportunityId
-    );
-}
+		// THEN: delete parent project metrics row
+		projectMetricsRepository.deleteByOpportunityId(
+				opportunityId);
+	}
+
+	private Map<String, PsrBreakdownInfo> buildBreakdownPsrMap(
+			List<ProjectStatusReport> psrReports) {
+
+		Map<String, PsrBreakdownInfo> psrMap = new HashMap<>();
+
+		for (ProjectStatusReport report : psrReports) {
+
+			addPsrActivitiesToMap(
+					report,
+					report.getActivitiesPerformed(),
+					psrMap);
+
+			addPsrActivitiesToMap(
+					report,
+					report.getNextWeekPlannedActivities(),
+					psrMap);
+		}
+
+		return psrMap;
+	}
+
+	private void addPsrActivitiesToMap(
+			ProjectStatusReport report,
+			String activitiesJson,
+			Map<String, PsrBreakdownInfo> psrMap) {
+
+		if (activitiesJson == null || activitiesJson.isBlank()) {
+			return;
+		}
+
+		try {
+
+			List<PsrActivityDto> activities = objectMapper.readValue(
+					activitiesJson,
+					new TypeReference<List<PsrActivityDto>>() {
+					});
+
+			for (PsrActivityDto activity : activities) {
+
+				String key = buildPsrKey(
+						activity.getSequence(),
+						activity.getActivityName());
+
+				psrMap.put(
+						key,
+						new PsrBreakdownInfo(
+								report.getFileName(),
+								report.getMarkdownContent()));
+			}
+
+		} catch (Exception ex) {
+
+			throw new IllegalStateException(
+					"Failed to parse PSR activity data",
+					ex);
+		}
+	}
+
+	private static class PsrBreakdownInfo {
+
+		private final String fileName;
+		private final String markdownContent;
+
+		public PsrBreakdownInfo(
+				String fileName,
+				String markdownContent) {
+			this.fileName = fileName;
+			this.markdownContent = markdownContent;
+		}
+
+		public String getFileName() {
+			return fileName;
+		}
+
+		public String getMarkdownContent() {
+			return markdownContent;
+		}
+	}
+
+	private String buildPsrKey(
+			Integer sequence,
+			String activityName) {
+
+		return String.valueOf(sequence)
+				+ "|"
+				+ (activityName == null
+						? ""
+						: activityName.trim().toLowerCase());
+	}
 }
