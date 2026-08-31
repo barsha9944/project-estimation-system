@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Timestamp;
-
+import java.time.LocalDateTime;
 import java.util.Arrays;
 
 import java.util.List;
@@ -85,17 +85,18 @@ public class ProposalService {
 		String title = opportunity.getOpportunityName() + " - Proposal v" + nextVersion;
 		String fileBaseName = "proposal-" + opportunity.getOpportunityName() + "-v" + nextVersion;
 
-		
 		Path proposalDir = Paths.get(proposalStoragePath, "opportunity-" + opportunityId, "proposal-v" + nextVersion);
 
 		try {
-			Files.createDirectories(proposalDir);
+			if (!Files.isDirectory(proposalDir)) {
+				Files.createDirectories(proposalDir);
+			}
 		} catch (IOException e) {
 			throw new ProposalFailedException("Failed to create proposal directory", e);
 		}
 
-		AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, analysis,
-				proposalType, fileBaseName);
+		AiProposalResult aiResult = geminiProposalOrchestrator.generateProposal(opportunity, analysis, proposalType,
+				fileBaseName);
 
 		Path markdownFile = proposalDir.resolve("proposal.md");
 
@@ -232,6 +233,7 @@ public class ProposalService {
 				.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 	}
 
+	
 	private Parameters loadParameters(Long opportunityId) {
 		return parametersRepository.findByOpportunityId(opportunityId)
 				.orElseThrow(() -> new ResourceNotFoundException("Parameters not found for this opportunity"));

@@ -78,6 +78,8 @@ public class OpportunityProposalController {
         return proposalService.downloadLatestByOpportunityId(opportunityId);
     }
     
+    
+    
     @GetMapping("/getAllProposals")
     public ResponseEntity<ApiResponse<List<OpportunityProposalDto>>> getAllProposals() {
 

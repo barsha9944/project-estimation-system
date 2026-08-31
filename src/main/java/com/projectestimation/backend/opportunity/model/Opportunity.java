@@ -18,7 +18,7 @@ import java.util.List;
 public class Opportunity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    //@GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Enumerated(EnumType.STRING)
@@ -49,7 +49,7 @@ public class Opportunity {
     @Column(nullable = false)
     private String clientName;
 
-    @Column(nullable = false)
+    
     private String requirementSummary;
 
     @Enumerated(EnumType.STRING)
@@ -89,4 +89,12 @@ public class Opportunity {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+    
+    @OneToOne(
+            mappedBy = "opportunity",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    private OpportunityFile opportunityFile;
 }
