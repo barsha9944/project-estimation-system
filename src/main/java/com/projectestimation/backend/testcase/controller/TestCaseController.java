@@ -12,61 +12,34 @@ import com.projectestimation.backend.testcase.service.TestCaseService;
 @RequestMapping("/api/v1/opportunities/{opportunityId}/test-cases")
 public class TestCaseController {
 
-    private final TestCaseService testCaseService;
+	private final TestCaseService testCaseService;
 
-    public TestCaseController(TestCaseService testCaseService) {
-        this.testCaseService = testCaseService;
-    }
+	public TestCaseController(TestCaseService testCaseService) {
+		this.testCaseService = testCaseService;
+	}
 
-    @PostMapping("/generate")
-    public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> generate(
-            @PathVariable Long opportunityId
-    ) {
+	@PostMapping("/generate")
+	public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> generate(@PathVariable Long opportunityId) {
 
-        TestCaseGenerationResponse response =
-                testCaseService.generateTestCases(opportunityId);
+		TestCaseGenerationResponse response = testCaseService.generateTestCases(opportunityId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Test cases generated successfully",
-                        response
-                )
-        );
-    }
+		return ResponseEntity.ok(ApiResponse.success("Test cases generated successfully", response));
+	}
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> getTestCases(
-            @PathVariable Long opportunityId
-    ) {
+	@GetMapping
+	public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> getTestCases(@PathVariable Long opportunityId) {
 
-        TestCaseGenerationResponse response =
-                testCaseService.getTestCases(opportunityId);
+		TestCaseGenerationResponse response = testCaseService.getTestCases(opportunityId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Test cases retrieved successfully",
-                        response
-                )
-        );
-    }
+		return ResponseEntity.ok(ApiResponse.success("Test cases retrieved successfully", response));
+	}
 
-    @PutMapping
-    public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> saveTestCases(
-            @PathVariable Long opportunityId,
-            @RequestBody SaveTestCaseRequest request
-    ) {
+	@PutMapping("/update")
+	public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> saveTestCases(@PathVariable Long opportunityId,
+			@RequestBody SaveTestCaseRequest request) {
 
-        TestCaseGenerationResponse response =
-                testCaseService.saveTestCases(
-                        opportunityId,
-                        request.testCases()
-                );
+		TestCaseGenerationResponse response = testCaseService.saveTestCases(opportunityId, request.testCases());
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Test cases saved successfully",
-                        response
-                )
-        );
-    }
+		return ResponseEntity.ok(ApiResponse.success("Test cases saved successfully", response));
+	}
 }
