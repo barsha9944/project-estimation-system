@@ -105,6 +105,39 @@ Only generate scenarios that are relevant to the functionality
 described in the Requirement Summary or Use Cases.
 Do not artificially create scenarios that are not applicable.
 
+Only generate scenarios that are relevant to the functionality
+described in the Requirement Summary or Use Cases.
+Do not artificially create scenarios that are not applicable.
+
+=========================================
+PROJECT-SPECIFIC TESTING PHASES
+=========================================
+
+Analyze the Requirement Summary and Existing Use Cases and identify
+the appropriate testing phases for THIS project.
+
+The testing phases must be based on the actual requirements and
+functionality of this project.
+
+Do not assume that every project has the same number of phases.
+
+Create only phases that are relevant to this project.
+
+Assign every generated test case to the most appropriate testing phase.
+
+Use a clear phase name such as:
+"Phase 1 - Functional Testing"
+"Phase 2 - Integration Testing"
+"Phase 3 - User Acceptance Testing"
+
+The phase must describe the testing stage represented by the test case.
+
+Do not determine testing phases from the project work schedule,
+project dates, task durations, or implementation schedule.
+
+For ENHANCEMENT projects, include regression scenarios
+where applicable.
+
                 For ENHANCEMENT projects, include regression scenarios
                 where applicable.
 
@@ -173,14 +206,15 @@ Do not artificially create scenarios that are not applicable.
                 Return exactly this structure:
 
                 {
-                  "testCases": [
-                    {
-                      "reqId": "REQ-001",
-                      "testCaseId": "TC_001",
-                      "testCaseName": "Test case name",
-                      "testCaseDescription": "Description",
-                      "testData": "Test data",
-                      "steps": [
+  "testCases": [
+    {
+      "reqId": "REQ-001",
+      "testCaseId": "TC_001",
+      "phase": "Phase 1 - Functional Testing",
+      "testCaseName": "Test case name",
+      "testCaseDescription": "Description",
+      "testData": "Test data",
+      "steps": [
                         {
                           "stepNumber": 1,
                           "stepDescription": "Step description",

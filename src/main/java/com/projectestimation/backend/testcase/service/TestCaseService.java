@@ -122,6 +122,7 @@ public class TestCaseService {
                         .opportunity(opportunity)
                         .reqId(dto.reqId())
                         .testCaseId(dto.testCaseId())
+                        .phase(dto.phase())
                         .testCaseName(dto.testCaseName())
                         .testCaseDescription(dto.testCaseDescription())
                         .testData(dto.testData())
@@ -169,6 +170,7 @@ public class TestCaseService {
                 .map(testCase -> new TestCaseDto(
                         testCase.getReqId(),
                         testCase.getTestCaseId(),
+                        testCase.getPhase(),
                         testCase.getTestCaseName(),
                         testCase.getTestCaseDescription(),
                         testCase.getTestData(),
@@ -210,6 +212,7 @@ public class TestCaseService {
             // Update test case fields
             testCase.setReqId(dto.reqId());
             testCase.setTestCaseId(dto.testCaseId());
+            testCase.setPhase(dto.phase());
             testCase.setTestCaseName(dto.testCaseName());
             testCase.setTestCaseDescription(dto.testCaseDescription());
             testCase.setTestData(dto.testData());
