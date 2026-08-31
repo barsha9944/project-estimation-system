@@ -28,4 +28,22 @@ public class TestCaseStep {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String expectedResult;
+    
+    @Column(columnDefinition = "TEXT")
+    private String actualResult;
+
+    private String testStatus;
+
+    private String passFail;
+
+    private String defectId;
+
+    private String severity;
+
+    private String defectType;
+
+    @Column(columnDefinition = "TEXT")
+    private String rootCause;
+
+    private String phaseIntroduced;
 }

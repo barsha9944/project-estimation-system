@@ -1,5 +1,5 @@
 package com.projectestimation.backend.testcase.service;
-
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -38,6 +38,8 @@ public class TestCaseService {
     private final GeminiTestCaseOrchestrator geminiTestCaseOrchestrator;
 
     private final TestCaseRepository testCaseRepository;
+    
+    private final TestCaseExcelService testCaseExcelService;
 
     private final ObjectMapper objectMapper;
 
@@ -52,6 +54,9 @@ public class TestCaseService {
             GeminiTestCaseOrchestrator geminiTestCaseOrchestrator,
 
             TestCaseRepository testCaseRepository,
+            
+            TestCaseExcelService testCaseExcelService,
+            
 
             ObjectMapper objectMapper
 
@@ -66,6 +71,9 @@ public class TestCaseService {
         this.geminiTestCaseOrchestrator = geminiTestCaseOrchestrator;
 
         this.testCaseRepository = testCaseRepository;
+        
+        this.testCaseExcelService = testCaseExcelService;
+
 
         this.objectMapper = objectMapper;
 
@@ -175,11 +183,19 @@ public class TestCaseService {
                         testCase.getTestCaseDescription(),
                         testCase.getTestData(),
                         testCase.getSteps().stream()
-                                .map(step -> new TestStepDto(
-                                        step.getStepNumber(),
-                                        step.getStepDescription(),
-                                        step.getExpectedResult()
-                                ))
+                        .map(step -> new TestStepDto(
+                                step.getStepNumber(),
+                                step.getStepDescription(),
+                                step.getExpectedResult(),
+                                step.getActualResult(),
+                                step.getTestStatus(),
+                                step.getPassFail(),
+                                step.getDefectId(),
+                                step.getSeverity(),
+                                step.getDefectType(),
+                                step.getRootCause(),
+                                step.getPhaseIntroduced()
+                        ))
                                 .toList()
                 ))
                 .toList();
@@ -225,13 +241,20 @@ public class TestCaseService {
 
                 for (TestStepDto stepDto : dto.steps()) {
 
-                    TestCaseStep step = TestCaseStep.builder()
-                            .testCase(testCase)
-                            .stepNumber(stepDto.stepNumber())
-                            .stepDescription(stepDto.stepDescription())
-                            .expectedResult(stepDto.expectedResult())
-                            .build();
-
+                	TestCaseStep step = TestCaseStep.builder()
+                	        .testCase(testCase)
+                	        .stepNumber(stepDto.stepNumber())
+                	        .stepDescription(stepDto.stepDescription())
+                	        .expectedResult(stepDto.expectedResult())
+                	        .actualResult(stepDto.actualResult())
+                	        .testStatus(stepDto.testStatus())
+                	        .passFail(stepDto.passFail())
+                	        .defectId(stepDto.defectId())
+                	        .severity(stepDto.severity())
+                	        .defectType(stepDto.defectType())
+                	        .rootCause(stepDto.rootCause())
+                	        .phaseIntroduced(stepDto.phaseIntroduced())
+                	        .build();
                     testCase.getSteps().add(step);
                 }
             }
@@ -241,4 +264,23 @@ public class TestCaseService {
 
         return getTestCases(opportunityId);
     }
+    @Transactional(readOnly = true)
+    public byte[] downloadTestCases(Long opportunityId) throws IOException {
+
+        if (!opportunityRepository.existsById(opportunityId)) {
+            throw new ResourceNotFoundException("Opportunity not found");
+        }
+
+        List<TestCase> testCases =
+                testCaseRepository.findByOpportunityId(opportunityId);
+
+        if (testCases.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "No test cases found for this opportunity"
+            );
+        }
+
+        return testCaseExcelService.generateExcel(testCases);
+    }
 }
+    
