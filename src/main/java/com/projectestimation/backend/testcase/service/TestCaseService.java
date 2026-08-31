@@ -181,11 +181,19 @@ public class TestCaseService {
                         testCase.getTestCaseDescription(),
                         testCase.getTestData(),
                         testCase.getSteps().stream()
-                                .map(step -> new TestStepDto(
-                                        step.getStepNumber(),
-                                        step.getStepDescription(),
-                                        step.getExpectedResult()
-                                ))
+                        .map(step -> new TestStepDto(
+                                step.getStepNumber(),
+                                step.getStepDescription(),
+                                step.getExpectedResult(),
+                                step.getActualResult(),
+                                step.getTestStatus(),
+                                step.getPassFail(),
+                                step.getDefectId(),
+                                step.getSeverity(),
+                                step.getDefectType(),
+                                step.getRootCause(),
+                                step.getPhaseIntroduced()
+                        ))
                                 .toList()
                 ))
                 .toList();
@@ -230,13 +238,20 @@ public class TestCaseService {
 
                 for (TestStepDto stepDto : dto.steps()) {
 
-                    TestCaseStep step = TestCaseStep.builder()
-                            .testCase(testCase)
-                            .stepNumber(stepDto.stepNumber())
-                            .stepDescription(stepDto.stepDescription())
-                            .expectedResult(stepDto.expectedResult())
-                            .build();
-
+                	TestCaseStep step = TestCaseStep.builder()
+                	        .testCase(testCase)
+                	        .stepNumber(stepDto.stepNumber())
+                	        .stepDescription(stepDto.stepDescription())
+                	        .expectedResult(stepDto.expectedResult())
+                	        .actualResult(stepDto.actualResult())
+                	        .testStatus(stepDto.testStatus())
+                	        .passFail(stepDto.passFail())
+                	        .defectId(stepDto.defectId())
+                	        .severity(stepDto.severity())
+                	        .defectType(stepDto.defectType())
+                	        .rootCause(stepDto.rootCause())
+                	        .phaseIntroduced(stepDto.phaseIntroduced())
+                	        .build();
                     testCase.getSteps().add(step);
                 }
             }
