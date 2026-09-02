@@ -29,47 +29,71 @@ public class TestCaseExcelService {
 
     public byte[] generateExcel(List<TestCase> testCases) throws IOException {
 
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+    try (Workbook workbook = new XSSFWorkbook();
+         ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-            Map<String, List<TestCase>> testCasesByPhase =
-                    testCases.stream()
-                            .collect(Collectors.groupingBy(
-                                    testCase -> {
-                                        String phase = testCase.getPhase();
+        Map<Integer, List<TestCase>> testCasesByPhase =
+                testCases.stream()
+                        .collect(Collectors.groupingBy(
+                                testCase -> extractPhaseNumber(testCase.getPhase())
+                        ));
 
-                                        if (phase == null || phase.isBlank()) {
-                                            return "Phase-I";
-                                        }
+        testCasesByPhase.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
 
-                                        return phase;
-                                    }
-                            ));
+                    int phaseNumber = entry.getKey();
 
-            createPhaseSheet(
-                    workbook,
-                    "Phase-I",
-                    testCasesByPhase.getOrDefault("Phase-I", List.of())
-            );
+                    String sheetName = "Phase-" + toRoman(phaseNumber);
 
-            createPhaseSheet(
-                    workbook,
-                    "Phase-II",
-                    testCasesByPhase.getOrDefault("Phase-II", List.of())
-            );
+                    createPhaseSheet(
+                            workbook,
+                            sheetName,
+                            entry.getValue()
+                    );
+                });
 
-            createPhaseSheet(
-                    workbook,
-                    "Phase-III",
-                    testCasesByPhase.getOrDefault("Phase-III", List.of())
-            );
+        workbook.write(outputStream);
 
-            workbook.write(outputStream);
-
-            return outputStream.toByteArray();
-        }
+        return outputStream.toByteArray();
     }
+}
 
+    private int extractPhaseNumber(String phase) {
+
+        if (phase == null || phase.isBlank()) {
+            return 1;
+        }
+
+        java.util.regex.Matcher matcher =
+                java.util.regex.Pattern
+                        .compile("Phase\\s*(\\d+)")
+                        .matcher(phase);
+
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+
+        return 1;
+    }
+    
+    private String toRoman(int number) {
+
+        return switch (number) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            case 4 -> "IV";
+            case 5 -> "V";
+            case 6 -> "VI";
+            case 7 -> "VII";
+            case 8 -> "VIII";
+            case 9 -> "IX";
+            case 10 -> "X";
+            default -> String.valueOf(number);
+        };
+    }
+    
     private void createPhaseSheet(
             Workbook workbook,
             String phaseName,

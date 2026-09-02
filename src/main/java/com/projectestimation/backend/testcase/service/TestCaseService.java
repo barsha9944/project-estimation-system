@@ -267,22 +267,38 @@ public class TestCaseService {
         return getTestCases(opportunityId);
     }
     @Transactional(readOnly = true)
-    public byte[] downloadTestCases(Long opportunityId) throws IOException {
+public byte[] downloadTestCases(Long opportunityId) throws IOException {
 
-        if (!opportunityRepository.existsById(opportunityId)) {
-            throw new ResourceNotFoundException("Opportunity not found");
-        }
-
-        List<TestCase> testCases =
-                testCaseRepository.findByOpportunityId(opportunityId);
-
-        if (testCases.isEmpty()) {
-            throw new ResourceNotFoundException(
-                    "No test cases found for this opportunity"
-            );
-        }
-
-        return testCaseExcelService.generateExcel(testCases);
+    if (!opportunityRepository.existsById(opportunityId)) {
+        throw new ResourceNotFoundException("Opportunity not found");
     }
+
+    List<TestCase> testCases =
+            testCaseRepository.findByOpportunityId(opportunityId);
+
+    if (testCases.isEmpty()) {
+        throw new ResourceNotFoundException(
+                "No test cases found for this opportunity"
+        );
+    }
+
+    System.out.println("TEST CASE COUNT = " + testCases.size());
+
+    for (TestCase testCase : testCases) {
+        System.out.println(
+                "TC = " + testCase.getTestCaseId()
+                + " | REQ = " + testCase.getReqId()
+                + " | PHASE = " + testCase.getPhase()
+                + " | NAME = " + testCase.getTestCaseName()
+                + " | STEPS = " + (
+                    testCase.getSteps() == null
+                        ? 0
+                        : testCase.getSteps().size()
+                )
+        );
+    }
+
+    return testCaseExcelService.generateExcel(testCases);
+}
 }
     
