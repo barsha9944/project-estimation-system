@@ -40,5 +40,7 @@ public class EstimationResponse {
     private Boolean workScheduleCompleted;
 
     private Boolean summaryMetricsCompleted;
+    
+    private Boolean testCaseCompleted;
 
 }

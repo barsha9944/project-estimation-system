@@ -19,4 +19,6 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
             Long opportunityId,
             String testCaseId
     );
+    
+    boolean existsByOpportunityId(Long opportunityId);
 }

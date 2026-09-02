@@ -58,6 +58,7 @@ import com.projectestimation.backend.opportunity.repository.OpportunityRepositor
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
+import com.projectestimation.backend.testcase.repository.TestCaseRepository;
 
 @Service
 @Transactional
@@ -72,6 +73,7 @@ public class CalculationService {
 	private final ProposalRepository proposalRepository;
 	private final ProjectScheduleRepository projectScheduleRepository;
 	private final ProjectMetricsRepository projectMetricsRepository;
+	private final TestCaseRepository testCaseRepository;
 	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
@@ -81,7 +83,8 @@ public class CalculationService {
 			EstimationEnvironmentalFactorRepository estimationEnvironmentalFactorRepository,
 			ProposalRepository proposalRepository,
 			ProjectScheduleRepository projectScheduleRepository,
-			ProjectMetricsRepository projectMetricsRepository) {
+			ProjectMetricsRepository projectMetricsRepository,
+			TestCaseRepository testCaseRepository) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -92,6 +95,7 @@ public class CalculationService {
 		this.proposalRepository = proposalRepository;
 		this.projectScheduleRepository = projectScheduleRepository;
 		this.projectMetricsRepository = projectMetricsRepository;
+		this.testCaseRepository = testCaseRepository;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -1555,6 +1559,8 @@ public class CalculationService {
 	    response.setSummaryMetricsCompleted(
 	            projectMetricsRepository
 	                    .existsByOpportunityId(opportunityId));
+	    
+	    response.setTestCaseCompleted(testCaseRepository.existsByOpportunityId(opportunityId));
 
 	    
 	    return response;
