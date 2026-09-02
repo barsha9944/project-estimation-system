@@ -126,9 +126,10 @@ public class TestCaseService {
 
             for (TestCaseDto dto : generatedResponse.testCases()) {
 
-                TestCase testCase = TestCase.builder()
-                        .opportunity(opportunity)
-                        .reqId(dto.reqId())
+            	TestCase testCase = TestCase.builder()
+            	        .opportunity(opportunity)
+            	        
+            	        .reqId(dto.reqId())
                         .testCaseId(dto.testCaseId())
                         .phase(dto.phase())
                         .testCaseName(dto.testCaseName())
@@ -176,6 +177,7 @@ public class TestCaseService {
 
         List<TestCaseDto> testCaseDtos = testCases.stream()
                 .map(testCase -> new TestCaseDto(
+                		
                         testCase.getReqId(),
                         testCase.getTestCaseId(),
                         testCase.getPhase(),
