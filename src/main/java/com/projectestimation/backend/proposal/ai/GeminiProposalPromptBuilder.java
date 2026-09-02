@@ -4,13 +4,11 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.projectestimation.backend.common.enums.CurrencyCode;
 import com.projectestimation.backend.common.enums.ProposalType;
 import com.projectestimation.backend.common.util.CurrencyFormatter;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.opportunity.model.Opportunity;
-import com.projectestimation.backend.opportunity.model.OpportunityFile;
-import com.projectestimation.backend.parameters.model.Parameters;
-import com.projectestimation.backend.prompt.AiPrompt;
 
 @Component
 public class GeminiProposalPromptBuilder {
@@ -118,6 +116,8 @@ public class GeminiProposalPromptBuilder {
 				- UCP : %.2f
 
 				- Hours Of Effort : %.2f
+				
+				- Project Price : %s
 
 				    		%s
 
@@ -132,7 +132,13 @@ public class GeminiProposalPromptBuilder {
 				opportunity.getExpectedDeliveryDate() != null ? opportunity.getExpectedDeliveryDate().toString()
 						: "Not specified",
 				opportunity.getRequirementSummary(), analysis.getActorWeight(), analysis.getUucp(), analysis.getTcf(),
-				analysis.getEf(), analysis.getUcp(), analysis.getHoursOfEffort(), processFlowPrompt,
+				analysis.getEf(), analysis.getUcp(), analysis.getHoursOfEffort(), analysis.getProjectPrice() != null
+				        ? analysis.getCurrency() != null
+		                ? CurrencyFormatter.formatAmount(
+		                        analysis.getProjectPrice().doubleValue(),
+		                        CurrencyCode.valueOf(analysis.getCurrency()))
+		                : analysis.getProjectPrice().toString()
+		        : "TBD", processFlowPrompt,
 				resolveStructure(proposalType));
 	}
 
@@ -206,6 +212,16 @@ public class GeminiProposalPromptBuilder {
 
 					Use the following columns:
 					| Milestone | Deliverable | Payment Percentage | Amount |
+					
+					PAYMENT MILESTONE AMOUNT RULES
+
+- The Project Price provided in ESTIMATION ANALYSIS is the ONLY source for payment milestone amounts.
+- NEVER calculate milestone amounts from Hours Of Effort.
+- NEVER use Hours Of Effort as a monetary amount.
+- If Project Price is a valid calculated value, divide that Project Price according to the payment percentages.
+- If Project Price is "TBD", every payment milestone Amount must be "TBD".
+- Do not invent, estimate, or calculate a Project Price when it is "TBD".
+- The Payment Percentage values must total 100%.
 
 					Include:
 					1. Analysis & Design Including approval of UI design
@@ -281,6 +297,16 @@ public class GeminiProposalPromptBuilder {
 
 					Use the following columns:
 					| Milestone | Deliverable | Payment Percentage | Amount |
+					
+					PAYMENT MILESTONE AMOUNT RULES
+
+- The Project Price provided in ESTIMATION ANALYSIS is the ONLY source for payment milestone amounts.
+- NEVER calculate milestone amounts from Hours Of Effort.
+- NEVER use Hours Of Effort as a monetary amount.
+- If Project Price is a valid calculated value, divide that Project Price according to the payment percentages.
+- If Project Price is "TBD", every payment milestone Amount must be "TBD".
+- Do not invent, estimate, or calculate a Project Price when it is "TBD".
+- The Payment Percentage values must total 100%.
 
 					Include:
 					1. Analysis & Design Including approval of UI design
@@ -398,6 +424,16 @@ public class GeminiProposalPromptBuilder {
 
 					Use the following columns:
 					| Milestone | Deliverable | Payment Percentage | Amount |
+					
+					PAYMENT MILESTONE AMOUNT RULES
+
+- The Project Price provided in ESTIMATION ANALYSIS is the ONLY source for payment milestone amounts.
+- NEVER calculate milestone amounts from Hours Of Effort.
+- NEVER use Hours Of Effort as a monetary amount.
+- If Project Price is a valid calculated value, divide that Project Price according to the payment percentages.
+- If Project Price is "TBD", every payment milestone Amount must be "TBD".
+- Do not invent, estimate, or calculate a Project Price when it is "TBD".
+- The Payment Percentage values must total 100%.
 
 					Include:
 					1. Analysis & Design Including approval of UI design
