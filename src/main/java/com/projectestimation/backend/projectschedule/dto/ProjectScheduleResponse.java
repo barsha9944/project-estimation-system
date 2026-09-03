@@ -2,6 +2,7 @@ package com.projectestimation.backend.projectschedule.dto;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.projectestimation.backend.psr.dto.PsrResponse;
 
 public class ProjectScheduleResponse {
 	
@@ -28,6 +29,8 @@ public class ProjectScheduleResponse {
     private LocalDate projectStartDate;
     
     private LocalDate projectEndDate;
+    
+    private PsrResponse psr;
 
     private List<ProjectScheduleTaskResponse> tasks;
 
@@ -134,6 +137,14 @@ public class ProjectScheduleResponse {
 
 	public void setProjectEndDate(LocalDate projectEndDate) {
 		this.projectEndDate = projectEndDate;
+	}
+	
+	public PsrResponse getPsr() {
+	    return psr;
+	}
+
+	public void setPsr(PsrResponse psr) {
+	    this.psr = psr;
 	}
     
     

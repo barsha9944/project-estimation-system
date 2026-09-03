@@ -131,7 +131,7 @@ public class TestCaseService {
             	        
             	        .reqId(dto.reqId())
                         .testCaseId(dto.testCaseId())
-                        .phase(dto.phase())
+                       
                         .testCaseName(dto.testCaseName())
                         .testCaseDescription(dto.testCaseDescription())
                         .testData(dto.testData())
@@ -180,7 +180,7 @@ public class TestCaseService {
                 		
                         testCase.getReqId(),
                         testCase.getTestCaseId(),
-                        testCase.getPhase(),
+                       
                         testCase.getTestCaseName(),
                         testCase.getTestCaseDescription(),
                         testCase.getTestData(),
@@ -230,7 +230,7 @@ public class TestCaseService {
             // Update test case fields
             testCase.setReqId(dto.reqId());
             testCase.setTestCaseId(dto.testCaseId());
-            testCase.setPhase(dto.phase());
+           
             testCase.setTestCaseName(dto.testCaseName());
             testCase.setTestCaseDescription(dto.testCaseDescription());
             testCase.setTestData(dto.testData());
@@ -288,7 +288,7 @@ public byte[] downloadTestCases(Long opportunityId) throws IOException {
         System.out.println(
                 "TC = " + testCase.getTestCaseId()
                 + " | REQ = " + testCase.getReqId()
-                + " | PHASE = " + testCase.getPhase()
+               
                 + " | NAME = " + testCase.getTestCaseName()
                 + " | STEPS = " + (
                     testCase.getSteps() == null

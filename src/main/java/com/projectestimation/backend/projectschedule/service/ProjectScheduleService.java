@@ -53,6 +53,9 @@ import com.projectestimation.backend.proposal.repository.ProposalRepository;
 import com.projectestimation.backend.psr.dto.PsrActivityDto;
 import com.projectestimation.backend.psr.model.ProjectStatusReport;
 import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
+import com.projectestimation.backend.psr.dto.PsrResponse;
+import com.projectestimation.backend.psr.model.ProjectStatusReport;
+import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -85,6 +88,8 @@ public class ProjectScheduleService {
 	private final ProjectMetricsSprintRepository projectMetricsSprintRepository;
 
 	private final ProjectStatusReportRepository projectStatusReportRepository;
+	
+	
 
 	private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
 
@@ -393,6 +398,25 @@ public class ProjectScheduleService {
 		response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
 		response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
 		response.setTeamSize(schedule.getTeamSize());
+		
+		ProjectStatusReport psr =
+		        projectStatusReportRepository
+		                .findTopByOpportunityIdOrderByGeneratedAtDesc(opportunityId)
+		                .orElse(null);
+
+		if (psr != null) {
+
+		    PsrResponse psrResponse = new PsrResponse(
+		            psr.getId(),
+		            psr.getFileName(),
+		            psr.getFileLocation(),
+		            psr.getGeneratedAt(),
+		            "GENERATED",
+		            psr.getMarkdownContent()
+		    );
+
+		    response.setPsr(psrResponse);
+		}
 
 		List<ProjectStatusReport> psrReports = projectStatusReportRepository
 				.findByOpportunityIdOrderByGeneratedAtAsc(opportunityId);
@@ -510,6 +534,8 @@ public class ProjectScheduleService {
 		response.setProgress(breakdown.getProgress());
 		response.setActualDuration(
 				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()));
+		
+		
 
 		return response;
 	}
