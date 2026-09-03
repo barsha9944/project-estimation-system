@@ -2,13 +2,19 @@ package com.projectestimation.backend.psr.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskBreakdownRepository;
 import com.projectestimation.backend.psr.ai.AiPsrResult;
 import com.projectestimation.backend.psr.ai.GeminiPsrOrchestrator;
 import com.projectestimation.backend.psr.dto.PsrContentDto;
@@ -33,6 +39,8 @@ public class PsrService {
     private final PsrDocxConverter psrDocxConverter;
 
     private final ObjectMapper objectMapper;
+    
+    private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
 
 
     // ============================================================
@@ -92,25 +100,31 @@ public class PsrService {
                         );
 
         if (
-                recentPsr.isPresent()
-                && recentPsr.get().getGeneratedAt() != null
-                && recentPsr.get().getGeneratedAt().isAfter(
-                        LocalDateTime.now().minusDays(15)
-                )
-        ) {
+        recentPsr.isPresent()
+        && recentPsr.get().getGeneratedAt() != null
+        && recentPsr.get().getGeneratedAt().isAfter(
+                LocalDateTime.now().minusDays(15)
+        )
+) {
 
-            ProjectStatusReport existingPsr =
-                    recentPsr.get();
+    ProjectStatusReport existingPsr =
+            recentPsr.get();
 
-            return new PsrResponse(
-                    existingPsr.getId(),
-                    existingPsr.getFileName(),
-                    existingPsr.getFileLocation(),
-                    existingPsr.getGeneratedAt(),
-                    "ALREADY_EXISTS",
-                    existingPsr.getMarkdownContent()
-            );
-        }
+    addBreakdownsToExistingPsr(
+            opportunityId,
+            existingPsr,
+            breakdownId
+    );
+
+    return new PsrResponse(
+            existingPsr.getId(),
+            existingPsr.getFileName(),
+            existingPsr.getFileLocation(),
+            existingPsr.getGeneratedAt(),
+            "ALREADY_EXISTS",
+            existingPsr.getMarkdownContent()
+    );
+}
 
 
         // ========================================================
@@ -204,6 +218,14 @@ public class PsrService {
         
         report.setStartBreakdownId(breakdownId);
 
+        report.setAssociatedBreakdownIds(
+                buildInitialAssociatedBreakdownIds(
+                        opportunityId,
+                        breakdownId,
+                        recentPsr.isPresent()
+                )
+        );
+
         report.setFileName(
                 baseFileName + ".docx"
         );
@@ -294,5 +316,183 @@ public class PsrService {
                 "GENERATED",
                 savedReport.getMarkdownContent()
         );
+    }
+    
+    private void addBreakdownsToExistingPsr(
+            Long opportunityId,
+            ProjectStatusReport existingPsr,
+            Long currentBreakdownId
+    ) {
+
+    	List<Long> allBreakdownIds =
+    	        getOrderedBreakdownIds(opportunityId);
+
+        int currentIndex =
+                allBreakdownIds.indexOf(
+                        currentBreakdownId
+                );
+
+        if (currentIndex < 0) {
+            throw new IllegalStateException(
+                    "Breakdown not found in project schedule: "
+                            + currentBreakdownId
+            );
+        }
+
+        List<Long> associatedIds =
+                new ArrayList<>();
+
+        if (
+                existingPsr.getAssociatedBreakdownIds() != null
+                && !existingPsr.getAssociatedBreakdownIds().isBlank()
+        ) {
+
+            try {
+
+                associatedIds =
+                        objectMapper.readValue(
+                                existingPsr.getAssociatedBreakdownIds(),
+                                new TypeReference<List<Long>>() {}
+                        );
+
+            } catch (Exception ex) {
+
+                throw new IllegalStateException(
+                        "Failed to read associated breakdown IDs for PSR: "
+                                + existingPsr.getId(),
+                        ex
+                );
+            }
+        }
+
+        int lastAssociatedIndex = -1;
+
+        for (Long associatedId : associatedIds) {
+
+            int index =
+                    allBreakdownIds.indexOf(
+                            associatedId
+                    );
+
+            if (index > lastAssociatedIndex) {
+                lastAssociatedIndex = index;
+            }
+        }
+
+        int startIndex =
+                lastAssociatedIndex + 1;
+
+        for (
+                int i = startIndex;
+                i <= currentIndex;
+                i++
+        ) {
+
+            Long breakdownToAdd =
+                    allBreakdownIds.get(i);
+
+            if (!associatedIds.contains(breakdownToAdd)) {
+
+                associatedIds.add(
+                        breakdownToAdd
+                );
+            }
+        }
+
+        try {
+
+            existingPsr.setAssociatedBreakdownIds(
+                    objectMapper.writeValueAsString(
+                            associatedIds
+                    )
+            );
+
+            projectStatusReportRepository.save(
+                    existingPsr
+            );
+
+        } catch (Exception ex) {
+
+            throw new IllegalStateException(
+                    "Failed to save associated breakdown IDs for PSR: "
+                            + existingPsr.getId(),
+                    ex
+            );
+        }
+    }
+    
+    private String buildInitialAssociatedBreakdownIds(
+            Long opportunityId,
+            Long currentBreakdownId,
+            boolean hasPreviousPsr
+    ) {
+
+    	List<Long> allBreakdownIds =
+    	        getOrderedBreakdownIds(opportunityId);
+
+        int currentIndex =
+                allBreakdownIds.indexOf(
+                        currentBreakdownId
+                );
+
+        if (currentIndex < 0) {
+
+            throw new IllegalStateException(
+                    "Breakdown not found in project schedule: "
+                            + currentBreakdownId
+            );
+        }
+
+        List<Long> associatedIds =
+                new ArrayList<>();
+
+        // ========================================================
+        // FIRST PSR
+        // ========================================================
+
+        if (!hasPreviousPsr) {
+
+            for (int i = 0; i <= currentIndex; i++) {
+
+                associatedIds.add(
+                        allBreakdownIds.get(i)
+                );
+            }
+
+        }
+
+        // ========================================================
+        // NEW PSR AFTER 15 DAYS
+        // ========================================================
+
+        else {
+
+            associatedIds.add(
+                    currentBreakdownId
+            );
+        }
+
+        try {
+
+            return objectMapper.writeValueAsString(
+                    associatedIds
+            );
+
+        } catch (Exception ex) {
+
+            throw new IllegalStateException(
+                    "Failed to build associated breakdown IDs",
+                    ex
+            );
+        }
+    }
+    
+    private List<Long> getOrderedBreakdownIds(Long opportunityId) {
+
+        return projectScheduleTaskBreakdownRepository
+                .findByOpportunityIdOrdered(opportunityId)
+                .stream()
+                .map(ProjectScheduleTaskBreakdown::getId)
+                .toList();
     }
 }

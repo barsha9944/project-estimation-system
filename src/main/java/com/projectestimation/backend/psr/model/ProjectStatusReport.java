@@ -80,6 +80,9 @@ public class ProjectStatusReport {
     
     @Column(columnDefinition = "TEXT")
     private String markdownContent;
+    
+    @Column(columnDefinition = "TEXT")
+    private String associatedBreakdownIds;
 
     @PrePersist
     public void onCreate() {

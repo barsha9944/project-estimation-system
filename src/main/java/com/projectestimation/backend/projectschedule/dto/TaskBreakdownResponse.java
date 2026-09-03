@@ -32,5 +32,7 @@ public class TaskBreakdownResponse {
 	
 	private String psrFileName;
 	
+	private String psrFileLocation;
+	
 	private String psrMarkdown;
 }

@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SaveTaskBreakdownRequest {
 
+	private Long id;
+	
 	private String activityName;
 
     private Integer duration;

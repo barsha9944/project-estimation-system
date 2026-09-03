@@ -27,7 +27,7 @@ public class PsrScheduleDataService {
 	
 	    ProjectSchedule schedule =
 	            projectScheduleRepository
-	                    .findByOpportunityIdWithTasks(
+	            .findByOpportunityIdWithTasks(
 	                            opportunityId
 	                    )
 	                    .orElseThrow(() ->
@@ -67,6 +67,10 @@ public class PsrScheduleDataService {
 	                                breakdown.getActivityName(),
 	                                status,
 	                                breakdown.getProgress(),
+	                                breakdown.getDuration(),
+	                                breakdown.getPlannedStartDate() != null
+	                                        ? breakdown.getPlannedStartDate().toString()
+	                                        : null,
 	                                breakdown.getPlannedEndDate() != null
 	                                        ? breakdown.getPlannedEndDate().toString()
 	                                        : null,
@@ -92,11 +96,11 @@ public class PsrScheduleDataService {
 	             // Not Started
 	             // ============================================
 
-	             else {
+	             else if (isWithinNext15Days(breakdown.getPlannedStartDate())) {
 
-	                 nextWeekPlannedActivities.add(activity);
+	            	    nextWeekPlannedActivities.add(activity);
 
-	             }
+	            	}
 	            }
 	        }
 	    }
@@ -141,5 +145,32 @@ public class PsrScheduleDataService {
 
         // Fixed value will be supplied from the PSR template.
         return null;
+    }
+    
+    private boolean isWithinNext15Days(LocalDate plannedStartDate) {
+
+        if (plannedStartDate == null) {
+            return false;
+        }
+
+        LocalDate today = LocalDate.now();
+        LocalDate endDate = today.plusDays(15);
+
+        return !plannedStartDate.isBefore(today)
+                && !plannedStartDate.isAfter(endDate);
+    }
+    
+    public ProjectSchedule getScheduleForPsr(Long opportunityId) {
+
+        return projectScheduleRepository
+        		.findByOpportunityIdWithTasks(
+                        opportunityId
+                )
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "Project schedule not found for opportunity: "
+                                        + opportunityId
+                        )
+                );
     }
 }

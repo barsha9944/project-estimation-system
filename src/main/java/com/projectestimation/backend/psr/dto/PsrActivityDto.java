@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PsrActivityDto {
 
-	private Long breakdownId;
-	
+    private Long breakdownId;
+
     private Integer sequence;
 
     private String taskName;
@@ -20,6 +20,10 @@ public class PsrActivityDto {
     private String status;
 
     private Integer progress;
+
+    private Integer duration;
+
+    private String plannedStartDate;
 
     private String plannedEndDate;
 
