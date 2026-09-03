@@ -31,8 +31,7 @@ public class TestCase {
     @Column(nullable = false)
     private String testCaseId;
     
-    @Column
-    private String phase;
+    
 
     @Column(nullable = false)
     private String testCaseName;

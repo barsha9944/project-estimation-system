@@ -3,8 +3,7 @@ package com.projectestimation.backend.testcase.service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -32,26 +31,12 @@ public class TestCaseExcelService {
     try (Workbook workbook = new XSSFWorkbook();
          ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-        Map<Integer, List<TestCase>> testCasesByPhase =
-                testCases.stream()
-                        .collect(Collectors.groupingBy(
-                                testCase -> extractPhaseNumber(testCase.getPhase())
-                        ));
-
-        testCasesByPhase.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry -> {
-
-                    int phaseNumber = entry.getKey();
-
-                    String sheetName = "Phase-" + toRoman(phaseNumber);
-
-                    createPhaseSheet(
-                            workbook,
-                            sheetName,
-                            entry.getValue()
-                    );
-                });
+    	createPhaseSheet(
+    	        workbook,
+    	        "Test Cases",
+    	        testCases
+    	);
+               
 
         workbook.write(outputStream);
 
