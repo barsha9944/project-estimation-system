@@ -1,10 +1,11 @@
 package com.projectestimation.backend.psr.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.projectestimation.backend.psr.dto.PsrResponse;
@@ -20,16 +21,11 @@ public class PsrController {
     private final PsrService psrService;
 
     @PostMapping("/generate")
-    public ResponseEntity<PsrResponse> generatePsr(
-            @PathVariable Long opportunityId,
-            @RequestParam Long breakdownId
-    ) {
+    public ResponseEntity<List<PsrResponse>> generatePsrs(
+            @PathVariable Long opportunityId) {
 
         return ResponseEntity.ok(
-                psrService.generatePsrIfRequired(
-                        opportunityId,
-                        breakdownId
-                )
+                psrService.generateAllPsrs(opportunityId)
         );
     }
 }

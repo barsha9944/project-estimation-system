@@ -4,17 +4,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
-import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
-import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
-import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskBreakdownRepository;
 import com.projectestimation.backend.psr.ai.AiPsrResult;
 import com.projectestimation.backend.psr.ai.GeminiPsrOrchestrator;
 import com.projectestimation.backend.psr.dto.PsrContentDto;
@@ -29,173 +27,308 @@ import lombok.RequiredArgsConstructor;
 public class PsrService {
 
     private final ProjectStatusReportRepository projectStatusReportRepository;
-
     private final PsrScheduleDataService psrScheduleDataService;
-
+    private final PsrPeriodCalculator psrPeriodCalculator;
     private final GeminiPsrOrchestrator geminiPsrOrchestrator;
-
     private final OpportunityRepository opportunityRepository;
-
     private final PsrDocxConverter psrDocxConverter;
-
     private final ObjectMapper objectMapper;
-    
-    private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
 
-
-    // ============================================================
-    // CHECK RECENT PSR
-    // ============================================================
-
-    @Transactional(readOnly = true)
-    public boolean hasRecentPsr(Long opportunityId) {
-
-        return projectStatusReportRepository
-                .findTopByOpportunityIdOrderByGeneratedAtDesc(
-                        opportunityId
-                )
-                .map(psr ->
-                        psr.getGeneratedAt() != null
-                        && psr.getGeneratedAt().isAfter(
-                                LocalDateTime.now().minusDays(15)
-                        )
-                )
-                .orElse(false);
-    }
-
-
-    // ============================================================
-    // BUILD PSR CONTENT
-    // ============================================================
-
-    @Transactional(readOnly = true)
-    public PsrContentDto buildPsrContent(
+    /*
+     * ================================================================
+     * GENERATE ALL PSRs
+     * ================================================================
+     *
+     * Used when PSRs need to be generated for the complete schedule.
+     *
+     * If a PSR already exists for a period, the SAME database record
+     * is updated instead of creating another PSR.
+     */
+    @Transactional
+    public List<PsrResponse> generateAllPsrs(
             Long opportunityId
     ) {
 
-        return psrScheduleDataService.buildPsrContent(
-                opportunityId
-        );
+        Opportunity opportunity =
+                opportunityRepository
+                        .findByIdForPsrSynchronization(opportunityId)
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Opportunity not found: "
+                                                + opportunityId
+                                )
+                        );
+
+        var schedule =
+                psrScheduleDataService
+                        .getScheduleForPsr(opportunityId);
+
+        List<PsrPeriod> periods =
+                psrPeriodCalculator.calculatePeriods(
+                        schedule.getProjectStartDate(),
+                        schedule.getProjectEndDate()
+                );
+
+        if (periods.isEmpty()) {
+
+            throw new IllegalStateException(
+                    "Project schedule does not contain any working days"
+            );
+        }
+
+        List<PsrResponse> responses =
+                new ArrayList<>();
+
+        for (PsrPeriod period : periods) {
+
+            responses.add(
+                    generateOrUpdatePsr(
+                            opportunity,
+                            opportunityId,
+                            period
+                    )
+            );
+        }
+
+        return responses;
     }
 
-
-    // ============================================================
-    // GENERATE PSR
-    // ============================================================
-
-    @Transactional
-    public PsrResponse generatePsrIfRequired(
+    /*
+     * ================================================================
+     * SYNCHRONIZE PSRs AFTER PROJECT SCHEDULE SAVE
+     * ================================================================
+     *
+     * The Project Schedule is the source of truth.
+     *
+     * Only affected periods are regenerated.
+     *
+     * Existing PSRs are updated IN PLACE.
+     *
+     * Missing PSRs are created.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<PsrResponse> synchronizePsrs(
             Long opportunityId,
-            Long breakdownId
+            Set<Integer> affectedVersions
     ) {
 
-        // ========================================================
-        // CHECK WHETHER PSR WAS GENERATED IN LAST 15 DAYS
-        // ========================================================
+        Opportunity opportunity =
+                opportunityRepository
+                        .findByIdForPsrSynchronization(opportunityId)
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Opportunity not found: "
+                                                + opportunityId
+                                )
+                        );
 
-        var recentPsr =
+        var schedule =
+                psrScheduleDataService
+                        .getScheduleForPsr(opportunityId);
+
+        List<PsrPeriod> periods =
+                psrPeriodCalculator.calculatePeriods(
+                        schedule.getProjectStartDate(),
+                        schedule.getProjectEndDate()
+                );
+
+        if (periods.isEmpty()) {
+
+            throw new IllegalStateException(
+                    "Project schedule does not contain any working days"
+            );
+        }
+
+        /*
+         * If this is the first PSR synchronization,
+         * generate ALL PSRs for the complete schedule.
+         */
+        List<ProjectStatusReport> existingReports =
                 projectStatusReportRepository
-                        .findTopByOpportunityIdOrderByGeneratedAtDesc(
+                        .findByOpportunityIdOrderByVersionAsc(
                                 opportunityId
                         );
 
-        if (
-        recentPsr.isPresent()
-        && recentPsr.get().getGeneratedAt() != null
-        && recentPsr.get().getGeneratedAt().isAfter(
-                LocalDateTime.now().minusDays(15)
-        )
-) {
+        if (existingReports.isEmpty()) {
 
-    ProjectStatusReport existingPsr =
-            recentPsr.get();
+            List<PsrResponse> responses =
+                    new ArrayList<>();
 
-    addBreakdownsToExistingPsr(
-            opportunityId,
-            existingPsr,
-            breakdownId
-    );
+            for (PsrPeriod period : periods) {
 
-    return new PsrResponse(
-            existingPsr.getId(),
-            existingPsr.getFileName(),
-            existingPsr.getFileLocation(),
-            existingPsr.getGeneratedAt(),
-            "ALREADY_EXISTS",
-            existingPsr.getMarkdownContent()
-    );
-}
-
-
-        // ========================================================
-        // GET OPPORTUNITY
-        // ========================================================
-
-        Opportunity opportunity =
-                opportunityRepository.findById(
-                        opportunityId
-                )
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "Opportunity not found: "
-                                        + opportunityId
+                responses.add(
+                        generateOrUpdatePsr(
+                                opportunity,
+                                opportunityId,
+                                period
                         )
                 );
+            }
 
+            return responses;
+        }
 
-        // ========================================================
-        // CALCULATE PSR VERSION
-        // ========================================================
+        List<PsrResponse> responses =
+                new ArrayList<>();
 
-        int psrVersion =
-                (int) projectStatusReportRepository
-                        .countByOpportunityId(opportunityId)
-                        + 1;
+        /*
+         * ============================================================
+         * UPDATE EXISTING AFFECTED PSRs
+         * ============================================================
+         */
+        if (affectedVersions != null
+                && !affectedVersions.isEmpty()) {
 
+            for (PsrPeriod period : periods) {
 
-        // ========================================================
-        // BUILD PSR CONTENT
-        // ========================================================
+                if (affectedVersions.contains(
+                        period.version()
+                )) {
 
+                    responses.add(
+                            generateOrUpdatePsr(
+                                    opportunity,
+                                    opportunityId,
+                                    period
+                            )
+                    );
+                }
+            }
+        }
+
+        /*
+         * ============================================================
+         * CREATE MISSING PSRs
+         * ============================================================
+         *
+         * This is important when the schedule becomes longer and
+         * therefore creates additional reporting periods.
+         */
+        for (PsrPeriod period : periods) {
+
+            boolean exists =
+                    existingReports
+                            .stream()
+                            .anyMatch(report ->
+                                    report.getVersion() != null
+                                            && report.getVersion()
+                                                    .equals(
+                                                            period.version()
+                                                    )
+                            );
+
+            if (!exists) {
+
+                responses.add(
+                        generateOrUpdatePsr(
+                                opportunity,
+                                opportunityId,
+                                period
+                        )
+                );
+            }
+        }
+
+        return responses;
+    }
+
+    /*
+     * ================================================================
+     * GENERATE OR UPDATE ONE PSR
+     * ================================================================
+     *
+     * CRITICAL:
+     *
+     * PSR identity is:
+     *
+     *     opportunityId + version
+     *
+     * If the PSR already exists, we reuse the SAME entity.
+     *
+     * Therefore:
+     *
+     *     existing ID 46 → remains ID 46
+     *
+     * We only replace its content.
+     */
+    private PsrResponse generateOrUpdatePsr(
+            Opportunity opportunity,
+            Long opportunityId,
+            PsrPeriod period
+    ) {
+
+        ProjectStatusReport report =
+                projectStatusReportRepository
+                        .findByOpportunityIdAndVersion(
+                                opportunityId,
+                                period.version()
+                        )
+                        .orElse(null);
+
+        boolean isNew =
+                report == null;
+
+        /*
+         * ============================================================
+         * CREATE ONLY WHEN THIS PERIOD DOES NOT EXIST
+         * ============================================================
+         */
+        if (isNew) {
+
+            report =
+                    new ProjectStatusReport();
+
+            report.setOpportunity(
+                    opportunity
+            );
+
+            report.setVersion(
+                    period.version()
+            );
+        }
+
+        /*
+         * ============================================================
+         * BUILD CONTENT FROM CURRENT PROJECT SCHEDULE
+         * ============================================================
+         */
         PsrContentDto content =
                 psrScheduleDataService.buildPsrContent(
-                        opportunityId
+                        opportunityId,
+                        period
                 );
 
-
-        // ========================================================
-        // GEMINI
-        // ========================================================
-
+        /*
+         * ============================================================
+         * GENERATE NEW MARKDOWN
+         * ============================================================
+         *
+         * Gemini receives the CURRENT schedule data.
+         *
+         * This replaces the old markdown when updating an existing
+         * PSR.
+         */
         AiPsrResult aiResult =
                 geminiPsrOrchestrator.generate(
                         opportunity.getOpportunityName(),
                         content,
-                        psrVersion
+                        period.version()
                 );
-
-
-        // ========================================================
-        // GET MARKDOWN
-        // ========================================================
 
         String markdown =
                 aiResult.markdownContent();
 
-
-        // ========================================================
-        // FILE NAME
-        // ========================================================
-
+        /*
+         * ============================================================
+         * REGENERATE DOCX
+         * ============================================================
+         *
+         * Same PSR period → same base filename.
+         *
+         * The existing DOCX is replaced.
+         */
         String baseFileName =
-                "PSR"
-                        + "_"
-                        + LocalDate.now();
-
-
-        // ========================================================
-        // MARKDOWN → DOCX
-        // ========================================================
+                buildFileName(period);
 
         PsrDocxConverter.ConversionResult conversion =
                 psrDocxConverter.convertMarkdownToDocx(
@@ -204,59 +337,63 @@ public class PsrService {
                         opportunityId
                 );
 
-
-        // ========================================================
-        // CREATE DATABASE RECORD
-        // ========================================================
-
-        ProjectStatusReport report =
-                new ProjectStatusReport();
-
-        report.setOpportunity(
-                opportunity
-        );
-        
-        report.setStartBreakdownId(breakdownId);
-
-        report.setAssociatedBreakdownIds(
-                buildInitialAssociatedBreakdownIds(
-                        opportunityId,
-                        breakdownId,
-                        recentPsr.isPresent()
-                )
+        /*
+         * ============================================================
+         * UPDATE THE EXISTING PSR ENTITY
+         * ============================================================
+         */
+        applyReportData(
+                report,
+                content,
+                markdown,
+                baseFileName,
+                conversion
         );
 
-        report.setFileName(
-                baseFileName + ".docx"
-        );
-
-        report.setFileLocation(
-                conversion.generatedDocPath()
+        /*
+         * Report date represents when this PSR was generated/refreshed.
+         */
+        report.setReportDate(
+                LocalDate.now()
         );
 
         report.setGeneratedAt(
                 LocalDateTime.now()
         );
 
-        report.setReportDate(
-                LocalDate.now()
+        /*
+         * ============================================================
+         * SAVE
+         * ============================================================
+         *
+         * Existing entity → UPDATE
+         * New entity      → INSERT
+         */
+        ProjectStatusReport savedReport =
+                projectStatusReportRepository.save(
+                        report
+                );
+
+        return toResponse(
+                savedReport,
+                isNew
+                        ? "GENERATED"
+                        : "UPDATED"
         );
+    }
 
-
-        report.setVersion(psrVersion);
-        
-        // ========================================================
-        // SAVE MARKDOWN
-        // ========================================================
-
-        report.setMarkdownContent(
-                markdown
-        );
-
-
-        // ========================================================
-        // SAVE PSR CONTENT
-        // ========================================================
+    /*
+     * ================================================================
+     * APPLY PSR DATA
+     * ================================================================
+     */
+    private void applyReportData(
+            ProjectStatusReport report,
+            PsrContentDto content,
+            String markdown,
+            String baseFileName,
+            PsrDocxConverter.ConversionResult conversion
+    ) {
 
         try {
 
@@ -280,6 +417,33 @@ public class PsrService {
             );
         }
 
+        /*
+         * Do NOT set:
+         *
+         * - startBreakdownId
+         * - associatedBreakdownIds
+         *
+         * Those are legacy fields and are no longer used for PSR
+         * generation or identity.
+         */
+
+        report.setFileName(
+                baseFileName + ".docx"
+        );
+
+        report.setFileLocation(
+                conversion.generatedDocPath()
+        );
+
+        /*
+         * THIS IS THE IMPORTANT UPDATE:
+         *
+         * Existing markdownContent is replaced by the newly generated
+         * Markdown.
+         */
+        report.setMarkdownContent(
+                markdown
+        );
 
         report.setRiskStatus(
                 content.getRiskStatus()
@@ -292,207 +456,59 @@ public class PsrService {
         report.setIssuesManagementAttention(
                 content.getIssuesManagementAttention()
         );
+    }
 
+    /*
+     * ================================================================
+     * FILE NAME
+     * ================================================================
+     */
+    private String buildFileName(
+            PsrPeriod period
+    ) {
 
-        // ========================================================
-        // SAVE DATABASE RECORD
-        // ========================================================
+        return "PSR_"
+                + period.version()
+                + "_"
+                + period.startDate()
+                + "_"
+                + period.endDate();
+    }
 
-        ProjectStatusReport savedReport =
-                projectStatusReportRepository.save(
-                        report
-                );
-
-
-        // ========================================================
-        // RETURN RESPONSE
-        // ========================================================
+    /*
+     * ================================================================
+     * RESPONSE
+     * ================================================================
+     */
+    private PsrResponse toResponse(
+            ProjectStatusReport report,
+            String status
+    ) {
 
         return new PsrResponse(
-                savedReport.getId(),
-                savedReport.getFileName(),
-                savedReport.getFileLocation(),
-                savedReport.getGeneratedAt(),
-                "GENERATED",
-                savedReport.getMarkdownContent()
+                report.getId(),
+                report.getFileName(),
+                report.getFileLocation(),
+                report.getGeneratedAt(),
+                status,
+                report.getMarkdownContent()
         );
     }
-    
-    private void addBreakdownsToExistingPsr(
+
+    /*
+     * ================================================================
+     * BUILD PSR CONTENT
+     * ================================================================
+     */
+    @Transactional(readOnly = true)
+    public PsrContentDto buildPsrContent(
             Long opportunityId,
-            ProjectStatusReport existingPsr,
-            Long currentBreakdownId
+            PsrPeriod period
     ) {
 
-    	List<Long> allBreakdownIds =
-    	        getOrderedBreakdownIds(opportunityId);
-
-        int currentIndex =
-                allBreakdownIds.indexOf(
-                        currentBreakdownId
-                );
-
-        if (currentIndex < 0) {
-            throw new IllegalStateException(
-                    "Breakdown not found in project schedule: "
-                            + currentBreakdownId
-            );
-        }
-
-        List<Long> associatedIds =
-                new ArrayList<>();
-
-        if (
-                existingPsr.getAssociatedBreakdownIds() != null
-                && !existingPsr.getAssociatedBreakdownIds().isBlank()
-        ) {
-
-            try {
-
-                associatedIds =
-                        objectMapper.readValue(
-                                existingPsr.getAssociatedBreakdownIds(),
-                                new TypeReference<List<Long>>() {}
-                        );
-
-            } catch (Exception ex) {
-
-                throw new IllegalStateException(
-                        "Failed to read associated breakdown IDs for PSR: "
-                                + existingPsr.getId(),
-                        ex
-                );
-            }
-        }
-
-        int lastAssociatedIndex = -1;
-
-        for (Long associatedId : associatedIds) {
-
-            int index =
-                    allBreakdownIds.indexOf(
-                            associatedId
-                    );
-
-            if (index > lastAssociatedIndex) {
-                lastAssociatedIndex = index;
-            }
-        }
-
-        int startIndex =
-                lastAssociatedIndex + 1;
-
-        for (
-                int i = startIndex;
-                i <= currentIndex;
-                i++
-        ) {
-
-            Long breakdownToAdd =
-                    allBreakdownIds.get(i);
-
-            if (!associatedIds.contains(breakdownToAdd)) {
-
-                associatedIds.add(
-                        breakdownToAdd
-                );
-            }
-        }
-
-        try {
-
-            existingPsr.setAssociatedBreakdownIds(
-                    objectMapper.writeValueAsString(
-                            associatedIds
-                    )
-            );
-
-            projectStatusReportRepository.save(
-                    existingPsr
-            );
-
-        } catch (Exception ex) {
-
-            throw new IllegalStateException(
-                    "Failed to save associated breakdown IDs for PSR: "
-                            + existingPsr.getId(),
-                    ex
-            );
-        }
-    }
-    
-    private String buildInitialAssociatedBreakdownIds(
-            Long opportunityId,
-            Long currentBreakdownId,
-            boolean hasPreviousPsr
-    ) {
-
-    	List<Long> allBreakdownIds =
-    	        getOrderedBreakdownIds(opportunityId);
-
-        int currentIndex =
-                allBreakdownIds.indexOf(
-                        currentBreakdownId
-                );
-
-        if (currentIndex < 0) {
-
-            throw new IllegalStateException(
-                    "Breakdown not found in project schedule: "
-                            + currentBreakdownId
-            );
-        }
-
-        List<Long> associatedIds =
-                new ArrayList<>();
-
-        // ========================================================
-        // FIRST PSR
-        // ========================================================
-
-        if (!hasPreviousPsr) {
-
-            for (int i = 0; i <= currentIndex; i++) {
-
-                associatedIds.add(
-                        allBreakdownIds.get(i)
-                );
-            }
-
-        }
-
-        // ========================================================
-        // NEW PSR AFTER 15 DAYS
-        // ========================================================
-
-        else {
-
-            associatedIds.add(
-                    currentBreakdownId
-            );
-        }
-
-        try {
-
-            return objectMapper.writeValueAsString(
-                    associatedIds
-            );
-
-        } catch (Exception ex) {
-
-            throw new IllegalStateException(
-                    "Failed to build associated breakdown IDs",
-                    ex
-            );
-        }
-    }
-    
-    private List<Long> getOrderedBreakdownIds(Long opportunityId) {
-
-        return projectScheduleTaskBreakdownRepository
-                .findByOpportunityIdOrdered(opportunityId)
-                .stream()
-                .map(ProjectScheduleTaskBreakdown::getId)
-                .toList();
+        return psrScheduleDataService.buildPsrContent(
+                opportunityId,
+                period
+        );
     }
 }

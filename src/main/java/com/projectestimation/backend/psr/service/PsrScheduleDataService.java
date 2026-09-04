@@ -11,6 +11,7 @@ import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskBreakdownRepository;
 import com.projectestimation.backend.psr.dto.PsrActivityDto;
 import com.projectestimation.backend.psr.dto.PsrContentDto;
 
@@ -22,150 +23,351 @@ public class PsrScheduleDataService {
 
     private final ProjectScheduleRepository projectScheduleRepository;
 
+    private final ProjectScheduleTaskBreakdownRepository
+            projectScheduleTaskBreakdownRepository;
+
+    private final PsrPeriodCalculator psrPeriodCalculator;
+
     @Transactional(readOnly = true)
-	public PsrContentDto buildPsrContent(Long opportunityId) {
-	
-	    ProjectSchedule schedule =
-	            projectScheduleRepository
-	            .findByOpportunityIdWithTasks(
-	                            opportunityId
-	                    )
-	                    .orElseThrow(() ->
-	                            new IllegalStateException(
-	                                    "Project schedule not found for opportunity: "
-	                                            + opportunityId
-	                            )
-	                    );
-	
-	    List<PsrActivityDto> activitiesPerformed =
-	            new ArrayList<>();
-	
-	    List<PsrActivityDto> nextWeekPlannedActivities =
-	            new ArrayList<>();
-	
-	    if (schedule.getTasks() != null) {
-	
-	        for (ProjectScheduleTask task : schedule.getTasks()) {
-	
-	            if (task.getTaskBreakdowns() == null) {
-	                continue;
-	            }
-	
-	            for (ProjectScheduleTaskBreakdown breakdown :
-	                    task.getTaskBreakdowns()) {
-	
-	                String status =
-	                        breakdown.getStatus() != null
-	                                ? breakdown.getStatus()
-	                                : "Not Started";
-	
-	                PsrActivityDto activity =
-	                        new PsrActivityDto(
-	                                breakdown.getId(),
-	                                task.getSequence(),
-	                                task.getTaskName(),
-	                                breakdown.getActivityName(),
-	                                status,
-	                                breakdown.getProgress(),
-	                                breakdown.getDuration(),
-	                                breakdown.getPlannedStartDate() != null
-	                                        ? breakdown.getPlannedStartDate().toString()
-	                                        : null,
-	                                breakdown.getPlannedEndDate() != null
-	                                        ? breakdown.getPlannedEndDate().toString()
-	                                        : null,
-	                                breakdown.getActualEndDate() != null
-	                                        ? breakdown.getActualEndDate().toString()
-	                                        : null
-	                        );
-	
-	             // ============================================
-	             // ACTIVITIES DURING THE PERIOD
-	             // Completed + In Progress
-	             // ============================================
+    public PsrContentDto buildPsrContent(
+            Long opportunityId,
+            PsrPeriod period
+    ) {
 
-	             if (isCompleted(status)
-	                     || isInProgress(status)) {
+        ProjectSchedule schedule =
+                projectScheduleRepository
+                        .findByOpportunityIdWithTasks(opportunityId)
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "Project schedule not found for opportunity: "
+                                                + opportunityId
+                                )
+                        );
 
-	                 activitiesPerformed.add(activity);
+        /*
+         * ============================================================
+         * ACTIVITIES DURING THIS PSR PERIOD
+         * ============================================================
+         *
+         * The Project Schedule is the source of truth.
+         *
+         * Every activity whose schedule dates overlap this PSR period
+         * is included, regardless of status.
+         */
+        List<PsrActivityDto> activitiesPerformed =
+                new ArrayList<>();
 
-	             }
+        /*
+         * ============================================================
+         * NEXT 15 WORKING DAYS
+         * ============================================================
+         */
+        List<PsrActivityDto> nextWeekPlannedActivities =
+                new ArrayList<>();
 
-	             // ============================================
-	             // NEXT WEEK PLANNED ACTIVITIES
-	             // Not Started
-	             // ============================================
-
-	             else if (isWithinNext15Days(breakdown.getPlannedStartDate())) {
-
-	            	    nextWeekPlannedActivities.add(activity);
-
-	            	}
-	            }
-	        }
-	    }
-	
-	    return new PsrContentDto(
-	            activitiesPerformed,
-	            nextWeekPlannedActivities,
-	            getRiskStatus(),
-	            "",
-	            "",
-	            schedule.getProjectStartDate() != null
-	                    ? schedule.getProjectStartDate().toString()
-	                    : null,
-	            schedule.getProjectEndDate() != null
-	                    ? schedule.getProjectEndDate().toString()
-	                    : null,
-	            LocalDate.now().toString()
-	    );
-	}
-
-    private boolean isCompleted(String status) {
-
-        return status != null
-                && (
-                    status.equalsIgnoreCase("Completed")
-                    || status.equalsIgnoreCase("Complete")
-                    || status.equalsIgnoreCase("Done")
+        /*
+         * Calculate all PSR periods for the project.
+         */
+        List<PsrPeriod> periods =
+                psrPeriodCalculator.calculatePeriods(
+                        schedule.getProjectStartDate(),
+                        schedule.getProjectEndDate()
                 );
-    }
 
-    private boolean isInProgress(String status) {
+        /*
+         * Find the next PSR period.
+         */
+        PsrPeriod nextPeriod = null;
 
-        return status != null
-                && (
-                    status.equalsIgnoreCase("In Progress")
-                    || status.equalsIgnoreCase("In-Progress")
-                    || status.equalsIgnoreCase("InProgress")
+        for (PsrPeriod candidate : periods) {
+
+            if (candidate.version() == period.version() + 1) {
+
+                nextPeriod = candidate;
+                break;
+            }
+        }
+
+        /*
+         * ============================================================
+         * LOAD ALL BREAKDOWNS FOR THIS OPPORTUNITY
+         * ============================================================
+         *
+         * IMPORTANT:
+         *
+         * We do NOT access:
+         *
+         *     schedule.getTasks()
+         *         .getTaskBreakdowns()
+         *
+         * for PSR data.
+         *
+         * The breakdown repository already has a query which fetches
+         * every breakdown together with its parent task.
+         *
+         * This avoids fetching two Hibernate List collections together.
+         */
+        List<ProjectScheduleTaskBreakdown> breakdowns =
+                projectScheduleTaskBreakdownRepository
+                        .findByOpportunityIdOrdered(
+                                opportunityId
+                        );
+        
+        projectScheduleTaskBreakdownRepository.flush();
+
+        System.out.println("PSR DATA opportunityId = " + opportunityId);
+        System.out.println("PSR DATA breakdown count = " + breakdowns.size());
+
+        for (ProjectScheduleTaskBreakdown breakdown : breakdowns) {
+            System.out.println(
+                "PSR DATA -> breakdownId=" + breakdown.getId()
+                + ", taskId=" +
+                    (breakdown.getProjectScheduleTask() != null
+                        ? breakdown.getProjectScheduleTask().getId()
+                        : null)
+                + ", status=" + breakdown.getStatus()
+                + ", progress=" + breakdown.getProgress()
+            );
+        }
+        /*
+         * ============================================================
+         * PROCESS EVERY SCHEDULE BREAKDOWN
+         * ============================================================
+         */
+        for (ProjectScheduleTaskBreakdown breakdown :
+                breakdowns) {
+
+            ProjectScheduleTask task =
+                    breakdown.getProjectScheduleTask();
+
+            if (task == null) {
+                continue;
+            }
+
+            /*
+             * If the breakdown has no status, expose it as Not Started.
+             */
+            String status =
+                    breakdown.getStatus() != null
+                            ? breakdown.getStatus()
+                            : "Not Started";
+
+            /*
+             * Create the PSR activity from the actual schedule data.
+             */
+            PsrActivityDto activity =
+                    new PsrActivityDto(
+                            breakdown.getId(),
+                            task.getSequence(),
+                            task.getTaskName(),
+                            breakdown.getActivityName(),
+                            status,
+                            breakdown.getProgress(),
+                            breakdown.getDuration(),
+                            toString(
+                                    breakdown.getPlannedStartDate()
+                            ),
+                            toString(
+                                    breakdown.getPlannedEndDate()
+                            ),
+                            toString(
+                                    breakdown.getActualEndDate()
+                            )
+                    );
+            
+            System.out.println(
+            	    "PSR ACTIVITY -> breakdownId=" + breakdown.getId()
+            	    + ", activity=" + breakdown.getActivityName()
+            	    + ", status=" + breakdown.getStatus()
+            	    + ", progress=" + breakdown.getProgress()
+            	);
+
+            /*
+             * ========================================================
+             * CURRENT PSR PERIOD
+             * ========================================================
+             *
+             * Include the activity when its schedule dates overlap
+             * the current PSR reporting period.
+             *
+             * Status does NOT determine inclusion.
+             */
+            if (isActivityInPeriod(
+                    breakdown,
+                    period
+            )) {
+
+                activitiesPerformed.add(
+                        activity
                 );
-    }
-    
-    private String getRiskStatus() {
+            }
 
-        // Fixed value will be supplied from the PSR template.
-        return null;
-    }
-    
-    private boolean isWithinNext15Days(LocalDate plannedStartDate) {
+            /*
+             * ========================================================
+             * NEXT PSR PERIOD
+             * ========================================================
+             *
+             * Include all activities belonging to the next
+             * 15-working-day reporting period.
+             *
+             * We do NOT require "Not Started".
+             */
+            if (nextPeriod != null
+                    && isActivityInPeriod(
+                            breakdown,
+                            nextPeriod
+                    )) {
 
-        if (plannedStartDate == null) {
+                nextWeekPlannedActivities.add(
+                        activity
+                );
+            }
+        }
+
+        /*
+         * ============================================================
+         * RETURN PSR CONTENT
+         * ============================================================
+         */
+        return new PsrContentDto(
+                activitiesPerformed,
+                nextWeekPlannedActivities,
+                getRiskStatus(),
+                "",
+                "",
+                period.startDate().toString(),
+                period.endDate().toString(),
+                LocalDate.now().toString()
+        );
+    }
+
+    /*
+     * ================================================================
+     * CHECK WHETHER ACTIVITY BELONGS TO A PSR PERIOD
+     * ================================================================
+     *
+     * Planned dates are preferred because the Project Schedule is
+     * the source of truth.
+     *
+     * Actual dates are used only when planned dates are unavailable.
+     */
+    private boolean isActivityInPeriod(
+            ProjectScheduleTaskBreakdown breakdown,
+            PsrPeriod period
+    ) {
+
+        if (period == null) {
             return false;
         }
 
-        LocalDate today = LocalDate.now();
-        LocalDate endDate = today.plusDays(15);
+        LocalDate plannedStart =
+                breakdown.getPlannedStartDate();
 
-        return !plannedStartDate.isBefore(today)
-                && !plannedStartDate.isAfter(endDate);
+        LocalDate plannedEnd =
+                breakdown.getPlannedEndDate();
+
+        LocalDate actualStart =
+                breakdown.getActualStartDate();
+
+        LocalDate actualEnd =
+                breakdown.getActualEndDate();
+
+        /*
+         * Use planned schedule dates whenever available.
+         */
+        if (plannedStart != null || plannedEnd != null) {
+
+            return datesOverlap(
+                    plannedStart,
+                    plannedEnd,
+                    period.startDate(),
+                    period.endDate()
+            );
+        }
+
+        /*
+         * Fallback to actual dates.
+         */
+        if (actualStart != null || actualEnd != null) {
+
+            return datesOverlap(
+                    actualStart,
+                    actualEnd,
+                    period.startDate(),
+                    period.endDate()
+            );
+        }
+
+        return false;
     }
-    
-    public ProjectSchedule getScheduleForPsr(Long opportunityId) {
+
+    /*
+     * ================================================================
+     * DATE OVERLAP
+     * ================================================================
+     */
+    private boolean datesOverlap(
+            LocalDate activityStart,
+            LocalDate activityEnd,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    ) {
+
+        LocalDate start =
+                activityStart != null
+                        ? activityStart
+                        : activityEnd;
+
+        LocalDate end =
+                activityEnd != null
+                        ? activityEnd
+                        : activityStart;
+
+        if (start == null || end == null) {
+            return false;
+        }
+
+        return !end.isBefore(periodStart)
+                && !start.isAfter(periodEnd);
+    }
+
+    /*
+     * ================================================================
+     * RISK STATUS
+     * ================================================================
+     *
+     * The fixed Risk Status table is already supplied by the
+     * Gemini prompt, so this remains null.
+     */
+    private String getRiskStatus() {
+        return null;
+    }
+
+    /*
+     * ================================================================
+     * DATE → STRING
+     * ================================================================
+     */
+    private String toString(
+            LocalDate date
+    ) {
+
+        return date != null
+                ? date.toString()
+                : null;
+    }
+
+    /*
+     * ================================================================
+     * SCHEDULE ACCESS FOR PSR
+     * ================================================================
+     */
+    public ProjectSchedule getScheduleForPsr(
+            Long opportunityId
+    ) {
 
         return projectScheduleRepository
-        		.findByOpportunityIdWithTasks(
-                        opportunityId
-                )
+                .findByOpportunityIdWithTasks(opportunityId)
                 .orElseThrow(() ->
                         new IllegalStateException(
                                 "Project schedule not found for opportunity: "

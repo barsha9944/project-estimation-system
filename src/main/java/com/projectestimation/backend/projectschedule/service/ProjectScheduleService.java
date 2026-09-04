@@ -5,19 +5,19 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
@@ -50,12 +50,12 @@ import com.projectestimation.backend.projectschedule.repository.ProjectScheduleR
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskBreakdownRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
-import com.projectestimation.backend.psr.dto.PsrActivityDto;
-import com.projectestimation.backend.psr.model.ProjectStatusReport;
-import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
 import com.projectestimation.backend.psr.dto.PsrResponse;
 import com.projectestimation.backend.psr.model.ProjectStatusReport;
 import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
+import com.projectestimation.backend.psr.service.PsrPeriod;
+import com.projectestimation.backend.psr.service.PsrPeriodCalculator;
+import com.projectestimation.backend.psr.service.PsrService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -89,11 +89,13 @@ public class ProjectScheduleService {
 
 	private final ProjectStatusReportRepository projectStatusReportRepository;
 	
-	
+	private final ApplicationEventPublisher applicationEventPublisher;
 
 	private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
 
-	private final ObjectMapper objectMapper;
+	private final PsrService psrService;
+
+	private final PsrPeriodCalculator psrPeriodCalculator;
 
 	public ProjectScheduleResponse generateProjectSchedule(
 
@@ -159,7 +161,16 @@ public class ProjectScheduleService {
 
 	) {
 
-		ProjectSchedule schedule = projectScheduleRepository.findByOpportunityId(opportunityId).orElse(null);
+		ProjectSchedule schedule =
+		        projectScheduleRepository
+		                .findByOpportunityId(opportunityId)
+		                .orElse(null);
+
+		Set<Integer> affectedPsrVersions =
+		        determineAffectedPsrVersions(
+		                request,
+		                schedule
+		        );
 
 		if (schedule == null) {
 
@@ -353,6 +364,24 @@ public class ProjectScheduleService {
 
 		}
 
+		// Schedule persistence is the PSR trigger. The PSR service derives the
+		// period from projectStartDate and refreshes its one report for that period.
+		projectScheduleRepository.flush();
+
+		System.out.println(
+			    "PSR EVENT PUBLISHED -> opportunityId="
+			    + opportunityId
+			    + ", affectedVersions="
+			    + affectedPsrVersions
+			);
+		
+		applicationEventPublisher.publishEvent(
+		        new ProjectScheduleSavedEvent(
+		                opportunityId,
+		                affectedPsrVersions
+		        )
+		);
+
 	}
 
 	public ResponseEntity<byte[]> downloadProjectSchedule(
@@ -380,125 +409,174 @@ public class ProjectScheduleService {
 	}
 
 	@Transactional(readOnly = true)
-	public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
+public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 
-		ProjectSchedule schedule = projectScheduleRepository.findByOpportunityIdWithTasks(opportunityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Project schedule not found."));
+    ProjectSchedule schedule =
+            projectScheduleRepository.findByOpportunityIdWithTasks(opportunityId)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Project schedule not found."
+                            )
+                    );
 
-		ProjectScheduleResponse response = new ProjectScheduleResponse();
+    ProjectScheduleResponse response =
+            new ProjectScheduleResponse();
 
-		response.setDurationDays(schedule.getDurationDays());
-		response.setTotalTasks(schedule.getTotalTasks());
-		response.setCompletedTasks(schedule.getCompletedTasks());
-		response.setCriticalTasks(schedule.getCriticalTasks());
-		response.setEstimatedHours(schedule.getEstimatedHours());
-		response.setBufferPercentage(schedule.getBufferPercentage());
-		response.setProjectStartDate(schedule.getProjectStartDate());
-		response.setProjectEndDate(schedule.getProjectEndDate());
-		response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
-		response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
-		response.setTeamSize(schedule.getTeamSize());
-		
-		ProjectStatusReport psr =
-		        projectStatusReportRepository
-		                .findTopByOpportunityIdOrderByGeneratedAtDesc(opportunityId)
-		                .orElse(null);
+    response.setDurationDays(schedule.getDurationDays());
+    response.setTotalTasks(schedule.getTotalTasks());
+    response.setCompletedTasks(schedule.getCompletedTasks());
+    response.setCriticalTasks(schedule.getCriticalTasks());
+    response.setEstimatedHours(schedule.getEstimatedHours());
+    response.setBufferPercentage(schedule.getBufferPercentage());
+    response.setProjectStartDate(schedule.getProjectStartDate());
+    response.setProjectEndDate(schedule.getProjectEndDate());
+    response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
+    response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
+    response.setTeamSize(schedule.getTeamSize());
 
-		if (psr != null) {
+    /*
+     * Calculate all PSR periods for this project.
+     */
+    List<PsrPeriod> psrPeriods =
+            psrPeriodCalculator.calculatePeriods(
+                    schedule.getProjectStartDate(),
+                    schedule.getProjectEndDate()
+            );
 
-		    PsrResponse psrResponse = new PsrResponse(
-		            psr.getId(),
-		            psr.getFileName(),
-		            psr.getFileLocation(),
-		            psr.getGeneratedAt(),
-		            "GENERATED",
-		            psr.getMarkdownContent()
-		    );
+    /*
+     * Find the PSR belonging to the current 15-working-day period.
+     */
+    PsrPeriod currentPeriod =
+            psrPeriodCalculator.findPeriodForDate(
+                    psrPeriods,
+                    LocalDate.now()
+            );
 
-		    response.setPsr(psrResponse);
-		}
+    if (currentPeriod != null) {
 
-		List<ProjectStatusReport> psrReports = projectStatusReportRepository
-				.findByOpportunityIdOrderByGeneratedAtAsc(opportunityId);
+        ProjectStatusReport currentPsr =
+                projectStatusReportRepository
+                        .findByOpportunityIdAndVersion(
+                                opportunityId,
+                                currentPeriod.version()
+                        )
+                        .orElse(null);
 
-		Map<Long, ProjectStatusReport> breakdownPsrMap = new HashMap<>();
+        if (currentPsr != null) {
 
-		for (ProjectStatusReport report : psrReports) {
+            PsrResponse psrResponse =
+                    new PsrResponse(
+                            currentPsr.getId(),
+                            currentPsr.getFileName(),
+                            currentPsr.getFileLocation(),
+                            currentPsr.getGeneratedAt(),
+                            "GENERATED",
+                            currentPsr.getMarkdownContent()
+                    );
 
-			if (report.getAssociatedBreakdownIds() == null || report.getAssociatedBreakdownIds().isBlank()) {
-				continue;
-			}
+            response.setPsr(psrResponse);
+        }
+    }
 
-			try {
+    List<ProjectScheduleTask> sortedTasks =
+            schedule.getTasks().stream()
+                    .sorted(
+                            Comparator.comparing(
+                                    t -> t.getSequence() != null
+                                            ? t.getSequence()
+                                            : Integer.MAX_VALUE
+                            )
+                    )
+                    .toList();
 
-				List<Long> breakdownIds = objectMapper.readValue(report.getAssociatedBreakdownIds(),
-						new TypeReference<List<Long>>() {
-						});
+    List<ProjectScheduleTaskResponse> tasks =
+            new ArrayList<>();
 
-				for (Long breakdownId : breakdownIds) {
-					breakdownPsrMap.put(breakdownId, report);
-				}
+    for (ProjectScheduleTask task : sortedTasks) {
 
-			} catch (Exception ex) {
+        ProjectScheduleTaskResponse taskResponse =
+                mapTaskResponse(task);
 
-				log.error("Failed to parse associated breakdown IDs for PSR {}", report.getId(), ex);
+        List<ProjectScheduleTaskBreakdown> sortedBreakdowns =
+                task.getTaskBreakdowns().stream()
+                        .sorted(
+                                Comparator.comparing(
+                                        b -> b.getId() != null
+                                                ? b.getId()
+                                                : Long.MAX_VALUE
+                                )
+                        )
+                        .toList();
 
-				throw new IllegalStateException("Failed to parse PSR associated breakdown IDs", ex);
-			}
-		}
-		List<ProjectScheduleTask> sortedTasks = schedule.getTasks().stream()
-				.sorted(Comparator.comparing(t -> t.getSequence() != null ? t.getSequence() : Integer.MAX_VALUE))
-				.toList();
+        List<TaskBreakdownResponse> breakdownResponses =
+                new ArrayList<>();
 
-		// 1. Build flat list of breakdowns and map (sequence + activityType) to flat
-		// index
-		Map<String, Integer> keyToFlatIndex = new HashMap<>();
-		int flatIdx = 0;
-		for (ProjectScheduleTask task : sortedTasks) {
-			List<ProjectScheduleTaskBreakdown> sortedBreakdowns = task.getTaskBreakdowns().stream()
-					.sorted(Comparator.comparing(b -> b.getId() != null ? b.getId() : Long.MAX_VALUE)).toList();
-			for (ProjectScheduleTaskBreakdown breakdown : sortedBreakdowns) {
-				keyToFlatIndex.put(buildPsrKey(task.getSequence(), breakdown.getActivityName()), flatIdx++);
-			}
-		}
+        for (ProjectScheduleTaskBreakdown breakdown :
+                sortedBreakdowns) {
 
-		// 3. Apply PSR logic based on genPoint boundaries
-		List<ProjectScheduleTaskResponse> tasks = new ArrayList<>();
+            TaskBreakdownResponse br =
+                    mapTaskBreakdownResponse(breakdown);
 
-		for (ProjectScheduleTask task : sortedTasks) {
-			ProjectScheduleTaskResponse taskResponse = mapTaskResponse(task);
+            /*
+             * Determine which PSR period this breakdown belongs to.
+             */
+            LocalDate breakdownDate =
+                    breakdown.getPlannedStartDate();
 
-			List<ProjectScheduleTaskBreakdown> sortedBreakdowns = task.getTaskBreakdowns().stream()
-					.sorted(Comparator.comparing(b -> b.getId() != null ? b.getId() : Long.MAX_VALUE)).toList();
+            if (breakdownDate == null) {
+                breakdownDate =
+                        breakdown.getActualStartDate();
+            }
 
-			List<TaskBreakdownResponse> breakdownResponses = new ArrayList<>();
-			for (ProjectScheduleTaskBreakdown breakdown : sortedBreakdowns) {
+            if (breakdownDate != null) {
 
-				TaskBreakdownResponse br = mapTaskBreakdownResponse(breakdown);
+                PsrPeriod breakdownPeriod =
+                        psrPeriodCalculator.findPeriodForDate(
+                                psrPeriods,
+                                breakdownDate
+                        );
 
-				ProjectStatusReport assignedReport = breakdownPsrMap.get(breakdown.getId());
+                if (breakdownPeriod != null) {
 
-				if (assignedReport != null) {
+                    ProjectStatusReport assignedReport =
+                            projectStatusReportRepository
+                                    .findByOpportunityIdAndVersion(
+                                            opportunityId,
+                                            breakdownPeriod.version()
+                                    )
+                                    .orElse(null);
 
-					br.setPsrFileName(assignedReport.getFileName());
+                    if (assignedReport != null) {
 
-					br.setPsrFileLocation(assignedReport.getFileLocation());
+                        br.setPsrFileName(
+                                assignedReport.getFileName()
+                        );
 
-					br.setPsrMarkdown(assignedReport.getMarkdownContent());
-				}
+                        br.setPsrFileLocation(
+                                assignedReport.getFileLocation()
+                        );
 
-				breakdownResponses.add(br);
-			}
+                        br.setPsrMarkdown(
+                                assignedReport.getMarkdownContent()
+                        );
+                    }
+                }
+            }
 
-			taskResponse.setTaskBreakdowns(breakdownResponses);
-			tasks.add(taskResponse);
-		}
+            breakdownResponses.add(br);
+        }
 
-		response.setTasks(tasks);
+        taskResponse.setTaskBreakdowns(
+                breakdownResponses
+        );
 
-		return response;
+        tasks.add(taskResponse);
+    }
 
-	}
+    response.setTasks(tasks);
+
+    return response;
+}
 
 	private ProjectScheduleTaskResponse mapTaskResponse(ProjectScheduleTask task) {
 
@@ -580,6 +658,269 @@ public class ProjectScheduleService {
 		return true;
 	}
 
+	private Set<Integer> determineAffectedPsrVersions(
+        SaveProjectScheduleRequest request,
+        ProjectSchedule existingSchedule
+) {
+
+    Set<Integer> affectedVersions =
+            new HashSet<>();
+
+    /*
+     * ============================================================
+     * OLD SCHEDULE
+     * ============================================================
+     *
+     * If a schedule already exists, collect the PSR periods
+     * represented by the OLD schedule.
+     *
+     * This is required when an activity is moved from one PSR
+     * period to another or removed from a period.
+     */
+    if (existingSchedule != null
+            && existingSchedule.getProjectStartDate() != null
+            && existingSchedule.getProjectEndDate() != null) {
+
+        List<PsrPeriod> oldPeriods =
+                psrPeriodCalculator.calculatePeriods(
+                        existingSchedule.getProjectStartDate(),
+                        existingSchedule.getProjectEndDate()
+                );
+
+        /*
+         * Mark periods containing existing schedule activities.
+         */
+        if (existingSchedule.getTasks() != null) {
+
+            for (ProjectScheduleTask task :
+                    existingSchedule.getTasks()) {
+
+                /*
+                 * Task-level dates.
+                 */
+                addAffectedPeriodForDate(
+                        affectedVersions,
+                        oldPeriods,
+                        task.getPlannedStartDate()
+                );
+
+                addAffectedPeriodForDate(
+                        affectedVersions,
+                        oldPeriods,
+                        task.getActualStartDate()
+                );
+
+                /*
+                 * Breakdown-level dates.
+                 *
+                 * We only inspect the already-existing in-memory
+                 * breakdown collection here. We are NOT replacing it.
+                 */
+                if (task.getTaskBreakdowns() != null) {
+
+                    for (ProjectScheduleTaskBreakdown breakdown :
+                            task.getTaskBreakdowns()) {
+
+                        addAffectedPeriodForDates(
+                                affectedVersions,
+                                oldPeriods,
+                                breakdown.getPlannedStartDate(),
+                                breakdown.getPlannedEndDate(),
+                                breakdown.getActualStartDate(),
+                                breakdown.getActualEndDate()
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+     * ============================================================
+     * NEW SCHEDULE
+     * ============================================================
+     *
+     * Now calculate the periods represented by the NEW request.
+     */
+    List<PsrPeriod> newPeriods =
+            psrPeriodCalculator.calculatePeriods(
+                    request.getProjectStartDate(),
+                    request.getProjectEndDate()
+            );
+
+    /*
+     * If there are no tasks, the schedule-period change itself
+     * still needs synchronization.
+     *
+     * Mark all new periods.
+     */
+    if (request.getTasks() == null) {
+
+        for (PsrPeriod period : newPeriods) {
+
+            affectedVersions.add(
+                    period.version()
+            );
+        }
+
+        return affectedVersions;
+    }
+
+    /*
+     * ============================================================
+     * TASKS + BREAKDOWNS FROM NEW REQUEST
+     * ============================================================
+     */
+    for (SaveProjectScheduleTaskRequest taskRequest :
+            request.getTasks()) {
+
+        /*
+         * --------------------------------------------------------
+         * TASK-LEVEL DATES
+         * --------------------------------------------------------
+         */
+        addAffectedPeriodForDate(
+                affectedVersions,
+                newPeriods,
+                taskRequest.getPlannedStartDate()
+        );
+
+        addAffectedPeriodForDate(
+                affectedVersions,
+                newPeriods,
+                taskRequest.getActualStartDate()
+        );
+
+        /*
+         * --------------------------------------------------------
+         * BREAKDOWN-LEVEL DATES
+         * --------------------------------------------------------
+         */
+        if (taskRequest.getTaskBreakdowns() == null) {
+            continue;
+        }
+
+        for (SaveTaskBreakdownRequest breakdownRequest :
+                taskRequest.getTaskBreakdowns()) {
+
+            addAffectedPeriodForDates(
+                    affectedVersions,
+                    newPeriods,
+                    breakdownRequest.getPlannedStartDate(),
+                    breakdownRequest.getPlannedEndDate(),
+                    breakdownRequest.getActualStartDate(),
+                    breakdownRequest.getActualEndDate()
+            );
+        }
+    }
+
+    return affectedVersions;
+}
+	
+	private void addAffectedPeriodForDate(
+	        Set<Integer> affectedVersions,
+	        List<PsrPeriod> periods,
+	        LocalDate date
+	) {
+
+	    if (date == null) {
+	        return;
+	    }
+
+	    PsrPeriod period =
+	            psrPeriodCalculator.findPeriodForDate(
+	                    periods,
+	                    date
+	            );
+
+	    if (period != null) {
+
+	        affectedVersions.add(
+	                period.version()
+	        );
+	    }
+	}
+	
+	private void addAffectedPeriodForDates(
+	        Set<Integer> affectedVersions,
+	        List<PsrPeriod> periods,
+	        LocalDate plannedStart,
+	        LocalDate plannedEnd,
+	        LocalDate actualStart,
+	        LocalDate actualEnd
+	) {
+
+	    /*
+	     * Prefer planned dates.
+	     */
+	    LocalDate start =
+	            plannedStart != null
+	                    ? plannedStart
+	                    : actualStart;
+
+	    LocalDate end =
+	            plannedEnd != null
+	                    ? plannedEnd
+	                    : actualEnd;
+
+	    /*
+	     * If only one date exists, that single date determines
+	     * the PSR period.
+	     */
+	    if (start == null && end == null) {
+	        return;
+	    }
+
+	    if (start == null) {
+	        start = end;
+	    }
+
+	    if (end == null) {
+	        end = start;
+	    }
+
+	    /*
+	     * An activity can span multiple PSR periods.
+	     *
+	     * Mark every period it overlaps.
+	     */
+	    for (PsrPeriod period : periods) {
+
+	        if (!end.isBefore(period.startDate())
+	                && !start.isAfter(period.endDate())) {
+
+	            affectedVersions.add(
+	                    period.version()
+	            );
+	        }
+	    }
+	}
+	
+	private boolean datesOverlap(
+	        LocalDate activityStart,
+	        LocalDate activityEnd,
+	        LocalDate periodStart,
+	        LocalDate periodEnd
+	) {
+
+	    LocalDate start =
+	            activityStart != null
+	                    ? activityStart
+	                    : activityEnd;
+
+	    LocalDate end =
+	            activityEnd != null
+	                    ? activityEnd
+	                    : activityStart;
+
+	    if (start == null || end == null) {
+	        return false;
+	    }
+
+	    return !end.isBefore(periodStart)
+	            && !start.isAfter(periodEnd);
+	}
+	
 	private void deleteExistingProjectMetrics(Long opportunityId) {
 
 		ProjectMetrics metrics = projectMetricsRepository.findByOpportunityId(opportunityId).orElse(null);
@@ -597,67 +938,4 @@ public class ProjectScheduleService {
 		projectMetricsRepository.deleteByOpportunityId(opportunityId);
 	}
 
-	private Map<String, PsrBreakdownInfo> buildBreakdownPsrMap(List<ProjectStatusReport> psrReports) {
-
-		Map<String, PsrBreakdownInfo> psrMap = new HashMap<>();
-
-		for (ProjectStatusReport report : psrReports) {
-
-			addPsrActivitiesToMap(report, report.getActivitiesPerformed(), psrMap);
-
-			addPsrActivitiesToMap(report, report.getNextWeekPlannedActivities(), psrMap);
-		}
-
-		return psrMap;
-	}
-
-	private void addPsrActivitiesToMap(ProjectStatusReport report, String activitiesJson,
-			Map<String, PsrBreakdownInfo> psrMap) {
-
-		if (activitiesJson == null || activitiesJson.isBlank()) {
-			return;
-		}
-
-		try {
-
-			List<PsrActivityDto> activities = objectMapper.readValue(activitiesJson,
-					new TypeReference<List<PsrActivityDto>>() {
-					});
-
-			for (PsrActivityDto activity : activities) {
-
-				String key = buildPsrKey(activity.getSequence(), activity.getActivityName());
-
-				psrMap.put(key, new PsrBreakdownInfo(report.getFileName(), report.getMarkdownContent()));
-			}
-
-		} catch (Exception ex) {
-
-			throw new IllegalStateException("Failed to parse PSR activity data", ex);
-		}
-	}
-
-	private static class PsrBreakdownInfo {
-
-		private final String fileName;
-		private final String markdownContent;
-
-		public PsrBreakdownInfo(String fileName, String markdownContent) {
-			this.fileName = fileName;
-			this.markdownContent = markdownContent;
-		}
-
-		public String getFileName() {
-			return fileName;
-		}
-
-		public String getMarkdownContent() {
-			return markdownContent;
-		}
-	}
-
-	private String buildPsrKey(Integer sequence, String activityName) {
-
-		return String.valueOf(sequence) + "|" + (activityName == null ? "" : activityName.trim().toLowerCase());
-	}
 }

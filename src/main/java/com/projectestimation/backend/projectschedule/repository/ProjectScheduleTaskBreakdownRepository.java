@@ -4,9 +4,12 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
+
+import jakarta.persistence.QueryHint;
 
 public interface ProjectScheduleTaskBreakdownRepository
         extends JpaRepository<ProjectScheduleTaskBreakdown, Long> {
@@ -14,6 +17,10 @@ public interface ProjectScheduleTaskBreakdownRepository
     List<ProjectScheduleTaskBreakdown> findByProjectScheduleTaskProjectScheduleOpportunityId(
             Long opportunityId);
     
+    
+    @QueryHints({
+        @QueryHint(name = "jakarta.persistence.cache.retrieveMode", value = "BYPASS")
+    })
     @Query("""
     	    SELECT b
     	    FROM ProjectScheduleTaskBreakdown b
