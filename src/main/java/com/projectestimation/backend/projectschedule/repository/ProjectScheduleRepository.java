@@ -23,16 +23,5 @@ public interface ProjectScheduleRepository
     	        @Param("opportunityId") Long opportunityId
     	);
 
-    @Query("""
-    	    SELECT DISTINCT ps
-    	    FROM ProjectSchedule ps
-    	    LEFT JOIN FETCH ps.tasks t
-    	    LEFT JOIN FETCH t.taskBreakdowns
-    	    WHERE ps.opportunity.id = :opportunityId
-    	""")
-    	Optional<ProjectSchedule> findByOpportunityIdWithTasksAndBreakdowns(
-    	        @Param("opportunityId") Long opportunityId
-    	);
-    
     boolean existsByOpportunityId(Long opportunityId);
 }

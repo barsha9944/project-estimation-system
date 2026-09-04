@@ -35,26 +35,33 @@ public class GeminiPsrPromptBuilder {
                 1. Do NOT return JSON.
                 2. Do NOT return explanations.
                 3. Do NOT wrap the response in markdown code fences.
-                4. Do NOT invent activities, tasks, statuses, risks or other
-                   project information.
-                5. Use ONLY the information supplied in this prompt.
-                6. Preserve the supplied activity sequence, task name,
-                   activity name and status.
-                7. Activities during the Period must contain ONLY the
-                   activities supplied under ACTIVITIES PERFORMED.
-                8. Next 15 Days Planned Activities must contain ONLY the
-        		   activities supplied under NEXT 15 DAYS PLANNED ACTIVITIES.
-                9. Risk Status must use the fixed Risk Status table supplied
+                4. Do NOT invent activities, tasks, statuses, dates,
+                   progress, risks or other project information.
+                5. The Project Schedule supplied below is the ONLY source
+                   of project schedule information.
+                6. Every activity supplied under ACTIVITIES DURING THE PERIOD
+                   MUST appear in the Activities during the Period table.
+                7. Every activity supplied under NEXT 15 DAYS PLANNED
+                   ACTIVITIES MUST appear in the Next 15 Days Planned
+                   Activities table.
+                8. Do NOT remove an activity because of its status.
+                9. Do NOT change an activity's task name, activity name,
+                   status, progress, duration or dates.
+                10. Do NOT merge multiple supplied activities into one row.
+                11. Do NOT split one supplied activity into multiple rows.
+                12. Preserve the supplied activity order.
+                13. Do NOT invent values for blank fields.
+                14. Risk Status must use the fixed Risk Status table supplied
                    in this prompt.
-                10. Training of Project Team Members must always be present
-                    as the specified blank table.
-                11. Issues Which Need Management Attention must always be
-                    present as a blank section.
-                12. Nothing must appear after Issues Which Need Management
-                    Attention.
-                13. Do NOT create an additional Project Name section.
-                14. Do NOT change the order of the PSR sections.
-                15. Do NOT add any section that is not explicitly requested.
+                15. Training of Project Team Members must always be present
+                   as the specified blank table.
+                16. Issues Which Need Management Attention must always be
+                   present as a blank section.
+                17. Nothing must appear after Issues Which Need Management
+                   Attention.
+                18. Do NOT create an additional Project Name section.
+                19. Do NOT change the order of the PSR sections.
+                20. Do NOT add any section that is not explicitly requested.
 
                 ============================================================
                 OUTPUT FORMAT
@@ -85,7 +92,7 @@ public class GeminiPsrPromptBuilder {
                 Project Status Report
                 (BEAS/PM/Frm/01 Version X.0)
 
-                Reported by: Manas Chattapadhay
+                Reported by:
 
                 Project Code:
 
@@ -126,9 +133,7 @@ public class GeminiPsrPromptBuilder {
         prompt.append("Project Status Report\n");
 
         prompt.append("(BEAS/PM/Frm/01 Version ");
-
         prompt.append(psrVersion);
-
         prompt.append(".0)\n\n");
 
         // ------------------------------------------------------------
@@ -184,7 +189,6 @@ public class GeminiPsrPromptBuilder {
         // ------------------------------------------------------------
 
         prompt.append("Periodicity:\n");
-
         prompt.append("15 days\n\n");
 
         // ------------------------------------------------------------
@@ -210,12 +214,25 @@ public class GeminiPsrPromptBuilder {
                 ACTIVITIES DURING THE PERIOD
                 ============================================================
 
-                Create the Activities during the Period section using a
-                Markdown table.
+                The following activities come directly from the Project
+                Schedule for this PSR reporting period.
 
-                Do NOT invent activities.
+                They are authoritative project data.
 
-                Use ONLY the activities supplied below.
+                Every supplied activity MUST appear in the table.
+
+                Do NOT filter by status.
+
+                Do NOT remove pending or not-started activities.
+
+                Do NOT invent missing information.
+
+                Use the exact supplied task name and supplied status.
+
+                Create this Markdown table:
+
+                | Project Task | Completed | In progressing | Pending | % | Expected planned date | Actual finished date |
+                |---|---|---|---|---:|---|---|
 
                 """);
 
@@ -224,31 +241,42 @@ public class GeminiPsrPromptBuilder {
                 content.getActivitiesPerformed()
         );
 
-     // ============================================================
-     // NEXT 15 DAYS PLANNED ACTIVITIES
-     // ============================================================
+        // ============================================================
+        // NEXT 15 DAYS PLANNED ACTIVITIES
+        // ============================================================
 
-     prompt.append("""
-             ============================================================
-             NEXT 15 DAYS PLANNED ACTIVITIES
-             ============================================================
+        prompt.append("""
+                ============================================================
+                NEXT 15 DAYS PLANNED ACTIVITIES
+                ============================================================
 
-             Create the Next 15 Days Planned Activities section using
-             the following Markdown table structure.
+                The following activities come directly from the Project
+                Schedule for the next PSR reporting period.
 
-             | Sl. no. | Activity | Planned Duration (W/Days) | Planned Start | Planned Finish |
-             |---:|---|---|---|---|
+                They are authoritative project data.
 
-             Do NOT invent activities.
+                Every supplied activity MUST appear in the table.
 
-             Use ONLY the supplied next 15 days activities.
+                Do NOT filter by status.
 
-             """);
+                Do NOT remove an activity because it is already marked
+                In Progress or Completed.
 
-     appendNext15DaysActivities(
-             prompt,
-             content.getNextWeekPlannedActivities()
-     );
+                Do NOT invent missing information.
+
+                Use the supplied activity name, duration and dates exactly.
+
+                Create this Markdown table:
+
+                | Sl. no. | Activity | Planned Duration (W/Days) | Planned Start | Planned Finish |
+                |---:|---|---|---|---|
+
+                """);
+
+        appendNext15DaysActivities(
+                prompt,
+                content.getNextWeekPlannedActivities()
+        );
 
         // ============================================================
         // RISK STATUS
@@ -331,9 +359,8 @@ public class GeminiPsrPromptBuilder {
         return prompt.toString();
     }
 
-
     // ============================================================
-    // ACTIVITIES PERFORMED
+    // ACTIVITIES DURING THE PERIOD
     // ============================================================
 
     private void appendActivities(
@@ -372,7 +399,7 @@ public class GeminiPsrPromptBuilder {
             String pending = "";
 
             // ========================================================
-            // COMPLETED
+            // STATUS → CHECKMARK
             // ========================================================
 
             if (
@@ -382,26 +409,17 @@ public class GeminiPsrPromptBuilder {
             ) {
 
                 completed = "✓";
-            }
 
-            // ========================================================
-            // IN PROGRESS
-            // ========================================================
-
-            else if (
+            } else if (
                     "In Progress".equalsIgnoreCase(status)
                     || "In Progressing".equalsIgnoreCase(status)
                     || "In-Progress".equalsIgnoreCase(status)
+                    || "InProgress".equalsIgnoreCase(status)
             ) {
 
                 inProgress = "✓";
-            }
 
-            // ========================================================
-            // PENDING / NOT STARTED
-            // ========================================================
-
-            else if (
+            } else if (
                     "Pending".equalsIgnoreCase(status)
                     || "Not Started".equalsIgnoreCase(status)
             ) {
@@ -414,7 +432,7 @@ public class GeminiPsrPromptBuilder {
             prompt.append(
                     escapeMarkdown(
                             safe(
-                                    activity.getTaskName()
+                                    activity.getTaskName() + " - " + activity.getActivityName()
                             )
                     )
             );
@@ -466,87 +484,87 @@ public class GeminiPsrPromptBuilder {
         prompt.append("\n");
     }
 
-
     // ============================================================
-// NEXT 15 DAYS PLANNED ACTIVITIES
-// ============================================================
+    // NEXT 15 DAYS PLANNED ACTIVITIES
+    // ============================================================
 
-private void appendNext15DaysActivities(
-        StringBuilder prompt,
-        List<PsrActivityDto> activities
-) {
-
-    prompt.append("""
-            ## Next 15 Days Planned Activities
-
-            | Sl. no. | Activity | Planned Duration (W/Days) | Planned Start | Planned Finish |
-            |---:|---|---|---|---|
-            """);
-
-    if (
-            activities == null
-            || activities.isEmpty()
+    private void appendNext15DaysActivities(
+            StringBuilder prompt,
+            List<PsrActivityDto> activities
     ) {
 
-        prompt.append(
-                "| | | | | |\n\n"
-        );
+        prompt.append("""
+                ## Next 15 Days Planned Activities
 
-        return;
+                | Sl. no. | Activity | Planned Duration (W/Days) | Planned Start | Planned Finish |
+                |---:|---|---|---|---|
+                """);
+
+        if (
+                activities == null
+                || activities.isEmpty()
+        ) {
+
+            prompt.append(
+                    "| | | | | |\n\n"
+            );
+
+            return;
+        }
+
+        int serialNumber = 1;
+
+        for (PsrActivityDto activity : activities) {
+
+            prompt.append("| ");
+
+            prompt.append(
+                    serialNumber++
+            );
+
+            prompt.append(" | ");
+
+            prompt.append(
+                    escapeMarkdown(
+                            safe(
+                                    activity.getTaskName() + " - " + activity.getActivityName()
+                            )
+                    )
+            );
+
+            prompt.append(" | ");
+
+            prompt.append(
+                    activity.getDuration() != null
+                            ? activity.getDuration()
+                            : ""
+            );
+
+            prompt.append(" | ");
+
+            prompt.append(
+                    escapeMarkdown(
+                            safe(
+                                    activity.getPlannedStartDate()
+                            )
+                    )
+            );
+
+            prompt.append(" | ");
+
+            prompt.append(
+                    escapeMarkdown(
+                            safe(
+                                    activity.getPlannedEndDate()
+                            )
+                    )
+            );
+
+            prompt.append(" |\n");
+        }
+
+        prompt.append("\n");
     }
-
-    int serialNumber = 1;
-
-    for (PsrActivityDto activity : activities) {
-
-        prompt.append("| ");
-
-        prompt.append(serialNumber++);
-
-        prompt.append(" | ");
-
-        prompt.append(
-                escapeMarkdown(
-                        safe(
-                                activity.getActivityName()
-                        )
-                )
-        );
-
-        prompt.append(" | ");
-
-        prompt.append(
-                activity.getDuration() != null
-                        ? activity.getDuration()
-                        : ""
-        );
-
-        prompt.append(" | ");
-
-        prompt.append(
-                escapeMarkdown(
-                        safe(
-                                activity.getPlannedStartDate()
-                        )
-                )
-        );
-
-        prompt.append(" | ");
-
-        prompt.append(
-                escapeMarkdown(
-                        safe(
-                                activity.getPlannedEndDate()
-                        )
-                )
-        );
-
-        prompt.append(" |\n");
-    }
-
-    prompt.append("\n");
-}
-
 
     // ============================================================
     // DATE FORMATTER
@@ -580,7 +598,6 @@ private void appendNext15DaysActivities(
         }
     }
 
-
     // ============================================================
     // SAFE STRING
     // ============================================================
@@ -594,7 +611,6 @@ private void appendNext15DaysActivities(
                 : value;
     }
 
-
     // ============================================================
     // MARKDOWN ESCAPE
     // ============================================================
@@ -604,7 +620,6 @@ private void appendNext15DaysActivities(
     ) {
 
         if (value == null) {
-
             return "";
         }
 
