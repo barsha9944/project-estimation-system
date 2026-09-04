@@ -28,7 +28,7 @@ public class TestCaseStep {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String expectedResult;
-    
+
     @Column(columnDefinition = "TEXT")
     private String actualResult;
 

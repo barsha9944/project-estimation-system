@@ -11,230 +11,409 @@ import com.projectestimation.backend.opportunity.model.Opportunity;
 @Service
 public class GeminiTestCaseOrchestrator {
 
-	private final GeminiClient geminiClient;
+    private final GeminiClient geminiClient;
 
-	public GeminiTestCaseOrchestrator(GeminiClient geminiClient) {
-		this.geminiClient = geminiClient;
-	}
+    public GeminiTestCaseOrchestrator(
+            GeminiClient geminiClient
+    ) {
+        this.geminiClient = geminiClient;
+    }
 
-	public String generate(Opportunity opportunity, List<EstimationUseCase> useCases) {
+    public String generate(
+            Opportunity opportunity,
+            List<EstimationUseCase> useCases
+    ) {
 
-		String prompt = buildPrompt(opportunity, useCases);
+        String prompt = buildPrompt(opportunity, useCases);
 
-		return geminiClient.generateJsonContent(prompt, 8192);
-	}
+        return geminiClient.generateJsonContent(
+                prompt,
+                8192
+        );
+    }
 
-	private String buildPrompt(Opportunity opportunity, List<EstimationUseCase> useCases) {
+    private String buildPrompt(
+            Opportunity opportunity,
+            List<EstimationUseCase> useCases
+    ) {
 
-		StringBuilder useCaseContext = new StringBuilder();
+        StringBuilder useCaseContext = new StringBuilder();
 
-		for (EstimationUseCase useCase : useCases) {
-			useCaseContext.append("- ").append(useCase.getUseCaseName()).append(" | Complexity: ")
-					.append(useCase.getComplexity()).append("\n");
-		}
+        for (EstimationUseCase useCase : useCases) {
 
-		return """
-								                You are a senior software QA engineer.
+            useCaseContext
+                    .append("- ")
+                    .append(useCase.getUseCaseName())
+                    .append(" | Complexity: ")
+                    .append(useCase.getComplexity())
+                    .append("\n");
+        }
 
-								                Generate functional test cases for the project described below.
+        return """
+                You are a senior software QA engineer.
 
-								                =========================================
-								                PROJECT INFORMATION
-								                =========================================
+                Generate comprehensive functional test cases for the
+                project described below.
 
-								                Project Name:
-								                %s
+                ========================================================
+                PROJECT INFORMATION
+                ========================================================
 
-								                Implementation Type:
-								                %s
+                Project Name:
+                %s
 
-								                Priority:
-								                %s
+                Implementation Type:
+                %s
 
-								                Requirement Summary:
-								                %s
+                Priority:
+                %s
 
-								                Components:
-								                %s
+                Requirement Summary:
+                %s
 
-								                =========================================
-								                EXISTING USE CASES
-								                =========================================
+                Components:
+                %s
 
-								                %s
 
-								                =========================================
-								                TEST CASE GENERATION RULES
-								                =========================================
+                ========================================================
+                EXISTING USE CASES
+                ========================================================
 
-								                Generate test cases based primarily on the Requirement Summary.
+                %s
 
-								                Use the existing use cases as structured functional context.
 
-								                Do NOT use the project work schedule as the source for
-								                functional behavior.
+                ========================================================
+                CORE TEST CASE STRUCTURE
+                ========================================================
 
-								For each relevant requirement and use case, generate ALL applicable
-								test scenarios needed to adequately validate the functionality.
+                A TEST CASE represents one functional area or business
+                requirement.
 
-								A single requirement or use case may have MULTIPLE test cases.
+                A TEST CASE can contain MULTIPLE SCENARIOS.
 
-								Do NOT limit the output to one test case per requirement or use case.
+                IMPORTANT:
 
-								Generate separate test cases whenever the scenarios differ in purpose,
-								input, condition, validation, or expected behavior.
+                Do NOT create a separate Test Case for every scenario.
 
-								Consider the following scenario categories where applicable:
+                Instead, group related scenarios under the same Test Case
+                whenever they validate the same functional requirement
+                or functional area.
 
-								1. Positive scenarios
-								2. Negative scenarios
-								3. Mandatory field validation
-								4. Invalid input validation
-								5. Boundary conditions
-								6. Business rule validation
-								7. Authentication and authorization
-								8. Integration behavior
-								9. Error handling
-								10. Data validation
-								11. Regression scenarios for affected existing functionality
-								12. Compatibility scenarios where explicitly supported
+                Each scenario must be represented by one or more test steps
+                inside the SAME Test Case.
 
-								Only generate scenario categories that are relevant to the
-								Requirement Summary or existing Use Cases.
-								Do not artificially create scenarios that are not applicable.
-								Only generate scenarios that are relevant to the functionality
-								described in the Requirement Summary or Use Cases.
-								Do not artificially create scenarios that are not applicable.
+                For example:
 
+                Test Case:
+                TC_001 - User Login Validation
 
-								                For ENHANCEMENT projects, include regression scenarios
-								                where applicable.
+                Steps/scenarios:
 
-								                For MIGRATION projects, include migration validation
-								                scenarios where applicable.
+                Step 1:
+                Valid username and valid password
 
+                Step 2:
+                Invalid username
 
+                Step 3:
+                Invalid password
 
-								                IMPORTANT:
+                Step 4:
+                Both username and password missing
 
-								                IMPORTANT:
+                Step 5:
+                Account locked after applicable failed attempts
 
-								- The Requirement Summary is the primary source of truth.
-								- Existing Use Cases provide additional functional context.
-								- Do not use the project work schedule as a source for functional behavior.
+                All of these belong to TC_001 when they are part of the
+                same login functionality.
 
-								- Do not invent functionality that is not supported by the
-								  Requirement Summary or existing Use Cases.
+                DO NOT create:
 
-								- Do not assume a specific technical implementation unless it is
-								  explicitly stated in the Requirement Summary or Use Cases.
+                TC_001 - Valid login
+                TC_002 - Invalid username
+                TC_003 - Invalid password
+                TC_004 - Missing username
 
-								- Do not assume database tables, foreign keys, APIs, HTTP status codes,
-								  URL parameters, HTTP headers, database relationships, or specific
-								  UI controls unless explicitly mentioned.
+                when these scenarios belong to the same functional area.
 
-								- Expected results must describe observable system behavior rather
-								  than internal implementation details.
+                Instead create one comprehensive Test Case with all
+                applicable scenarios represented in its steps.
 
-								- Do not mention database implementation details unless the requirement
-								  explicitly requires database validation.
 
-								- Each test case must reference the functional requirement or use case
-								  that it validates.
+                ========================================================
+                SCENARIO COVERAGE
+                ========================================================
 
-								- If explicit requirement IDs are available in the Requirement Summary,
-								  use those IDs.
+                For EACH relevant functional requirement or use case,
+                identify ALL applicable scenarios.
 
-								- If explicit requirement IDs are not available, assign sequential IDs
-								  such as REQ-001, REQ-002, etc.
+                Consider:
 
-								- Multiple test cases may reference the same REQ ID when they validate
-								  different scenarios for the same requirement.
+                1. Positive scenarios
+                2. Negative scenarios
+                3. Mandatory field validation
+                4. Missing field validation
+                5. Invalid input validation
+                6. Valid input validation
+                7. Boundary conditions
+                8. Business rule validation
+                9. Authentication
+                10. Authorization
+                11. Integration behavior
+                12. Error handling
+                13. Data validation
+                14. Regression scenarios for enhancement projects
+                15. Migration validation for migration projects
+                16. Compatibility scenarios where explicitly supported
 
-								- Do not generate duplicate or substantially overlapping test cases.
 
-				- Multiple test cases may reference the same REQ ID.
+                ========================================================
+                SCENARIO COMPLETENESS
+                ========================================================
 
-				- Multiple test cases may reference the same use case when they validate
-				  different scenarios.
+                Do not stop after identifying only the happy path.
 
-				- Each test case must validate a distinct functional behavior,
-				  condition, input, rule, or outcome.
+                For every functional area, carefully determine whether
+                additional scenarios are applicable.
 
-				- Every test case must have a unique Test Case ID.
+                If a requirement supports multiple different inputs,
+                conditions, rules, outcomes, validations, or errors,
+                include each applicable scenario.
 
-				- Test Case IDs must be sequential:
-				  TC_001, TC_002, TC_003, TC_004...
+                Every meaningful scenario must be represented.
 
-				- Do not skip Test Case IDs.
+                Do not omit negative scenarios simply because a positive
+                scenario already exists.
 
-				- Do not reuse a Test Case ID.
+                Do not omit validation scenarios.
 
-				- Generate enough test cases to provide meaningful functional coverage.
-				  Do not stop after generating one test case for each requirement.
+                Do not omit business-rule scenarios.
 
-				  =========================================
-				TEST CASE COVERAGE
-				=========================================
+                Do not omit error scenarios when the requirement supports
+                error handling.
 
-				Review the complete Requirement Summary and existing Use Cases before
-				generating the test cases.
+                However, do NOT invent scenarios that are unsupported by
+                the Requirement Summary or Use Cases.
 
-				Identify distinct functional requirements and behaviors first.
 
-				Then generate multiple test cases for each requirement or use case
-				where necessary.
+                ========================================================
+                HOW TO REPRESENT SCENARIOS
+                ========================================================
 
-				For example, if one requirement supports:
-				- valid input
-				- invalid input
-				- missing mandatory field
-				- boundary value
-				- authorization restriction
+                Each scenario must be represented by one or more steps.
 
-				these should be represented as separate test cases when applicable.
+                Every step must contain:
 
-				Do not generate all categories blindly. Generate only scenarios that
-				are supported by the provided requirements and use cases.
+                - stepNumber
+                - stepDescription
+                - expectedResult
 
-				The final test case collection should provide broad functional coverage
-				without inventing unsupported functionality.
+                The stepDescription should clearly describe the scenario,
+                action, input, condition, or validation being tested.
 
+                The expectedResult must describe observable system behavior.
 
-								                =========================================
-								                OUTPUT FORMAT
-								                =========================================
+                Example:
 
-								                Return ONLY valid JSON.
+                {
+                  "stepNumber": 1,
+                  "stepDescription":
+                    "Enter a valid username and valid password and submit the login form.",
+                  "expectedResult":
+                    "The user is authenticated and successfully enters the application."
+                }
 
-								                Return exactly this structure:
+                Another scenario under the SAME test case can be:
 
-								                {
-								  "testCases": [
-								    {
-								      "reqId": "REQ-001",
-								      "testCaseId": "TC_001",
+                {
+                  "stepNumber": 2,
+                  "stepDescription":
+                    "Enter a valid username and an invalid password and submit the login form.",
+                  "expectedResult":
+                    "The system rejects the login attempt and displays the applicable authentication error."
+                }
 
-								      "testCaseName": "Test case name",
-								      "testCaseDescription": "Description",
-								      "testData": "Test data",
-								      "steps": [
-								                        {
-								                          "stepNumber": 1,
-								                          "stepDescription": "Step description",
-								                          "expectedResult": "Expected result"
-								                        }
-								                      ]
-								                    }
-								                  ]
-								                }
+                Continue adding steps for every applicable scenario
+                belonging to that Test Case.
 
-								                Do not return Markdown.
-								                Do not return code fences.
-								                Do not return explanations before or after the JSON.
 
-								                """.formatted(opportunity.getOpportunityName(),
-				opportunity.getImplementationType(), opportunity.getPriority(), opportunity.getRequirementSummary(),
-				opportunity.getComponents(), useCaseContext);
-	}
+                ========================================================
+                REQUIREMENT RULES
+                ========================================================
+
+                - The Requirement Summary is the primary source of truth.
+
+                - Existing Use Cases provide additional functional context.
+
+                - Do NOT use the project work schedule as the source
+                  for functional behavior.
+
+                - Do NOT invent functionality.
+
+                - Do NOT assume technical implementation details.
+
+                - Do NOT assume database tables, foreign keys, APIs,
+                  HTTP status codes, URL parameters, HTTP headers,
+                  database relationships, or specific UI controls unless
+                  explicitly stated.
+
+                - Expected results must describe observable behavior.
+
+                - Do not mention database implementation details unless
+                  database validation is explicitly required.
+
+                - Each Test Case must reference the functional requirement
+                  or use case that it validates through reqId.
+
+                - If explicit requirement IDs are available, use them.
+
+                - If explicit requirement IDs are unavailable, assign
+                  sequential IDs such as REQ-001, REQ-002, REQ-003.
+
+                - Multiple Test Cases may reference the same REQ ID.
+
+                - Multiple scenarios within the same functional area should
+                  normally remain under the same Test Case.
+
+                - Create a separate Test Case only when the functionality
+                  being validated is sufficiently different to represent
+                  a separate functional area.
+
+                - Do not generate duplicate or substantially overlapping
+                  Test Cases.
+
+                - Every Test Case must have at least one step.
+
+                - Every step must have an expected result.
+
+                - Every Test Case must have a unique Test Case ID.
+
+                - Test Case IDs must be sequential:
+
+                  TC_001
+                  TC_002
+                  TC_003
+                  TC_004
+
+                - Do not skip Test Case IDs.
+
+                - Do not reuse Test Case IDs.
+
+                - Step numbers must start from 1 for each Test Case.
+
+                - Step numbers must be sequential.
+
+                - Test data should be specified where applicable.
+
+
+                ========================================================
+                IMPORTANT DISTINCTION
+                ========================================================
+
+                DO NOT interpret "multiple scenarios" as "multiple
+                Test Cases".
+
+                Instead:
+
+                ONE FUNCTIONAL AREA
+                       |
+                       +-- Scenario 1
+                       +-- Scenario 2
+                       +-- Scenario 3
+                       +-- Scenario 4
+                       +-- Scenario 5
+
+                should normally become:
+
+                ONE TEST CASE
+                       |
+                       +-- Step 1
+                       +-- Step 2
+                       +-- Step 3
+                       +-- Step 4
+                       +-- Step 5
+
+                Create multiple Test Cases only when the requirements
+                contain genuinely different functional areas.
+
+
+                ========================================================
+                OUTPUT FORMAT
+                ========================================================
+
+                Return ONLY valid JSON.
+
+                Return exactly this structure:
+
+                {
+                  "testCases": [
+                    {
+                      "reqId": "REQ-001",
+                      "testCaseId": "TC_001",
+                      "testCaseName": "User Login Validation",
+                      "testCaseDescription":
+                        "Validate the user login functionality across all applicable scenarios.",
+                      "testData":
+                        "Valid credentials, invalid credentials, empty credentials",
+                      "steps": [
+                        {
+                          "stepNumber": 1,
+                          "stepDescription":
+                            "Enter valid username and valid password and submit login.",
+                          "expectedResult":
+                            "The user is successfully authenticated."
+                        },
+                        {
+                          "stepNumber": 2,
+                          "stepDescription":
+                            "Enter a valid username and invalid password and submit login.",
+                          "expectedResult":
+                            "The login attempt is rejected and an appropriate error is displayed."
+                        },
+                        {
+                          "stepNumber": 3,
+                          "stepDescription":
+                            "Submit the login without entering the mandatory username.",
+                          "expectedResult":
+                            "The system indicates that the username is required."
+                        }
+                      ]
+                    }
+                  ]
+                }
+
+                ========================================================
+                FINAL VALIDATION BEFORE RETURNING JSON
+                ========================================================
+
+                Before returning the response:
+
+                1. Review the complete Requirement Summary.
+                2. Review all provided Use Cases.
+                3. Identify every distinct functional area.
+                4. Identify all applicable scenarios for each area.
+                5. Group related scenarios under the same Test Case.
+                6. Ensure no applicable scenario has been omitted.
+                7. Ensure unrelated functionality is not incorrectly grouped.
+                8. Ensure every Test Case has at least one step.
+                9. Ensure every step has an expected result.
+                10. Ensure Test Case IDs are sequential.
+                11. Ensure there are no duplicate Test Cases.
+                12. Return only valid JSON.
+
+                Do not return Markdown.
+
+                Do not return code fences.
+
+                Do not return explanations before or after the JSON.
+
+                """.formatted(
+                opportunity.getOpportunityName(),
+                opportunity.getImplementationType(),
+                opportunity.getPriority(),
+                opportunity.getRequirementSummary(),
+                opportunity.getComponents(),
+                useCaseContext
+        );
+    }
 }
