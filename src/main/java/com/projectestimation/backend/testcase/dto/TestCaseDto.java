@@ -8,13 +8,15 @@ public record TestCaseDto(
 
         String testCaseId,
 
+        String testCondition,
+
         String testCaseName,
+
+        List<TestScenarioDto> testCaseScenario,
 
         String testCaseDescription,
 
-        String testData,
-
-        List<TestStepDto> steps
+        String testData
 
 ) {
 }
