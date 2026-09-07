@@ -147,10 +147,37 @@ public class PsrScheduleDataService {
             /*
              * If the breakdown has no status, expose it as Not Started.
              */
-            String status =
-                    breakdown.getStatus() != null
-                            ? breakdown.getStatus()
-                            : "Not Started";
+            /*
+             * Determine the PSR activity status from the current
+             * activity status and progress.
+             *
+             * Not Started / 0% = Pending
+             * In Progress / partial progress = In Progress
+             * Completed / 100% = Completed
+             */
+            Integer progress = breakdown.getProgress();
+
+            String status;
+
+            if ("Not Started".equalsIgnoreCase(breakdown.getStatus())
+                    || progress == null
+                    || progress == 0) {
+
+                status = "Pending";
+                progress = 0;
+
+            } else if ("Completed".equalsIgnoreCase(breakdown.getStatus())
+                    || "Complete".equalsIgnoreCase(breakdown.getStatus())
+                    || "Done".equalsIgnoreCase(breakdown.getStatus())
+                    || progress >= 100) {
+
+                status = "Completed";
+                progress = 100;
+
+            } else {
+
+                status = "In Progress";
+            }
 
             /*
              * Create the PSR activity from the actual schedule data.
@@ -162,7 +189,7 @@ public class PsrScheduleDataService {
                             task.getTaskName(),
                             breakdown.getActivityName(),
                             status,
-                            breakdown.getProgress(),
+                            progress,
                             breakdown.getDuration(),
                             toString(
                                     breakdown.getPlannedStartDate()

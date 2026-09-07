@@ -468,10 +468,6 @@ public class PsrService {
     ) {
 
         return "PSR_"
-                + period.version()
-                + "_"
-                + period.startDate()
-                + "_"
                 + period.endDate();
     }
 

@@ -28,4 +28,8 @@ public class SaveTaskBreakdownRequest {
     private String status;
     
     private Integer progress;
+    
+    private Integer sequence;
+
+    private String predecessor;
 }

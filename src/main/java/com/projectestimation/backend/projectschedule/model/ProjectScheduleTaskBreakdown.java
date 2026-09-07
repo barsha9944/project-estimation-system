@@ -44,4 +44,8 @@ public class ProjectScheduleTaskBreakdown {
     private String status;
     
     private Integer progress;
+    
+    private Integer sequence;
+
+    private String predecessor;
 }

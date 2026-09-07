@@ -88,7 +88,7 @@ public class ProjectScheduleService {
 	private final ProjectMetricsSprintRepository projectMetricsSprintRepository;
 
 	private final ProjectStatusReportRepository projectStatusReportRepository;
-	
+
 	private final ApplicationEventPublisher applicationEventPublisher;
 
 	private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
@@ -123,16 +123,34 @@ public class ProjectScheduleService {
 
 		double hoursWithBuffer = request.getEstimatedHours() * (1 + request.getBufferPercentage() / 100.0);
 
-		int durationDays = request.getDuration() > 0 ? request.getDuration()
-				: (int) Math.ceil(hoursWithBuffer / (request.getTeamSize() * request.getWorkingHoursPerDay()));
+		int durationDays = request.getDuration() > 0
+		        ? request.getDuration()
+		        : (int) Math.ceil(
+		                hoursWithBuffer
+		                        / (request.getTeamSize()
+		                        * request.getWorkingHoursPerDay())
+		        );
+
 		System.out.println("Duration days : " + durationDays);
-		LocalDate projectEndDate = calculateProjectEndDate(request.getProjectStartDate(), durationDays,
-				request.getWorkingDaysPerWeek());
+
+		/*
+		 * The project must always start on a working day.
+		 * If the selected start date is Saturday or Sunday,
+		 * move it to the next working day.
+		 */
+		LocalDate projectStartDate =
+		        moveToNextWorkingDay(request.getProjectStartDate());
+
+		LocalDate projectEndDate =
+		        calculateProjectEndDate(
+		                projectStartDate,
+		                durationDays
+		        );
 
 		AiProjectScheduleResult result;
 		try {
 			result = orchestrator.generate(opportunity, analysis, actorText, useCaseText,
-					request.getProjectStartDate().toString(), request.getTeamSize(), request.getWorkingDaysPerWeek(),
+					projectStartDate.toString(), request.getTeamSize(), request.getWorkingDaysPerWeek(),
 					request.getWorkingHoursPerDay(), request.getBufferPercentage(), durationDays,
 					request.getEstimatedHours());
 		} catch (Exception ex) {
@@ -142,6 +160,8 @@ public class ProjectScheduleService {
 		ProjectScheduleResponse response = result.schedule();
 
 		response.setDurationDays(durationDays);
+		
+		response.setProjectStartDate(projectStartDate);
 
 		response.setProjectEndDate(projectEndDate);
 
@@ -161,16 +181,9 @@ public class ProjectScheduleService {
 
 	) {
 
-		ProjectSchedule schedule =
-		        projectScheduleRepository
-		                .findByOpportunityId(opportunityId)
-		                .orElse(null);
+		ProjectSchedule schedule = projectScheduleRepository.findByOpportunityId(opportunityId).orElse(null);
 
-		Set<Integer> affectedPsrVersions =
-		        determineAffectedPsrVersions(
-		                request,
-		                schedule
-		        );
+		Set<Integer> affectedPsrVersions = determineAffectedPsrVersions(request, schedule);
 
 		if (schedule == null) {
 
@@ -263,104 +276,73 @@ public class ProjectScheduleService {
 
 			if (taskRequest.getTaskBreakdowns() != null) {
 
-    List<ProjectScheduleTaskBreakdown> existingBreakdowns =
-            savedTask.getTaskBreakdowns();
+				List<ProjectScheduleTaskBreakdown> existingBreakdowns = savedTask.getTaskBreakdowns();
 
-    if (existingBreakdowns == null) {
-        existingBreakdowns = new ArrayList<>();
-        savedTask.setTaskBreakdowns(existingBreakdowns);
-    }
+				if (existingBreakdowns == null) {
+					existingBreakdowns = new ArrayList<>();
+					savedTask.setTaskBreakdowns(existingBreakdowns);
+				}
 
-    Map<Long, ProjectScheduleTaskBreakdown> existingBreakdownMap =
-            existingBreakdowns.stream()
-                    .filter(b -> b.getId() != null)
-                    .collect(Collectors.toMap(
-                            ProjectScheduleTaskBreakdown::getId,
-                            b -> b
-                    ));
+				Map<Long, ProjectScheduleTaskBreakdown> existingBreakdownMap = existingBreakdowns.stream()
+						.filter(b -> b.getId() != null)
+						.collect(Collectors.toMap(ProjectScheduleTaskBreakdown::getId, b -> b));
 
-    List<Long> requestBreakdownIds = new ArrayList<>();
+				List<Long> requestBreakdownIds = new ArrayList<>();
 
-    for (SaveTaskBreakdownRequest breakdownRequest :
-            taskRequest.getTaskBreakdowns()) {
+				for (SaveTaskBreakdownRequest breakdownRequest : taskRequest.getTaskBreakdowns()) {
 
-        ProjectScheduleTaskBreakdown breakdown;
+					ProjectScheduleTaskBreakdown breakdown;
 
-        if (breakdownRequest.getId() != null) {
+					if (breakdownRequest.getId() != null) {
 
-            breakdown = existingBreakdownMap.get(
-                    breakdownRequest.getId()
-            );
+						breakdown = existingBreakdownMap.get(breakdownRequest.getId());
 
-            if (breakdown == null) {
-                throw new ResourceNotFoundException(
-                        "Project schedule breakdown not found: "
-                                + breakdownRequest.getId()
-                );
-            }
+						if (breakdown == null) {
+							throw new ResourceNotFoundException(
+									"Project schedule breakdown not found: " + breakdownRequest.getId());
+						}
 
-            requestBreakdownIds.add(
-                    breakdownRequest.getId()
-            );
+						requestBreakdownIds.add(breakdownRequest.getId());
 
-        } else {
+					} else {
 
-            breakdown = new ProjectScheduleTaskBreakdown();
+						breakdown = new ProjectScheduleTaskBreakdown();
 
-            breakdown.setProjectScheduleTask(
-                    savedTask
-            );
+						breakdown.setProjectScheduleTask(savedTask);
 
-            existingBreakdowns.add(breakdown);
-        }
+						existingBreakdowns.add(breakdown);
+					}
 
-        breakdown.setActivityName(
-                breakdownRequest.getActivityName()
-        );
+					breakdown.setActivityName(breakdownRequest.getActivityName());
 
-        breakdown.setDuration(
-                breakdownRequest.getDuration()
-        );
+					breakdown.setDuration(breakdownRequest.getDuration());
 
-        breakdown.setPlannedStartDate(
-                breakdownRequest.getPlannedStartDate()
-        );
+					breakdown.setPlannedStartDate(breakdownRequest.getPlannedStartDate());
 
-        breakdown.setPlannedEndDate(
-                breakdownRequest.getPlannedEndDate()
-        );
+					breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
 
-        breakdown.setStatus(
-                breakdownRequest.getStatus()
-        );
+					breakdown.setStatus(breakdownRequest.getStatus());
 
-        breakdown.setProgress(
-                breakdownRequest.getProgress()
-        );
+					breakdown.setProgress(breakdownRequest.getProgress());
+					
+					breakdown.setSequence(breakdownRequest.getSequence());
 
-        breakdown.setActualStartDate(
-                breakdownRequest.getActualStartDate() != null
-                        ? breakdownRequest.getActualStartDate()
-                        : breakdownRequest.getPlannedStartDate()
-        );
+					breakdown.setPredecessor(breakdownRequest.getPredecessor());
 
-        breakdown.setActualEndDate(
-                breakdownRequest.getActualEndDate() != null
-                        ? breakdownRequest.getActualEndDate()
-                        : breakdownRequest.getPlannedEndDate()
-        );
-    }
+					breakdown.setActualStartDate(
+							breakdownRequest.getActualStartDate() != null ? breakdownRequest.getActualStartDate()
+									: breakdownRequest.getPlannedStartDate());
 
-    existingBreakdowns.removeIf(
-            breakdown ->
-                    breakdown.getId() != null
-                    && !requestBreakdownIds.contains(
-                            breakdown.getId()
-                    )
-    );
+					breakdown.setActualEndDate(
+							breakdownRequest.getActualEndDate() != null ? breakdownRequest.getActualEndDate()
+									: breakdownRequest.getPlannedEndDate());
+				}
 
-    projectScheduleTaskRepository.save(savedTask);
-}
+				existingBreakdowns.removeIf(
+						breakdown -> breakdown.getId() != null && !requestBreakdownIds.contains(breakdown.getId()));
+
+				projectScheduleTaskRepository.save(savedTask);
+			}
 
 		}
 
@@ -369,18 +351,9 @@ public class ProjectScheduleService {
 		projectScheduleRepository.flush();
 
 		System.out.println(
-			    "PSR EVENT PUBLISHED -> opportunityId="
-			    + opportunityId
-			    + ", affectedVersions="
-			    + affectedPsrVersions
-			);
-		
-		applicationEventPublisher.publishEvent(
-		        new ProjectScheduleSavedEvent(
-		                opportunityId,
-		                affectedPsrVersions
-		        )
-		);
+				"PSR EVENT PUBLISHED -> opportunityId=" + opportunityId + ", affectedVersions=" + affectedPsrVersions);
+
+		applicationEventPublisher.publishEvent(new ProjectScheduleSavedEvent(opportunityId, affectedPsrVersions));
 
 	}
 
@@ -409,174 +382,142 @@ public class ProjectScheduleService {
 	}
 
 	@Transactional(readOnly = true)
-public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
+	public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 
-    ProjectSchedule schedule =
-            projectScheduleRepository.findByOpportunityIdWithTasks(opportunityId)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Project schedule not found."
-                            )
-                    );
+		ProjectSchedule schedule = projectScheduleRepository.findByOpportunityIdWithTasks(opportunityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Project schedule not found."));
 
-    ProjectScheduleResponse response =
-            new ProjectScheduleResponse();
+		ProjectScheduleResponse response = new ProjectScheduleResponse();
 
-    response.setDurationDays(schedule.getDurationDays());
-    response.setTotalTasks(schedule.getTotalTasks());
-    response.setCompletedTasks(schedule.getCompletedTasks());
-    response.setCriticalTasks(schedule.getCriticalTasks());
-    response.setEstimatedHours(schedule.getEstimatedHours());
-    response.setBufferPercentage(schedule.getBufferPercentage());
-    response.setProjectStartDate(schedule.getProjectStartDate());
-    response.setProjectEndDate(schedule.getProjectEndDate());
-    response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
-    response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
-    response.setTeamSize(schedule.getTeamSize());
+		response.setDurationDays(schedule.getDurationDays());
+		response.setTotalTasks(schedule.getTotalTasks());
+		response.setCompletedTasks(schedule.getCompletedTasks());
+		response.setCriticalTasks(schedule.getCriticalTasks());
+		response.setEstimatedHours(schedule.getEstimatedHours());
+		response.setBufferPercentage(schedule.getBufferPercentage());
+		response.setProjectStartDate(schedule.getProjectStartDate());
+		response.setProjectEndDate(schedule.getProjectEndDate());
+		response.setWorkingDaysPerWeek(schedule.getWorkingDaysPerWeek());
+		response.setWorkingHoursPerDays(schedule.getWorkingHoursPerDay());
+		response.setTeamSize(schedule.getTeamSize());
 
-    /*
-     * Calculate all PSR periods for this project.
-     */
-    List<PsrPeriod> psrPeriods =
-            psrPeriodCalculator.calculatePeriods(
-                    schedule.getProjectStartDate(),
-                    schedule.getProjectEndDate()
-            );
+		/*
+		 * Calculate all PSR periods for this project.
+		 */
+		List<PsrPeriod> psrPeriods = psrPeriodCalculator.calculatePeriods(schedule.getProjectStartDate(),
+				schedule.getProjectEndDate());
 
-    /*
-     * Find the PSR belonging to the current 15-working-day period.
-     */
-    PsrPeriod currentPeriod =
-            psrPeriodCalculator.findPeriodForDate(
-                    psrPeriods,
-                    LocalDate.now()
-            );
+		/*
+		 * Find the PSR belonging to the current 15-working-day period.
+		 */
+		PsrPeriod currentPeriod = psrPeriodCalculator.findPeriodForDate(psrPeriods, LocalDate.now());
 
-    if (currentPeriod != null) {
+		if (currentPeriod != null) {
 
-        ProjectStatusReport currentPsr =
-                projectStatusReportRepository
-                        .findByOpportunityIdAndVersion(
-                                opportunityId,
-                                currentPeriod.version()
-                        )
-                        .orElse(null);
+			ProjectStatusReport currentPsr = projectStatusReportRepository
+					.findByOpportunityIdAndVersion(opportunityId, currentPeriod.version()).orElse(null);
 
-        if (currentPsr != null) {
+			if (currentPsr != null) {
 
-            PsrResponse psrResponse =
-                    new PsrResponse(
-                            currentPsr.getId(),
-                            currentPsr.getFileName(),
-                            currentPsr.getFileLocation(),
-                            currentPsr.getGeneratedAt(),
-                            "GENERATED",
-                            currentPsr.getMarkdownContent()
-                    );
+				PsrResponse psrResponse = new PsrResponse(currentPsr.getId(), currentPsr.getFileName(),
+						currentPsr.getFileLocation(), currentPsr.getGeneratedAt(), "GENERATED",
+						currentPsr.getMarkdownContent());
 
-            response.setPsr(psrResponse);
-        }
-    }
+				response.setPsr(psrResponse);
+			}
+		}
 
-    List<ProjectScheduleTask> sortedTasks =
-            schedule.getTasks().stream()
-                    .sorted(
-                            Comparator.comparing(
-                                    t -> t.getSequence() != null
-                                            ? t.getSequence()
-                                            : Integer.MAX_VALUE
-                            )
-                    )
-                    .toList();
+		List<ProjectScheduleTask> sortedTasks = schedule.getTasks().stream()
+				.sorted(
+					    Comparator.comparing(
+					        b -> b.getSequence() != null
+					                ? b.getSequence()
+					                : Integer.MAX_VALUE
+					    )
+					)
+				.toList();
 
-    List<ProjectScheduleTaskResponse> tasks =
-            new ArrayList<>();
+		List<ProjectScheduleTaskResponse> tasks = new ArrayList<>();
 
-    for (ProjectScheduleTask task : sortedTasks) {
+		for (ProjectScheduleTask task : sortedTasks) {
 
-        ProjectScheduleTaskResponse taskResponse =
-                mapTaskResponse(task);
+			ProjectScheduleTaskResponse taskResponse = mapTaskResponse(task);
 
-        List<ProjectScheduleTaskBreakdown> sortedBreakdowns =
-                task.getTaskBreakdowns().stream()
-                        .sorted(
-                                Comparator.comparing(
-                                        b -> b.getId() != null
-                                                ? b.getId()
-                                                : Long.MAX_VALUE
-                                )
-                        )
-                        .toList();
+//			List<ProjectScheduleTaskBreakdown> sortedBreakdowns = task.getTaskBreakdowns().stream()
+//					.sorted(Comparator.comparing(b -> b.getId() != null ? b.getId() : Long.MAX_VALUE)).toList();
 
-        List<TaskBreakdownResponse> breakdownResponses =
-                new ArrayList<>();
+			List<ProjectScheduleTaskBreakdown> sortedBreakdowns = task.getTaskBreakdowns().stream()
+			        .sorted(Comparator.comparing(
+			                b -> b.getSequence() != null
+			                        ? b.getSequence()
+			                        : Integer.MAX_VALUE))
+			        .toList();
+			List<TaskBreakdownResponse> breakdownResponses = new ArrayList<>();
 
-        for (ProjectScheduleTaskBreakdown breakdown :
-                sortedBreakdowns) {
+			for (ProjectScheduleTaskBreakdown breakdown : sortedBreakdowns) {
 
-            TaskBreakdownResponse br =
-                    mapTaskBreakdownResponse(breakdown);
+				TaskBreakdownResponse br = mapTaskBreakdownResponse(breakdown);
 
-            /*
-             * Determine which PSR period this breakdown belongs to.
-             */
-            LocalDate breakdownDate =
-                    breakdown.getPlannedStartDate();
+				/*
+				 * Determine which PSR period this breakdown belongs to.
+				 */
+				LocalDate breakdownStart = breakdown.getPlannedStartDate();
+				LocalDate breakdownEnd = breakdown.getPlannedEndDate();
 
-            if (breakdownDate == null) {
-                breakdownDate =
-                        breakdown.getActualStartDate();
-            }
+				if (breakdownStart == null) {
+				    breakdownStart = breakdown.getActualStartDate();
+				}
 
-            if (breakdownDate != null) {
+				if (breakdownEnd == null) {
+				    breakdownEnd = breakdown.getActualEndDate();
+				}
 
-                PsrPeriod breakdownPeriod =
-                        psrPeriodCalculator.findPeriodForDate(
-                                psrPeriods,
-                                breakdownDate
-                        );
+				if (breakdownStart != null || breakdownEnd != null) {
 
-                if (breakdownPeriod != null) {
+				    LocalDate start =
+				            breakdownStart != null ? breakdownStart : breakdownEnd;
 
-                    ProjectStatusReport assignedReport =
-                            projectStatusReportRepository
-                                    .findByOpportunityIdAndVersion(
-                                            opportunityId,
-                                            breakdownPeriod.version()
-                                    )
-                                    .orElse(null);
+				    LocalDate end =
+				            breakdownEnd != null ? breakdownEnd : breakdownStart;
 
-                    if (assignedReport != null) {
+				    PsrPeriod breakdownPeriod = psrPeriods.stream()
+				            .filter(period ->
+				                    !end.isBefore(period.startDate())
+				                            && !start.isAfter(period.endDate()))
+				            .findFirst()
+				            .orElse(null);
 
-                        br.setPsrFileName(
-                                assignedReport.getFileName()
-                        );
+				    if (breakdownPeriod != null) {
 
-                        br.setPsrFileLocation(
-                                assignedReport.getFileLocation()
-                        );
+				        ProjectStatusReport breakdownPsr =
+				                projectStatusReportRepository
+				                        .findByOpportunityIdAndVersion(
+				                                opportunityId,
+				                                breakdownPeriod.version()
+				                        )
+				                        .orElse(null);
 
-                        br.setPsrMarkdown(
-                                assignedReport.getMarkdownContent()
-                        );
-                    }
-                }
-            }
+				        if (breakdownPsr != null) {
 
-            breakdownResponses.add(br);
-        }
+				            br.setPsrFileName(breakdownPsr.getFileName());
+				            br.setPsrFileLocation(breakdownPsr.getFileLocation());
+				            br.setPsrMarkdown(breakdownPsr.getMarkdownContent());
+				        }
+				    }
+				}
 
-        taskResponse.setTaskBreakdowns(
-                breakdownResponses
-        );
+				breakdownResponses.add(br);
+			}
 
-        tasks.add(taskResponse);
-    }
+			taskResponse.setTaskBreakdowns(breakdownResponses);
 
-    response.setTasks(tasks);
+			tasks.add(taskResponse);
+		}
 
-    return response;
-}
+		response.setTasks(tasks);
+
+		return response;
+	}
 
 	private ProjectScheduleTaskResponse mapTaskResponse(ProjectScheduleTask task) {
 
@@ -597,26 +538,37 @@ public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 		return response;
 	}
 
-	private TaskBreakdownResponse mapTaskBreakdownResponse(ProjectScheduleTaskBreakdown breakdown) {
+	private TaskBreakdownResponse mapTaskBreakdownResponse(
+        ProjectScheduleTaskBreakdown breakdown) {
 
-		TaskBreakdownResponse response = new TaskBreakdownResponse();
+    TaskBreakdownResponse response = new TaskBreakdownResponse();
 
-		response.setId(breakdown.getId());
-		response.setActivityName(breakdown.getActivityName());
-		response.setDuration(breakdown.getDuration());
-		response.setPlannedStartDate(breakdown.getPlannedStartDate());
-		response.setPlannedEndDate(breakdown.getPlannedEndDate());
-		response.setActualEndDate(breakdown.getActualEndDate());
-		response.setActualStartDate(breakdown.getActualStartDate());
-		response.setStatus(breakdown.getStatus() != null ? breakdown.getStatus() : "Not Started");
-		response.setProgress(breakdown.getProgress());
-		response.setActualDuration(
-				ChronoUnit.DAYS.between(breakdown.getActualStartDate(), breakdown.getActualEndDate()));
-		
-		
+    response.setId(breakdown.getId());
+    response.setActivityName(breakdown.getActivityName());
+    response.setDuration(breakdown.getDuration());
+    response.setPlannedStartDate(breakdown.getPlannedStartDate());
+    response.setPlannedEndDate(breakdown.getPlannedEndDate());
+    response.setActualEndDate(breakdown.getActualEndDate());
+    response.setActualStartDate(breakdown.getActualStartDate());
 
-		return response;
-	}
+    response.setStatus(
+            breakdown.getStatus() != null
+                    ? breakdown.getStatus()
+                    : "Not Started");
+
+    response.setProgress(breakdown.getProgress());
+
+    response.setSequence(breakdown.getSequence());
+
+    response.setPredecessor(breakdown.getPredecessor());
+
+    response.setActualDuration(
+            ChronoUnit.DAYS.between(
+                    breakdown.getActualStartDate(),
+                    breakdown.getActualEndDate()));
+
+    return response;
+}
 
 	public ProjectScheduleResponse recalculateProjectSchedule(
 
@@ -628,24 +580,28 @@ public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 
 	}
 
-	private LocalDate calculateProjectEndDate(LocalDate startDate, int durationDays, int workingDaysPerWeek) {
+	private LocalDate calculateProjectEndDate(
+        LocalDate startDate,
+        int durationDays) {
 
-		LocalDate currentDate = startDate;
+    LocalDate currentDate =
+            moveToNextWorkingDay(startDate);
 
-		int completedWorkingDays = 1;
+    int completedWorkingDays = 1;
 
-		while (completedWorkingDays < durationDays) {
+    while (completedWorkingDays < durationDays) {
 
-			currentDate = currentDate.plusDays(1);
+        currentDate = currentDate.plusDays(1);
 
-			if (isWorkingDay(currentDate, workingDaysPerWeek)) {
-				completedWorkingDays++;
-			}
-		}
-		System.out.println("end date :: " + currentDate);
+        if (!isWeekend(currentDate)) {
+            completedWorkingDays++;
+        }
+    }
 
-		return currentDate;
-	}
+    System.out.println("end date :: " + currentDate);
+
+    return currentDate;
+}
 
 	private boolean isWorkingDay(LocalDate date, int workingDaysPerWeek) {
 
@@ -658,269 +614,204 @@ public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 		return true;
 	}
 
-	private Set<Integer> determineAffectedPsrVersions(
-        SaveProjectScheduleRequest request,
-        ProjectSchedule existingSchedule
-) {
+	private LocalDate moveToNextWorkingDay(LocalDate date) {
 
-    Set<Integer> affectedVersions =
-            new HashSet<>();
+	    LocalDate currentDate = date;
 
-    /*
-     * ============================================================
-     * OLD SCHEDULE
-     * ============================================================
-     *
-     * If a schedule already exists, collect the PSR periods
-     * represented by the OLD schedule.
-     *
-     * This is required when an activity is moved from one PSR
-     * period to another or removed from a period.
-     */
-    if (existingSchedule != null
-            && existingSchedule.getProjectStartDate() != null
-            && existingSchedule.getProjectEndDate() != null) {
-
-        List<PsrPeriod> oldPeriods =
-                psrPeriodCalculator.calculatePeriods(
-                        existingSchedule.getProjectStartDate(),
-                        existingSchedule.getProjectEndDate()
-                );
-
-        /*
-         * Mark periods containing existing schedule activities.
-         */
-        if (existingSchedule.getTasks() != null) {
-
-            for (ProjectScheduleTask task :
-                    existingSchedule.getTasks()) {
-
-                /*
-                 * Task-level dates.
-                 */
-                addAffectedPeriodForDate(
-                        affectedVersions,
-                        oldPeriods,
-                        task.getPlannedStartDate()
-                );
-
-                addAffectedPeriodForDate(
-                        affectedVersions,
-                        oldPeriods,
-                        task.getActualStartDate()
-                );
-
-                /*
-                 * Breakdown-level dates.
-                 *
-                 * We only inspect the already-existing in-memory
-                 * breakdown collection here. We are NOT replacing it.
-                 */
-                if (task.getTaskBreakdowns() != null) {
-
-                    for (ProjectScheduleTaskBreakdown breakdown :
-                            task.getTaskBreakdowns()) {
-
-                        addAffectedPeriodForDates(
-                                affectedVersions,
-                                oldPeriods,
-                                breakdown.getPlannedStartDate(),
-                                breakdown.getPlannedEndDate(),
-                                breakdown.getActualStartDate(),
-                                breakdown.getActualEndDate()
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    /*
-     * ============================================================
-     * NEW SCHEDULE
-     * ============================================================
-     *
-     * Now calculate the periods represented by the NEW request.
-     */
-    List<PsrPeriod> newPeriods =
-            psrPeriodCalculator.calculatePeriods(
-                    request.getProjectStartDate(),
-                    request.getProjectEndDate()
-            );
-
-    /*
-     * If there are no tasks, the schedule-period change itself
-     * still needs synchronization.
-     *
-     * Mark all new periods.
-     */
-    if (request.getTasks() == null) {
-
-        for (PsrPeriod period : newPeriods) {
-
-            affectedVersions.add(
-                    period.version()
-            );
-        }
-
-        return affectedVersions;
-    }
-
-    /*
-     * ============================================================
-     * TASKS + BREAKDOWNS FROM NEW REQUEST
-     * ============================================================
-     */
-    for (SaveProjectScheduleTaskRequest taskRequest :
-            request.getTasks()) {
-
-        /*
-         * --------------------------------------------------------
-         * TASK-LEVEL DATES
-         * --------------------------------------------------------
-         */
-        addAffectedPeriodForDate(
-                affectedVersions,
-                newPeriods,
-                taskRequest.getPlannedStartDate()
-        );
-
-        addAffectedPeriodForDate(
-                affectedVersions,
-                newPeriods,
-                taskRequest.getActualStartDate()
-        );
-
-        /*
-         * --------------------------------------------------------
-         * BREAKDOWN-LEVEL DATES
-         * --------------------------------------------------------
-         */
-        if (taskRequest.getTaskBreakdowns() == null) {
-            continue;
-        }
-
-        for (SaveTaskBreakdownRequest breakdownRequest :
-                taskRequest.getTaskBreakdowns()) {
-
-            addAffectedPeriodForDates(
-                    affectedVersions,
-                    newPeriods,
-                    breakdownRequest.getPlannedStartDate(),
-                    breakdownRequest.getPlannedEndDate(),
-                    breakdownRequest.getActualStartDate(),
-                    breakdownRequest.getActualEndDate()
-            );
-        }
-    }
-
-    return affectedVersions;
-}
-	
-	private void addAffectedPeriodForDate(
-	        Set<Integer> affectedVersions,
-	        List<PsrPeriod> periods,
-	        LocalDate date
-	) {
-
-	    if (date == null) {
-	        return;
+	    while (isWeekend(currentDate)) {
+	        currentDate = currentDate.plusDays(1);
 	    }
 
-	    PsrPeriod period =
-	            psrPeriodCalculator.findPeriodForDate(
-	                    periods,
-	                    date
-	            );
-
-	    if (period != null) {
-
-	        affectedVersions.add(
-	                period.version()
-	        );
-	    }
+	    return currentDate;
 	}
-	
-	private void addAffectedPeriodForDates(
-	        Set<Integer> affectedVersions,
-	        List<PsrPeriod> periods,
-	        LocalDate plannedStart,
-	        LocalDate plannedEnd,
-	        LocalDate actualStart,
-	        LocalDate actualEnd
-	) {
 
-	    /*
-	     * Prefer planned dates.
-	     */
-	    LocalDate start =
-	            plannedStart != null
-	                    ? plannedStart
-	                    : actualStart;
+	private boolean isWeekend(LocalDate date) {
 
-	    LocalDate end =
-	            plannedEnd != null
-	                    ? plannedEnd
-	                    : actualEnd;
+	    DayOfWeek day = date.getDayOfWeek();
 
-	    /*
-	     * If only one date exists, that single date determines
-	     * the PSR period.
-	     */
-	    if (start == null && end == null) {
-	        return;
-	    }
-
-	    if (start == null) {
-	        start = end;
-	    }
-
-	    if (end == null) {
-	        end = start;
-	    }
-
-	    /*
-	     * An activity can span multiple PSR periods.
-	     *
-	     * Mark every period it overlaps.
-	     */
-	    for (PsrPeriod period : periods) {
-
-	        if (!end.isBefore(period.startDate())
-	                && !start.isAfter(period.endDate())) {
-
-	            affectedVersions.add(
-	                    period.version()
-	            );
-	        }
-	    }
+	    return day == DayOfWeek.SATURDAY
+	            || day == DayOfWeek.SUNDAY;
 	}
-	
-	private boolean datesOverlap(
-	        LocalDate activityStart,
-	        LocalDate activityEnd,
-	        LocalDate periodStart,
-	        LocalDate periodEnd
-	) {
+	private Set<Integer> determineAffectedPsrVersions(SaveProjectScheduleRequest request,
+			ProjectSchedule existingSchedule) {
 
-	    LocalDate start =
-	            activityStart != null
-	                    ? activityStart
-	                    : activityEnd;
+		Set<Integer> affectedVersions = new HashSet<>();
 
-	    LocalDate end =
-	            activityEnd != null
-	                    ? activityEnd
-	                    : activityStart;
+		/*
+		 * ============================================================ OLD SCHEDULE
+		 * ============================================================
+		 *
+		 * If a schedule already exists, collect the PSR periods represented by the OLD
+		 * schedule.
+		 *
+		 * This is required when an activity is moved from one PSR period to another or
+		 * removed from a period.
+		 */
+		if (existingSchedule != null && existingSchedule.getProjectStartDate() != null
+				&& existingSchedule.getProjectEndDate() != null) {
 
-	    if (start == null || end == null) {
-	        return false;
-	    }
+			List<PsrPeriod> oldPeriods = psrPeriodCalculator.calculatePeriods(existingSchedule.getProjectStartDate(),
+					existingSchedule.getProjectEndDate());
 
-	    return !end.isBefore(periodStart)
-	            && !start.isAfter(periodEnd);
+			/*
+			 * Mark periods containing existing schedule activities.
+			 */
+			if (existingSchedule.getTasks() != null) {
+
+				for (ProjectScheduleTask task : existingSchedule.getTasks()) {
+
+					/*
+					 * Task-level dates.
+					 */
+					addAffectedPeriodForDate(affectedVersions, oldPeriods, task.getPlannedStartDate());
+
+					addAffectedPeriodForDate(affectedVersions, oldPeriods, task.getActualStartDate());
+
+					/*
+					 * Breakdown-level dates.
+					 *
+					 * We only inspect the already-existing in-memory breakdown collection here. We
+					 * are NOT replacing it.
+					 */
+					if (task.getTaskBreakdowns() != null) {
+
+						for (ProjectScheduleTaskBreakdown breakdown : task.getTaskBreakdowns()) {
+
+							addAffectedPeriodForDates(affectedVersions, oldPeriods, breakdown.getPlannedStartDate(),
+									breakdown.getPlannedEndDate(), breakdown.getActualStartDate(),
+									breakdown.getActualEndDate());
+						}
+					}
+				}
+			}
+		}
+
+		/*
+		 * ============================================================ NEW SCHEDULE
+		 * ============================================================
+		 *
+		 * Now calculate the periods represented by the NEW request.
+		 */
+		List<PsrPeriod> newPeriods = psrPeriodCalculator.calculatePeriods(request.getProjectStartDate(),
+				request.getProjectEndDate());
+
+		/*
+		 * If there are no tasks, the schedule-period change itself still needs
+		 * synchronization.
+		 *
+		 * Mark all new periods.
+		 */
+		if (request.getTasks() == null) {
+
+			for (PsrPeriod period : newPeriods) {
+
+				affectedVersions.add(period.version());
+			}
+
+			return affectedVersions;
+		}
+
+		/*
+		 * ============================================================ TASKS +
+		 * BREAKDOWNS FROM NEW REQUEST
+		 * ============================================================
+		 */
+		for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
+
+			/*
+			 * -------------------------------------------------------- TASK-LEVEL DATES
+			 * --------------------------------------------------------
+			 */
+			addAffectedPeriodForDate(affectedVersions, newPeriods, taskRequest.getPlannedStartDate());
+
+			addAffectedPeriodForDate(affectedVersions, newPeriods, taskRequest.getActualStartDate());
+
+			/*
+			 * -------------------------------------------------------- BREAKDOWN-LEVEL
+			 * DATES --------------------------------------------------------
+			 */
+			if (taskRequest.getTaskBreakdowns() == null) {
+				continue;
+			}
+
+			for (SaveTaskBreakdownRequest breakdownRequest : taskRequest.getTaskBreakdowns()) {
+
+				addAffectedPeriodForDates(affectedVersions, newPeriods, breakdownRequest.getPlannedStartDate(),
+						breakdownRequest.getPlannedEndDate(), breakdownRequest.getActualStartDate(),
+						breakdownRequest.getActualEndDate());
+			}
+		}
+
+		return affectedVersions;
 	}
-	
+
+	private void addAffectedPeriodForDate(Set<Integer> affectedVersions, List<PsrPeriod> periods, LocalDate date) {
+
+		if (date == null) {
+			return;
+		}
+
+		PsrPeriod period = psrPeriodCalculator.findPeriodForDate(periods, date);
+
+		if (period != null) {
+
+			affectedVersions.add(period.version());
+		}
+	}
+
+	private void addAffectedPeriodForDates(Set<Integer> affectedVersions, List<PsrPeriod> periods,
+			LocalDate plannedStart, LocalDate plannedEnd, LocalDate actualStart, LocalDate actualEnd) {
+
+		/*
+		 * Prefer planned dates.
+		 */
+		LocalDate start = plannedStart != null ? plannedStart : actualStart;
+
+		LocalDate end = plannedEnd != null ? plannedEnd : actualEnd;
+
+		/*
+		 * If only one date exists, that single date determines the PSR period.
+		 */
+		if (start == null && end == null) {
+			return;
+		}
+
+		if (start == null) {
+			start = end;
+		}
+
+		if (end == null) {
+			end = start;
+		}
+
+		/*
+		 * An activity can span multiple PSR periods.
+		 *
+		 * Mark every period it overlaps.
+		 */
+		for (PsrPeriod period : periods) {
+
+			if (!end.isBefore(period.startDate()) && !start.isAfter(period.endDate())) {
+
+				affectedVersions.add(period.version());
+			}
+		}
+	}
+
+	private boolean datesOverlap(LocalDate activityStart, LocalDate activityEnd, LocalDate periodStart,
+			LocalDate periodEnd) {
+
+		LocalDate start = activityStart != null ? activityStart : activityEnd;
+
+		LocalDate end = activityEnd != null ? activityEnd : activityStart;
+
+		if (start == null || end == null) {
+			return false;
+		}
+
+		return !end.isBefore(periodStart) && !start.isAfter(periodEnd);
+	}
+
 	private void deleteExistingProjectMetrics(Long opportunityId) {
 
 		ProjectMetrics metrics = projectMetricsRepository.findByOpportunityId(opportunityId).orElse(null);

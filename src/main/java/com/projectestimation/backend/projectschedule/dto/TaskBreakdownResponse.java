@@ -35,4 +35,8 @@ public class TaskBreakdownResponse {
 	private String psrFileLocation;
 	
 	private String psrMarkdown;
+	
+	private Integer sequence;
+	
+	private String predecessor;
 }

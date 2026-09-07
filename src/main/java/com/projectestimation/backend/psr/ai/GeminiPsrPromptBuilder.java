@@ -36,7 +36,9 @@ public class GeminiPsrPromptBuilder {
                 2. Do NOT return explanations.
                 3. Do NOT wrap the response in markdown code fences.
                 4. Do NOT invent activities, tasks, statuses, dates,
-                   progress, risks or other project information.
+	     		   progress or other project information. Risks must be
+        		   derived from observable conditions in the supplied
+        		   Project Schedule.
                 5. The Project Schedule supplied below is the ONLY source
                    of project schedule information.
                 6. Every activity supplied under ACTIVITIES DURING THE PERIOD
@@ -46,22 +48,41 @@ public class GeminiPsrPromptBuilder {
                    Activities table.
                 8. Do NOT remove an activity because of its status.
                 9. Do NOT change an activity's task name, activity name,
-                   status, progress, duration or dates.
+   status, progress, duration or dates.
+   Preserve the status checkmark exactly as supplied.
                 10. Do NOT merge multiple supplied activities into one row.
                 11. Do NOT split one supplied activity into multiple rows.
                 12. Preserve the supplied activity order.
                 13. Do NOT invent values for blank fields.
-                14. Risk Status must use the fixed Risk Status table supplied
-                   in this prompt.
-                15. Training of Project Team Members must always be present
-                   as the specified blank table.
-                16. Issues Which Need Management Attention must always be
-                   present as a blank section.
-                17. Nothing must appear after Issues Which Need Management
-                   Attention.
-                18. Do NOT create an additional Project Name section.
-                19. Do NOT change the order of the PSR sections.
-                20. Do NOT add any section that is not explicitly requested.
+        		14. Generate the Risk Status section by analyzing the supplied
+        			Project Schedule information for this PSR reporting period.
+        		15. Every identified risk must be grounded in the supplied
+        			Project Schedule data.
+        		16. Risks may be inferred from schedule-based indicators such as
+        			low or incomplete progress, activities approaching or exceeding
+        			planned dates, differences between planned and actual completion,
+        			predecessor dependencies, or other observable schedule conditions.
+        		17. Do NOT invent external events, people, causes, incidents,
+        			business conditions, client behavior, technical problems,
+        			or other project facts that are not present in the supplied
+        			Project Schedule.
+        		18. If the supplied Project Schedule does not provide evidence
+        			for a meaningful risk, do not invent one.
+        		19. Probability of occurrence must be one of L, M or H.
+        		20. Impact of Risk must be one of L, M or H.
+        		21. Provide a practical mitigation strategy based on the identified
+        			schedule risk.
+        		22. Risk Status must be generated dynamically for each PSR.
+        		23. Do NOT reproduce any fixed or hardcoded Risk Status rows.
+        		24. Training of Project Team Members must always be present
+        			as the specified blank table.
+        		25. Issues Which Need Management Attention must always be
+        			present as a blank section.
+        		26. Nothing must appear after Issues Which Need Management
+        			Attention.
+        		27. Do NOT create an additional Project Name section.
+        		28. Do NOT change the order of the PSR sections.
+        		29. Do NOT add any section that is not explicitly requested.
 
                 ============================================================
                 OUTPUT FORMAT
@@ -229,6 +250,16 @@ public class GeminiPsrPromptBuilder {
 
                 Use the exact supplied task name and supplied status.
 
+        		- The Completed, In progressing, and Pending columns MUST contain the
+  exact checkmark (✓) supplied in the activity data.
+- Copy the supplied checkmark exactly.
+- Do NOT leave all three status columns blank.
+- For each activity, exactly ONE of Completed, In progressing, or Pending
+  must contain ✓ based on the supplied status.
+- If status is Completed, put ✓ only under Completed.
+- If status is In Progress, put ✓ only under In progressing.
+- If status is Pending or Not Started, put ✓ only under Pending.
+
                 Create this Markdown table:
 
                 | Project Task | Completed | In progressing | Pending | % | Expected planned date | Actual finished date |
@@ -278,37 +309,114 @@ public class GeminiPsrPromptBuilder {
                 content.getNextWeekPlannedActivities()
         );
 
-        // ============================================================
-        // RISK STATUS
-        // ============================================================
+     // ============================================================
+     // RISK STATUS
+     // ============================================================
 
-        prompt.append("""
-                ============================================================
-                RISK STATUS
-                ============================================================
+     prompt.append("""
+             ============================================================
+        RISK STATUS
+        ============================================================
 
-                Reproduce the following Risk Status table exactly.
+        Analyze the supplied Project Schedule information and
+        generate the Risk Status section for this PSR.
 
-                Do NOT modify the wording.
-                Do NOT add rows.
-                Do NOT remove rows.
-                Do NOT change the values.
-                Do NOT summarize the table.
-                Do NOT create another Risk Status table.
+        Before generating the table, analyze ALL activities supplied
+        in ACTIVITIES DURING THE PERIOD and NEXT 15 DAYS PLANNED
+        ACTIVITIES.
 
-                | Sl.No. | Risk Identified | Probability of occurrence | Impact of Risk | Suggested Mitigation Strategy | Status |
-                |---:|---|:---:|:---:|---|---|
-                | 1 | Frequent changes in requirements | L | M | Arrange for better internet connection | Closed - No change request |
-                | 2 | Non-availability of Project Manager (illness, absence, etc.) | M | M | PM has to discuss with the client and convince him with the fact that any major change will be treated as 'Change Request' which needs extra effort and cost | Till date no issue with the Availability of the Project Managers |
-                | 3 | Absence of team member(s) | L | M | Delegation of responsibility | Till date team member are available on full time basis. |
-                | 4 | Prevent Unauthorized access on files | H | M | DAR meeting was conducted and it was decided to adopt Spring Security measure to prevent unauthorized access | Closed |
-                | 5 | Non-availability of high speed internet connection | H | L | Arrange for better internet connection | Sometime downtime occured but it was overcomed. For the time being there is as such no issue with the network. |
-                | 6 | Unknown Payment gateway for Upgrade user | H | M | Try to convince client to use authorize.net as payment gateway | Closed |
-                | 7 | Unknown Cloud server | H | L | Self-Learning | Closed- Upload to Azure cloud completed quite well. |
+        Compare each activity's:
+        - status
+        - progress
+        - planned start date
+        - planned finish date
+        - actual finished date
+        - predecessor/dependency information where available
 
-                ============================================================
-                TRAINING OF PROJECT TEAM MEMBERS
-                ============================================================
+        Use this analysis to identify schedule risks.
+
+        Do not simply reproduce the activities as risks.
+        Convert relevant schedule conditions into concise risk
+        statements with probability, impact, mitigation and status.
+
+        The Risk Status section must contain a Markdown table
+        with exactly these columns:
+
+        | Sl.No. | Risk Identified | Probability of occurrence | Impact of Risk | Suggested Mitigation Strategy | Status |
+        |---:|---|:---:|:---:|---|---|
+
+             REQUIREMENTS:
+
+             - Identify risks by analyzing the supplied Project Schedule.
+             - Base every risk on observable information contained in
+               the supplied schedule.
+             - Consider activity status and progress.
+             - Consider planned start and planned finish dates.
+             - Consider actual completion dates when available.
+             - Consider activities that are incomplete or have low progress
+               relative to their planned dates.
+             - Consider predecessor or dependency relationships when
+               identifying schedule risks.
+             - Consider other schedule-based conditions that indicate a
+               possible threat to timely project completion.
+             - Do NOT use the old hardcoded risks.
+             - Do NOT copy risks from previous PSRs unless the current
+               supplied schedule provides evidence for the same risk.
+             - Do NOT invent external events, people, causes, incidents,
+               client behavior, technical problems, business conditions,
+               or other facts that are not present in the schedule.
+             - Do NOT invent a risk simply to fill the table.
+- However, you MUST identify schedule-based risks whenever
+  the supplied schedule contains evidence of a potential
+  schedule risk.
+
+- Treat the following as risk indicators:
+  - Any activity with progress below 100%.
+  - Any activity marked In Progress or Not Started within
+    or approaching its planned reporting period.
+  - Any activity whose planned finish date is approaching
+    while progress remains incomplete.
+  - Any activity whose actual completion date is later than
+    its planned finish date.
+  - Any incomplete predecessor activity that may affect a
+    dependent activity.
+  - Any other observable schedule condition that could
+    threaten timely completion of the project.
+
+- When one or more of these indicators exists, generate
+  one or more corresponding risks.
+
+- Do NOT invent external events, people, causes, incidents,
+  client behavior, technical problems, business conditions,
+  or other facts that are not present in the schedule.
+
+- The risk description must explicitly relate to the
+  schedule evidence that caused the risk to be identified.
+
+- Probability of occurrence must be L, M or H.
+
+- Impact of Risk must be L, M or H.
+
+- Provide a practical mitigation strategy based on the
+  identified schedule risk.
+
+- Status must describe the current state of the identified
+  schedule risk. Use values such as Open, Monitoring,
+  or Closed only when supported by the supplied schedule.
+
+- Generate the Risk Status table dynamically from the
+  supplied Project Schedule.
+
+- Create exactly one Risk Status table.
+
+- Do not add explanations before or after the Risk Status table.
+
+- Do NOT return an empty Risk Status table when the supplied
+  schedule contains any of the risk indicators listed above.
+
+             ============================================================
+             TRAINING OF PROJECT TEAM MEMBERS
+             ============================================================
 
                 This section MUST always be present.
 
