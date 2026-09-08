@@ -191,24 +191,34 @@ public class GeminiTestCaseOrchestrator {
 
                 Example:
 
-                "testCaseScenario": [
-                    {
-                        "scenario": "Login using valid credentials",
-                        "steps": [...]
-                    },
-                    {
-                        "scenario": "Login using an invalid password",
-                        "steps": [...]
-                    },
-                    {
-                        "scenario": "Login using a non-existent username",
-                        "steps": [...]
-                    },
-                    {
-                        "scenario": "Submit login form with mandatory fields empty",
-                        "steps": [...]
-                    }
-                ]
+                Example:
+
+"testCaseScenario": [
+    {
+        "scenarioId": "SC_001",
+        "scenarioName": "Login using valid credentials",
+        "scenarioType": "POSITIVE",
+        "steps": [...]
+    },
+    {
+        "scenarioId": "SC_002",
+        "scenarioName": "Login using an invalid password",
+        "scenarioType": "NEGATIVE",
+        "steps": [...]
+    },
+    {
+        "scenarioId": "SC_003",
+        "scenarioName": "Login using a non-existent username",
+        "scenarioType": "NEGATIVE",
+        "steps": [...]
+    },
+    {
+        "scenarioId": "SC_004",
+        "scenarioName": "Submit login form with mandatory fields empty",
+        "scenarioType": "VALIDATION",
+        "steps": [...]
+    }
+]
 
                 IMPORTANT:
 
@@ -273,31 +283,167 @@ public class GeminiTestCaseOrchestrator {
                 functional objective.
 
                 =========================================================
-                TEST SCENARIO COVERAGE
-                =========================================================
+TEST SCENARIO COVERAGE - CRITICAL
+=========================================================
 
-                For every relevant requirement or use case, consider:
+For every Test Case, identify ALL DISTINCT, RELEVANT functional
+scenarios supported by the Requirement Summary and Existing Use Cases.
 
-                1. Positive scenarios
-                2. Negative scenarios
-                3. Mandatory field validation
-                4. Invalid input validation
-                5. Boundary conditions
-                6. Business rule validation
-                7. Authentication
-                8. Authorization
-                9. Integration behavior
-                10. Error handling
-                11. Data validation
-                12. Regression scenarios
-                13. Compatibility scenarios
+DO NOT limit each Test Case to only one positive and one negative
+scenario.
 
-                ONLY generate categories that are actually supported by
-                the Requirement Summary or Existing Use Cases.
+There is NO fixed limit of two scenarios.
 
-                Do NOT blindly generate every category.
+There is NO fixed maximum number of scenarios.
 
-                Do NOT invent unsupported functionality.
+The number of scenarios MUST be determined by the actual functional
+complexity and behavior described in the provided requirements.
+
+A Test Case may contain:
+
+- 1 scenario
+- 2 scenarios
+- 3 scenarios
+- 4 scenarios
+- 5 or more scenarios
+
+Generate as many scenarios as are genuinely supported by the
+requirements.
+
+Do NOT create artificial scenarios simply to increase the count.
+
+=========================================================
+SCENARIO ENUMERATION
+=========================================================
+
+Before producing the final JSON, internally identify every distinct
+functional behavior that should be tested.
+
+Consider the following categories WHERE APPLICABLE:
+
+1. Normal / successful flow
+2. Alternative successful flow
+3. Invalid input
+4. Missing mandatory input
+5. Boundary conditions explicitly supported by the requirement
+6. Business rule violation
+7. Authentication
+8. Authorization
+9. Error / failure handling
+10. Integration behavior
+11. Data validation
+12. Duplicate / repeated operation behavior
+13. State transition behavior
+14. Cancellation / rejection flow
+15. Regression of affected existing functionality
+16. Other requirement-specific behavior
+
+ONLY include categories that are actually supported by the
+Requirement Summary or Existing Use Cases.
+
+DO NOT invent functionality merely to increase the number of
+scenarios.
+
+=========================================================
+SCENARIO COMPLETENESS RULE
+=========================================================
+
+For every distinct functional behavior explicitly described in the
+Requirement Summary or Existing Use Cases, create a corresponding
+scenario.
+
+DO NOT stop after generating one positive and one negative scenario.
+
+If the requirement describes multiple distinct ways the system can
+behave, represent each distinct behavior as a separate scenario.
+
+For example, if the requirement supports:
+
+- valid username + valid password
+- valid username + invalid password
+- invalid username + valid password
+- invalid username + invalid password
+- empty username
+- empty password
+- both username and password empty
+- unauthorized user
+
+then these should be represented as separate scenarios when they are
+supported by the provided requirements.
+
+DO NOT compress all of these into only:
+
+- Successful login
+- Failed login
+
+=========================================================
+SCENARIO DISTINCTNESS
+=========================================================
+
+Each scenario must represent a meaningfully different functional
+condition or system behavior.
+
+Do NOT create multiple scenarios that test essentially the same
+behavior using different wording.
+
+The objective is COMPLETE FUNCTIONAL COVERAGE, not artificial
+scenario inflation.
+
+=========================================================
+SCENARIO TYPE
+=========================================================
+
+Every scenario MUST contain a scenarioType.
+
+Use the most appropriate type based on the actual behavior:
+
+POSITIVE
+NEGATIVE
+ALTERNATIVE
+BOUNDARY
+VALIDATION
+AUTHENTICATION
+AUTHORIZATION
+ERROR
+INTEGRATION
+
+Do not use a type that is unsupported by the requirement.
+
+=========================================================
+MANDATORY SCENARIO COVERAGE CHECK
+=========================================================
+
+Before returning the final JSON, internally verify:
+
+1. Every distinct functional behavior in the requirements has been
+   considered.
+
+2. All applicable positive scenarios have been considered.
+
+3. All applicable negative scenarios have been considered.
+
+4. All applicable validation scenarios have been considered.
+
+5. All applicable business-rule scenarios have been considered.
+
+6. All applicable authentication scenarios have been considered.
+
+7. All applicable authorization scenarios have been considered.
+
+8. All applicable error scenarios have been considered.
+
+9. All applicable integration scenarios have been considered.
+
+10. All applicable boundary scenarios have been considered.
+
+11. Applicable enhancement regression scenarios have been considered.
+
+12. I did NOT stop after generating only two scenarios.
+
+13. I did NOT invent unsupported functionality.
+
+If additional distinct scenarios are supported by the input,
+GENERATE THEM.
 
                 =========================================================
                 POSITIVE SCENARIOS
@@ -582,6 +728,12 @@ public class GeminiTestCaseOrchestrator {
 
                 Do NOT return comments.
 
+        		The example below shows only two scenarios for illustration.
+It is NOT a limit.
+
+The actual response MUST contain every distinct scenario supported
+by the provided requirements, even when that results in more than
+two scenarios.
                 Return exactly this structure:
 
                 {
