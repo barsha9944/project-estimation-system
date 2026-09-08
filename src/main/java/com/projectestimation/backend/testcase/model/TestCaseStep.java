@@ -19,6 +19,10 @@ public class TestCaseStep {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "test_case_id", nullable = false)
     private TestCase testCase;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scenario_id")
+    private TestCaseScenario scenario;
 
     @Column(nullable = false)
     private Integer stepNumber;
@@ -28,7 +32,7 @@ public class TestCaseStep {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String expectedResult;
-    
+
     @Column(columnDefinition = "TEXT")
     private String actualResult;
 

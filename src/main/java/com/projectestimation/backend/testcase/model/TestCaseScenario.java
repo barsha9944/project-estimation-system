@@ -3,8 +3,6 @@ package com.projectestimation.backend.testcase.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.projectestimation.backend.opportunity.model.Opportunity;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,53 +21,33 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "test_cases")
+@Table(name = "test_case_scenarios")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TestCase {
+public class TestCaseScenario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "opportunity_id", nullable = false)
-    private Opportunity opportunity;
+    @JoinColumn(name = "test_case_id", nullable = false)
+    private TestCase testCase;
 
     @Column(nullable = false)
-    private String reqId;
-
-    @Column(nullable = false)
-    private String testCaseId;
-    
-    @Column(columnDefinition = "TEXT")
-    private String testCondition;
-    
-    @OneToMany(
-            mappedBy = "testCase",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
-    @Builder.Default
-    private List<TestCaseScenario> testCaseScenario = new ArrayList<>();
-
-     
-    
-
-    @Column(nullable = false)
-    private String testCaseName;
+    private String scenarioId;
 
     @Column(columnDefinition = "TEXT")
-    private String testCaseDescription;
+    private String scenarioName;
 
     @Column(columnDefinition = "TEXT")
-    private String testData;
+    private String scenarioType;
 
     @OneToMany(
-            mappedBy = "testCase",
+            mappedBy = "scenario",
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
