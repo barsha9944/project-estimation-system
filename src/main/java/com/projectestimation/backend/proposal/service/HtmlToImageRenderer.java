@@ -38,14 +38,12 @@ public class HtmlToImageRenderer {
 
         page.waitForTimeout(2000);
 
-        Locator locator =
-                page.locator(
-                        "#diagram-container"
-                );
+        Locator locator = page.locator(
+                "#diagram-container, #diagramContainer, .diagram-container"
+        );
 
-        locator.screenshot(
-                new Locator.ScreenshotOptions()
-                        .setPath(outputFile)
+        locator.first().screenshot(
+                new Locator.ScreenshotOptions().setPath(outputFile)
         );
 
         browser.close();

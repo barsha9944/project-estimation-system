@@ -1,11 +1,13 @@
 package com.projectestimation.backend.proposal.service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.projectestimation.backend.common.ai.GeminiClient;
 import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.common.exception.ProposalFailedException;
@@ -14,9 +16,12 @@ import com.projectestimation.backend.opportunity.model.Opportunity;
 @Service
 public class GeminiDiagramGenerationService {
 
-    private static final int MAX_OUTPUT_TOKENS = 4096;
+    private static final int MAX_OUTPUT_TOKENS = 12000;
 
     private final AiGateway aiGateway;
+    
+    private static final String ARCHITECTURE_TEMPLATE_PATH =
+            "proposal/templetes/solution-architecture-template.html";
 
     public GeminiDiagramGenerationService(
             AiGateway aiGateway
@@ -24,23 +29,48 @@ public class GeminiDiagramGenerationService {
         this.aiGateway = aiGateway;
     }
 
+    
+    private String loadArchitectureTemplate() {
+
+        try (InputStream inputStream = getClass()
+                .getClassLoader()
+                .getResourceAsStream(ARCHITECTURE_TEMPLATE_PATH)) {
+
+            if (inputStream == null) {
+                throw new ProposalFailedException(
+                        "Solution architecture HTML template not found: "
+                                + ARCHITECTURE_TEMPLATE_PATH
+                );
+            }
+
+            return new String(
+                    inputStream.readAllBytes(),
+                    StandardCharsets.UTF_8
+            );
+
+        } catch (IOException ex) {
+            throw new ProposalFailedException(
+                    "Failed to load solution architecture HTML template",
+                    ex
+            );
+        }
+    }
+    
     public String generateSolutionArchitectureHtml(
             Opportunity opportunity
     ) {
 
-        String prompt = buildArchitecturePrompt(
-                opportunity
-        );
+    	String architectureTemplate = loadArchitectureTemplate();
 
+    	String prompt = buildArchitecturePrompt(
+    	        opportunity,
+    	        architectureTemplate
+    	);
+    	
         try {
 
-        	return aiGateway.generateContentWithImages(
+        	return aiGateway.generateContent(
         	        prompt,
-        	        List.of(
-        	                Path.of(
-        	                        "src/main/resources/proposal/reference-images/solution-architecture-reference-1.png"
-        	                )
-        	        ),
         	        "text/plain",
         	        MAX_OUTPUT_TOKENS
         	);
@@ -87,227 +117,331 @@ public class GeminiDiagramGenerationService {
     }
 
     private String buildArchitecturePrompt(
-            Opportunity opportunity
-    ) {
+        Opportunity opportunity,
+        String architectureTemplate
+) {
 
-        return """
-Generate ONLY valid HTML with inline CSS for a premium enterprise solution architecture infographic.
+    return """
+You are adapting an APPROVED MASTER HTML TEMPLATE to create a Solution
+Architecture diagram for the opportunity provided below.
 
-FONT SIZE REQUIREMENTS
+THIS IS NOT A DESIGN GENERATION TASK.
 
-- Use large presentation-grade fonts.
-- Main title: 36px to 42px
-- Section titles: 28px to 32px
-- Box titles: 22px to 26px
-- Content text: minimum 18px
-- Labels: minimum 16px
-- Never use font sizes below 16px.
-- Optimize for readability inside Word/PDF documents.
-- Assume the image will be inserted into a proposal document.
-- Text must remain readable without zooming.
+The supplied HTML template is the authoritative source for the complete
+visual design and HTML structure.
 
-STRICT RULES:
+Your task is to take the supplied template and adapt its architecture
+CONTENT to the opportunity.
 
-* Output ONLY HTML.
-* No markdown.
-* No explanations.
-* No JavaScript.
-* Entire response must be wrapped inside:
+============================================================
+CRITICAL RULE
+============================================================
 
-<div id="diagram-container">...</div>
+START FROM THE SUPPLIED HTML TEMPLATE.
 
-REFERENCE IMAGE INSTRUCTIONS:
+PRESERVE THE TEMPLATE.
 
-* Use the attached reference image as the primary visual inspiration.
-* Follow similar infographic-style enterprise architecture design.
-* Maintain similar spacing, symmetry, alignment, layering, arrows, borders, shadows, icons, and visual richness.
-* The final output should visually resemble a premium enterprise PowerPoint architecture infographic.
+DO NOT RECREATE THE HTML FROM MEMORY.
 
-VISUAL STYLE REQUIREMENTS:
+DO NOT DESIGN A NEW DIAGRAM.
 
-* Use large professional SVG-style icons throughout the architecture.
-* Use infographic-style SVG icons instead of emoji icons whenever possible.
-* Use modern enterprise color palette with rich gradients or premium solid colors.
-* Use rounded infographic containers with subtle shadows and borders.
-* Use large bold section headers with centered alignment.
-* Use visually rich architecture styling instead of plain dashboard-style rectangles.
-* Avoid tiny monochrome icons.
-* Avoid flat/plain text-only layouts.
-* Maintain strong visual hierarchy across all layers.
-* Keep the layout visually balanced and presentation-quality.
-* Utilize full width and height of the image.
-* Avoid excessive whitespace and compressed layouts.
-* Use large readable fonts.
-* Use consistent spacing between all layers and components.
-* Keep all sections evenly distributed.
-* The final design should resemble a polished enterprise infographic or architecture presentation slide.
-* All text font size = 20
+DO NOT SIMPLIFY THE TEMPLATE.
 
-PREMIUM INFOGRAPHIC RENDERING RULES:
+DO NOT REPLACE THE TEMPLATE WITH YOUR OWN HTML.
 
-* The final architecture must visually resemble a premium enterprise PowerPoint infographic slide.
-* Do NOT generate flat dashboard-style layouts.
-* Use visually rich layered infographic styling.
-* Use gradient backgrounds for architecture layers.
-* Add subtle shadows and depth to all containers.
-* Use large colorful SVG-style icons throughout the diagram.
-* Icons must be visually prominent and larger than text.
-* Use infographic cards with rounded corners and visual depth.
-* Add visual hierarchy using colors, spacing, and typography.
-* Add proper enterprise-style connector arrows with arrowheads.
-* Avoid excessive empty white areas.
-* The architecture should feel visually dense, polished, and enterprise-grade.
-* Use strong visual separation between architecture layers.
-* Use large enterprise-style section headers.
-* The overall design should look similar to a professionally designed consulting presentation slide.
+DO NOT create a new CSS design.
 
+DO NOT create a new layout.
 
-INFOGRAPHIC VISUAL REQUIREMENTS:
+DO NOT remove visual elements from the template.
 
-* The diagram must visually resemble a premium enterprise infographic.
-* Add arrows with visible arrowheads between connected layers.
-* User icons must connect vertically to the Presentation Layer using visible arrows.
-* REST API layer must visually connect Presentation Layer and Middleware Layer.
-* External integrations must connect to middleware/business layers using horizontal arrows.
-* Database layer must contain a large enterprise database icon.
-* Security layer must contain shield/lock icons.
-* API layer must contain API/cloud integration icons.
-* Business components must contain individual icons inside component cards.
-* Add subtle shadows, gradients, and rounded infographic cards.
-* Ensure the architecture looks enterprise-grade and presentation-ready.
+The supplied HTML itself is the source of truth for the visual design.
 
-TOP USER LAYER:
+All The font size should be 20px and all font colours should be black.
 
-* Include exactly 3 distinct user types with large professional icons:
+============================================================
+WHAT MUST REMAIN UNCHANGED
+============================================================
 
-  * Web User
-  * Mobile User
-  * Admin User
-* Do not repeat user types.
-* User icons must be large, colorful, visually rich, and centered.
-* Each user must connect downward to the Presentation Layer using visible connector arrows with arrowheads.
-* Display HTTPS Request labels between users and Presentation Layer.
+Preserve the template's existing:
 
-MAIN ARCHITECTURE LAYOUT:
+- HTML structure
+- CSS
+- CSS variables
+- colors
+- backgrounds
+- borders
+- border radii
+- shadows
+- typography
+- spacing
+- card styling
+- section headers
+- panel styling
+- grid layout
+- column layout
+- icon styling
+- SVG elements
+- SVG connection layer
+- JavaScript
+- connection-drawing logic
+- legend
+- overall dimensions
+- visual hierarchy
 
-* Presentation / UI Layer at top
-* REST API / JSON Communication Layer
-* Authentication / Security Layer
-* Middleware / Application Layer
-* Service / Business Layer
-* DAO / Data Access Layer
-* Database Layer at bottom
-* Security & Compliance section at bottom
-* External Integrations section on the right side
+Do NOT replace any of these with newly generated alternatives.
 
-ARCHITECTURE CONNECTIVITY RULES:
+The final result must look like the supplied manager template.
 
-- Use inline SVG connector lines with SVG arrowheads.
-- Do not use text arrows such as ↓, →, <-, ->.
-- Connect Web User, Mobile User, and Admin User directly to the Presentation Layer.
-- Connect Presentation Layer to REST API Layer.
-- Connect REST API Layer to Authentication Layer.
-- Connect Authentication Layer to Service Layer.
-- Connect Service Layer to DAO/Data Access Layer.
-- Connect DAO/Data Access Layer to Database Layer.
-- Connect External Integrations to the Service Layer using horizontal SVG connectors.
-- Every connector must start and end on a valid architecture component.
-- Do not render floating arrows.
-- Do not render disconnected connectors.
-- All connectors must remain attached to architecture components.
+============================================================
+ICONS
+============================================================
 
-LAYOUT RULES:
+Preserve the existing icon implementation from the template.
 
-* Prefer a single left-to-right workflow.
-* Only use multiple rows if the process contains many steps.
-* If multiple rows are used, connect rows using vertical SVG arrows.
-* The last box of a row must connect to the first box of the next row.
-* Never place process boxes on separate rows without connectors.
-* Maintain complete visual continuity from Start to End.
+DO NOT remove icons.
 
+DO NOT replace icons with text.
 
-ARCHITECTURE REQUIREMENTS:
+DO NOT replace icons with Unicode characters.
 
-* Include token authentication, encryption, validation, audit logs, SSL/TLS, and PII protection.
-* Include middleware/services dynamically based on opportunity components.
-* Include multiple business/service component cards with icons.
-* Include external integrations such as:
+DO NOT use emoji.
 
-  * Payment Gateway
-  * ERP Integration
-  * Notification Services
-  * Third Party APIs
-  * Cloud Services
-* Include prominent API/cloud/security/database icons throughout the architecture.
-* Include a large enterprise database icon in the Database Layer.
+DO NOT use:
 
-BUSINESS COMPONENT REQUIREMENTS:
+📱
+👤
+👨‍⚕️
+🏥
+🔒
+💬
+📊
+☁️
+🔔
+💳
+🛡️
+or any other emoji.
 
-* Service/Business Layer should contain multiple visually rich component cards such as:
+If a template icon is not suitable for the opportunity, replace only the
+icon itself with a professional inline SVG while keeping the same:
 
-  * Reporting
-  * Notifications
-  * Analytics
-  * Workflow Engine
-  * Processing Engine
-  * ERP Connector
-  * Document Management
-* Every component card must contain a relevant icon.
-* Component cards should visually resemble infographic-style enterprise modules.
+- size
+- position
+- visual weight
+- container
+- styling
+- color treatment
 
-ICON REQUIREMENTS:
+============================================================
+COLORS
+============================================================
 
-* Use visually rich infographic-style SVG icons similar to enterprise presentation diagrams.
-* Icons must be large, centered, colorful, and visually balanced.
-* Maintain consistent icon sizes throughout the diagram.
-* Use icons for:
-* Icons should visually resemble modern SVG enterprise icons used in consulting architecture presentations.
-* Avoid tiny minimalist icons.
-* Icons should be large, colorful, and visually dominant.
+Preserve the exact colors defined in the supplied HTML template.
 
+Do NOT create a new color palette.
 
+Do NOT make the diagram monochrome.
 
-  * Users
-  * Security
-  * API
-  * Database
-  * Cloud
-  * Notifications
-  * ERP
-  * Payment Gateway
-  * Middleware
-  * Analytics
-  * Reporting
-  * Workflow Engine
-  * Authentication
+Do NOT replace colored section headers with white headers.
 
-IMPORTANT:
+Do NOT replace colored backgrounds with white backgrounds.
 
-* Generate ONLY architecture diagram.
-* Do NOT generate workflow/process flow diagrams.
-* Do NOT generate descriptive paragraphs outside the visual diagram.
-* Do NOT leave empty unused spaces in the layout.
-* Do NOT generate plain dashboard-style rectangles.
-* The final output should look like a premium enterprise infographic suitable for client proposal documents.
+Do NOT remove borders.
 
-Opportunity Details:
+Do NOT remove shadows.
 
-* Opportunity Name: %s
-* Platforms: %s
-* Technologies: %s
-* Enterprise Contexts: %s
-* Components: %s
+Do NOT replace the template's visual styling with simple boxes.
 
+============================================================
+STRUCTURE
+============================================================
 
+The following major regions from the template must remain:
+
+1. Header / Title
+2. Users / Clients Layer
+3. Protocol Layer
+4. Middle Tier / Backend Services
+5. Application Services / API Gateway
+6. Business Modules / Engines
+7. Utilities / Infrastructure Services
+8. External Integrations
+9. Data Access / Security Layer
+10. Database / Persistence Layer
+11. Legend
+12. SVG connection layer
+
+Do not remove these regions.
+
+Do not merge these regions.
+
+Do not reorder these regions.
+
+Do not replace them with a different layout.
+
+============================================================
+OPPORTUNITY ADAPTATION
+============================================================
+
+The opportunity determines the CONTENT.
+
+Adapt:
+
+- title
+- subtitle
+- users
+- client applications
+- portals
+- APIs
+- backend services
+- microservices
+- business modules
+- infrastructure services
+- security components
+- databases
+- external integrations
+- technology labels
+- component descriptions
+- connection definitions
+
+The healthcare content in the template is example content only.
+
+If the opportunity is not healthcare, replace healthcare-specific content with
+content relevant to the opportunity.
+
+For example:
+
+Patient Gateway
+→ appropriate client/application for this opportunity
+
+Doctor App
+→ appropriate user-facing application
+
+Healthcare Business Modules
+→ opportunity-specific business modules
+
+Healthcare integrations
+→ opportunity-specific integrations
+
+MongoDB / healthcare data
+→ appropriate persistence components supported by the opportunity
+
+However, these replacements must happen INSIDE the existing template
+structure.
+
+============================================================
+TECHNOLOGY ACCURACY
+============================================================
+
+Use the opportunity information as the source of architecture content.
+
+Do not invent specific technologies, vendors, cloud services, databases,
+integrations or frameworks unless supported by the opportunity.
+
+If a technology is not specified, use a generic architectural term.
+
+============================================================
+CONNECTIONS
+============================================================
+
+Preserve the template's SVG connection layer and JavaScript connection
+mechanism.
+
+Update connection definitions only where necessary so they point to the
+opportunity-specific components.
+
+Every connection must point to an element that actually exists.
+
+Do not leave connections pointing to removed components.
+
+Use the same connector appearance as the template.
+
+============================================================
+IMPORTANT HTML RULE
+============================================================
+
+Return the COMPLETE HTML.
+
+Do not return a simplified version.
+
+Do not return only modified sections.
+
+Do not return a new HTML design.
+
+Do not return Markdown.
+
+Do not return code fences.
+
+Do not return explanations.
+
+Return ONLY the final HTML.
+
+The root architecture container MUST remain:
+
+<div class="diagram-container" id="diagram-container">
+
+============================================================
+VISUAL QUALITY
+============================================================
+
+The final output must visually match the supplied manager template.
+
+It must retain:
+
+- professional colors
+- professional icons
+- colored section headers
+- colored layer backgrounds
+- rounded cards
+- subtle shadows
+- borders
+- consistent typography
+- professional SVG connectors
+- the same overall architecture infographic appearance
+
+The opportunity changes the architecture CONTENT.
+
+The template controls the visual REPRESENTATION.
+
+============================================================
+APPROVED MASTER TEMPLATE
+============================================================
+
+%s
+
+============================================================
+OPPORTUNITY
+============================================================
+
+%s
+
+============================================================
+FINAL INSTRUCTION
+============================================================
+
+Adapt the APPROVED MASTER TEMPLATE to the opportunity.
+
+Do not redesign it.
+
+Do not simplify it.
+
+Do not replace its CSS.
+
+Do not replace its visual design.
+
+Do not remove its icons.
+
+Do not remove its colors.
+
+Do not remove its SVG connection system.
+
+Return the complete adapted HTML only.
 """
-                .formatted(
-                        safe(opportunity.getOpportunityName()),
-                        safe(opportunity.getPlatforms()),
-                        safe(opportunity.getTechnologyCategories()),
-                        safe(opportunity.getEnterpriseContexts()),
-                        safe(opportunity.getComponents())
-                );
-    }
+            .formatted(
+                    architectureTemplate,
+                    opportunity
+            );
+}
 
     private String buildProcessFlowPrompt(
             Opportunity opportunity,

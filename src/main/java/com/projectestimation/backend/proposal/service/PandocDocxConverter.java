@@ -146,10 +146,28 @@ public class PandocDocxConverter {
 		}
 	}
 
-	public void generateProposalImages(String architectureHtml, List<String> processFlowHtmls, Path proposalDir,
-			String baseFileName) {
+	public void generateProposalImages(
+	        String architectureHtml,
+	        List<String> processFlowHtmls,
+	        Path proposalDir,
+	        String baseFileName) {
 
-		generateDynamicImages(architectureHtml, processFlowHtmls, proposalDir, baseFileName);
+	    try {
+	        copyProposalImages(proposalDir);
+
+	        generateDynamicImages(
+	                architectureHtml,
+	                processFlowHtmls,
+	                proposalDir,
+	                baseFileName
+	        );
+
+	    } catch (IOException ex) {
+	        throw new ProposalFailedException(
+	                "Failed to copy proposal images to proposal directory",
+	                ex
+	        );
+	    }
 	}
 
 	private void generateDynamicImages(String architectureHtml, List<String> processFlowHtmls, Path imagesDir,
