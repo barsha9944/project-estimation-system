@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HealthCare Platform - Technical Solution Architecture</title>
+
+<style>
+/* =========================================================
+   GLOBAL STYLES (Matching Reference Design System)
+========================================================= */
+
+:root {
+    --navy: #173b70;
+    --navy-light: #eaf1f8;
+
+    --green: #2e6b56;
+    --green-light: #f0f8f5;
+
+    --purple: #513870;
+    --purple-light: #faf7ff;
+
+    --orange: #a9602b;
+    --orange-light: #fffaf5;
+
+    --blue-border: #9eb4cb;
+    --gray-border: #cbd5e1;
+
+    --text: #1f2937;
+    --muted: #64748b;
+
+    --arrow: #1f5a9d;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    background: #f3f6fa;
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.page-title-bar {
+    text-align: center;
+    margin-bottom: 18px;
+    padding: 16px 20px;
+    background: white;
+    border: 1px solid var(--gray-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.page-title-bar h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+}
+
+.page-title-bar p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.page-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* =========================================================
+   DIAGRAM CANVAS
+========================================================= */
+
+.diagram-container {
+    position: relative;
+    min-width: 1450px;
+    max-width: 1900px;
+    margin: 0 auto;
+    padding: 0;
+    background: white;
+}
+
+/* =========================================================
+   SVG CONNECTION LAYER
+========================================================= */
+
+#connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 50;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.connection {
+    fill: none;
+    stroke: var(--arrow);
+    stroke-width: 2;
+    opacity: 0.95;
+    transition: stroke-width 0.2s ease, stroke 0.2s ease;
+}
+
+.connection:hover {
+    stroke-width: 4;
+}
+
+.connection.vertical {
+    stroke-width: 2.5;
+}
+
+.connection.async {
+    stroke-dasharray: 8 6;
+}
+
+/* =========================================================
+   MAIN TOP ARCHITECTURE GRID
+========================================================= */
+
+.top-grid {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 220px 130px minmax(720px, 1fr) 270px;
+    gap: 36px;
+    align-items: stretch;
+}
+
+/* =========================================================
+   GENERIC PANEL
+========================================================= */
+
+.panel {
+    background: white;
+    border: 1px solid var(--gray-border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.panel-header {
+    padding: 13px 10px;
+    color: white;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* =========================================================
+   USERS / CLIENTS LAYER
+========================================================= */
+
+.users-panel .panel-header {
+    background: var(--navy);
+}
+
+.user-box {
+    position: relative;
+    min-height: 148px;
+    padding: 16px 12px;
+    border-bottom: 1px solid #b7c7d9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: white;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.user-box:last-child {
+    border-bottom: none;
+}
+
+.user-box:hover {
+    background: #f8fbff;
+    transform: translateY(-1px);
+}
+
+.user-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.user-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--navy);
+}
+
+.user-description {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+/* =========================================================
+   REST / HTTPS CONNECTION
+========================================================= */
+
+.rest-panel {
+    position: relative;
+    min-height: 100%;
+    border: 1px solid #7ea894;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #eaf5f1, #ffffff);
+    display: flex;
+    flex-direction: column;
+}
+
+.rest-header {
+    padding: 13px 8px;
+    background: var(--green);
+    color: white;
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+
+.rest-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px 8px;
+}
+
+.rest-icon {
+    font-size: 52px;
+    margin-bottom: 16px;
+}
+
+.rest-content h3 {
+    margin: 0 0 8px;
+    color: #1b4b3b;
+    font-size: 15px;
+}
+
+.rest-content p {
+    margin: 0;
+    color: #3b6656;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* =========================================================
+   MIDDLE TIER
+========================================================= */
+
+.middle-tier {
+    position: relative;
+    border: 1px solid var(--blue-border);
+    border-radius: 8px;
+    background: #f7faff;
+    overflow: hidden;
+    padding-bottom: 14px;
+}
+
+.middle-tier-header {
+    padding: 13px;
+    background: var(--navy);
+    color: white;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.middle-section {
+    margin: 14px;
+    padding: 14px;
+    border: 1px solid #aebfd0;
+    border-radius: 8px;
+    background: white;
+}
+
+.section-heading {
+    margin: 0 0 14px;
+    text-align: center;
+    color: #263c57;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* =========================================================
+   APPLICATION SERVERS & GATEWAY
+========================================================= */
+
+.application-section {
+    background: #edf4fb;
+}
+
+.application-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1.35fr;
+    gap: 16px;
+    align-items: center;
+}
+
+.server-box {
+    padding: 12px 8px;
+    border-radius: 6px;
+    background: #34495e;
+    color: white;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.server-icon {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 24px;
+}
+
+.gateway-box {
+    padding: 14px 10px;
+    border: 2px dashed #436d9d;
+    border-radius: 6px;
+    background: white;
+    color: #263c57;
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+/* =========================================================
+   BUSINESS COMPONENTS
+========================================================= */
+
+.business-section {
+    background: #f4f7fb;
+}
+
+.component-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.component-box {
+    min-height: 76px;
+    padding: 10px 10px;
+    border: 1px solid #aebfd0;
+    border-radius: 7px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    text-align: left;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.component-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(23, 59, 112, 0.15);
+}
+
+.component-icon {
+    font-size: 26px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.component-content strong {
+    display: block;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #173b70;
+}
+
+.component-content span {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+/* =========================================================
+   UTILITIES
+========================================================= */
+
+.utilities-section {
+    background: linear-gradient(180deg, #f1f7ef, #f9fcf8);
+}
+
+.utilities-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+}
+
+.utility-box {
+    min-height: 110px;
+    padding: 10px 6px;
+    border: 1px solid #a9ba9f;
+    border-radius: 7px;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.utility-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(46, 107, 86, 0.15);
+}
+
+.utility-icon {
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+
+.utility-box strong {
+    font-size: 11px;
+    line-height: 1.35;
+    color: #2e6b56;
+}
+
+.utility-box span {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 9.5px;
+    line-height: 1.3;
+}
+
+/* =========================================================
+   EXTERNAL SYSTEMS
+========================================================= */
+
+.external-panel .panel-header {
+    background: var(--purple);
+}
+
+.external-box {
+    position: relative;
+    min-height: 74px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #d3cae0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.external-box:last-child {
+    border-bottom: none;
+}
+
+.external-box:hover {
+    background: #faf7ff;
+    transform: translateX(-2px);
+}
+
+.external-icon {
+    font-size: 28px;
+    min-width: 38px;
+    text-align: center;
+}
+
+.external-content {
+    flex: 1;
+    text-align: left;
+}
+
+.external-content strong {
+    display: block;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--purple);
+}
+
+.external-content span {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+/* =========================================================
+   LOWER ARCHITECTURE LAYERS
+========================================================= */
+
+.lower-layers {
+    position: relative;
+    z-index: 2;
+    width: calc(100% - 220px - 130px - 270px - 72px);
+    margin-left: calc(220px + 130px + 72px);
+    margin-top: 20px;
+}
+
+/* =========================================================
+   DATA ACCESS LAYER
+========================================================= */
+
+.data-access-layer {
+    position: relative;
+    padding: 14px;
+    border: 1px solid #d6a878;
+    border-radius: 8px;
+    background: var(--orange-light);
+}
+
+.layer-heading {
+    margin-bottom: 12px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.data-access-layer .layer-heading {
+    color: #96552a;
+}
+
+.repository-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+}
+
+.repository-box {
+    padding: 10px 8px;
+    border: 1px solid #ddb58f;
+    border-radius: 6px;
+    background: white;
+    text-align: center;
+    font-size: 11.5px;
+    color: #783e18;
+}
+
+.repository-box strong {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+.orm-box {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #ddb58f;
+    border-radius: 6px;
+    background: white;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #96552a;
+}
+
+/* =========================================================
+   DATABASE LAYER
+========================================================= */
+
+.database-layer {
+    position: relative;
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid #b8a7d6;
+    border-radius: 8px;
+    background: #faf8ff;
+}
+
+.database-layer .layer-heading {
+    color: #4b3c70;
+}
+
+.database-grid {
+    display: grid;
+    grid-template-columns: 4fr 1fr;
+    gap: 14px;
+}
+
+.database-box {
+    padding: 14px;
+    border: 1px solid #bfb0da;
+    border-radius: 7px;
+    background: white;
+}
+
+.primary-db-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #4b3c70;
+}
+
+.db-tables {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.db-table {
+    text-align: center;
+    font-size: 10px;
+    color: #374151;
+    font-weight: 600;
+}
+
+.db-table-icon {
+    display: block;
+    font-size: 26px;
+    margin-bottom: 4px;
+}
+
+.redis-db {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #b91c1c;
+}
+
+.redis-icon {
+    font-size: 32px;
+}
+
+/* =========================================================
+   LEGEND
+========================================================= */
+
+.legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 25px;
+    margin-top: 20px;
+    padding: 12px 18px;
+    border: 1px solid var(--gray-border);
+    border-radius: 6px;
+    background: white;
+    width: 380px;
+    margin-left: auto;
+    font-size: 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.legend-line {
+    width: 44px;
+    height: 0;
+    border-top: 2px solid var(--arrow);
+    position: relative;
+}
+
+.legend-line::before,
+.legend-line::after {
+    content: "";
+    position: absolute;
+    top: -5px;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+}
+
+.legend-line::before {
+    left: -1px;
+    border-right: 7px solid var(--arrow);
+}
+
+.legend-line::after {
+    right: -1px;
+    border-left: 7px solid var(--arrow);
+}
+
+.legend-async {
+    border-top-style: dashed;
+}
+</style>
+</head>
+
+<body>
+
+<div class="page-wrapper">
+
+    <div class="page-title-bar">
+        <h1>HealthCare Platform & Services — Solution Architecture</h1>
+        <p>End-to-End Real-Time Health Monitoring Ecosystem · MERN + React Native + Native Android + Python Analytics</p>
+    </div>
+
+    <div class="diagram-container" id="diagram-container">
+
+        <!-- SVG CONNECTION LAYER -->
+        <svg id="connections" aria-hidden="true">
+            <defs>
+                <marker id="arrowEnd" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#1f5a9d"></path>
+                </marker>
+                <marker id="arrowStart" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M9,0 L9,6 L0,3 z" fill="#1f5a9d"></path>
+                </marker>
+            </defs>
+        </svg>
+
+        <!-- TOP ARCHITECTURE GRID -->
+        <div class="top-grid">
+
+            <!-- USERS / CLIENTS LAYER -->
+            <section class="panel users-panel" id="usersPanel">
+                <div class="panel-header">Users / Clients Layer</div>
+
+                <div class="user-box" id="patientClient">
+                    <div class="user-icon">📱⌚</div>
+                    <div class="user-title">Patient Gateway</div>
+                    <div class="user-description">
+                        Native Android App<br>
+                        BLE Pairing & Vital Sync
+                    </div>
+                </div>
+
+                <div class="user-box" id="doctorClient">
+                    <div class="user-icon">👨‍⚕️📱</div>
+                    <div class="user-title">Doctor App</div>
+                    <div class="user-description">
+                        React Native App<br>
+                        Android / iOS Ready
+                    </div>
+                </div>
+
+                <div class="user-box" id="hospitalClient">
+                    <div class="user-icon">🏥💻</div>
+                    <div class="user-title">Hospital Admin</div>
+                    <div class="user-description">
+                        React Web Portal<br>
+                        Doctor & Patient Mgmt
+                    </div>
+                </div>
+
+                <div class="user-box" id="socClient">
+                    <div class="user-icon">🛡️💻</div>
+                    <div class="user-title">SOC Admin</div>
+                    <div class="user-description">
+                        React Web Portal<br>
+                        Ops & System Alerts
+                    </div>
+                </div>
+            </section>
+
+            <!-- REST / WSS PROTOCOL GATEWAY -->
+            <section class="rest-panel" id="restLayer">
+                <div class="rest-header">
+                    REST / WSS / BLE<br>
+                    PROTOCOL LAYER
+                </div>
+
+                <div class="rest-content" id="restApi">
+                    <div class="rest-icon">☁️🔒</div>
+                    <h3>API Protocol</h3>
+                    <p>HTTPS / WSS<br>TLS 1.3 / BLE</p>
+                </div>
+            </section>
+
+            <!-- MIDDLE TIER - APPLICATION SERVER & BUSINESS LAYER -->
+            <section class="middle-tier" id="middleTier">
+                <div class="middle-tier-header">
+                    Middle Tier – Microservices Application Server & Business Engine
+                </div>
+
+                <!-- APPLICATION SERVERS & GATEWAY -->
+                <div class="middle-section application-section">
+                    <h2 class="section-heading">Application Microservices & API Gateway</h2>
+                    <div class="application-row">
+                        <div class="server-box">
+                            <span class="server-icon">🖥️</span>
+                            Microservice Node 1
+                        </div>
+                        <div class="server-box">
+                            <span class="server-icon">🖥️</span>
+                            Microservice Node 2
+                        </div>
+                        <div class="server-box">
+                            <span class="server-icon">🖥️</span>
+                            Microservice Node 3
+                        </div>
+                        <div class="gateway-box" id="apiGateway">
+                            API Gateway / Load Balancer<br>
+                            <span style="font-size:10px;font-weight:400;color:#64748b;">(Rate Limit 1000 TPS, JWT, RBAC)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BUSINESS COMPONENTS -->
+                <div class="middle-section business-section">
+                    <h2 class="section-heading">Healthcare Business Modules & Engines</h2>
+                    <div class="component-grid">
+
+                        <div class="component-box">
+                            <div class="component-icon">🔐</div>
+                            <div class="component-content">
+                                <strong>Auth & Security</strong>
+                                <span>JWT, MFA, Role-Based Access</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">💓</div>
+                            <div class="component-content">
+                                <strong>Vital Ingestion Engine</strong>
+                                <span>1000 TPS Real-Time Pipeline</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">🐍</div>
+                            <div class="component-content">
+                                <strong>Python AI/ML Engine</strong>
+                                <span>Abnormality & Threshold Alert</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">📱</div>
+                            <div class="component-content">
+                                <strong>Patient & BLE Device</strong>
+                                <span>Auto-Connect & Health Test</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">📅</div>
+                            <div class="component-content">
+                                <strong>Doctor & Appointments</strong>
+                                <span>Scheduling, Queue, Prescriptions</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">📋</div>
+                            <div class="component-content">
+                                <strong>Hospital & Care Plans</strong>
+                                <span>Subscription & Patient Allocation</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">🚨</div>
+                            <div class="component-content">
+                                <strong>Emergency Alert Engine</strong>
+                                <span>Patient, Doctor & Contact Push</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">💬</div>
+                            <div class="component-content">
+                                <strong>E2E Encrypted Chat</strong>
+                                <span>Doctor-Patient Signal Messaging</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">📹</div>
+                            <div class="component-content">
+                                <strong>Video Consultancy</strong>
+                                <span>Telehealth Video Calling</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">📊</div>
+                            <div class="component-content">
+                                <strong>Analytics & Trends</strong>
+                                <span>Normal vs Critical Comparison</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">🎫</div>
+                            <div class="component-content">
+                                <strong>SOC Ops & Tickets</strong>
+                                <span>Platform Support & Care Tickets</span>
+                            </div>
+                        </div>
+
+                        <div class="component-box">
+                            <div class="component-icon">🛡️</div>
+                            <div class="component-content">
+                                <strong>HIPAA / Audit Log</strong>
+                                <span>PHI Access & Compliance</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- UTILITIES -->
+                <div class="middle-section utilities-section">
+                    <h2 class="section-heading">Utilities & Infrastructure Services</h2>
+                    <div class="utilities-grid">
+
+                        <div class="utility-box">
+                            <div class="utility-icon">📈</div>
+                            <strong>Logging & Tracing</strong>
+                            <span>CloudWatch / X-Ray</span>
+                        </div>
+
+                        <div class="utility-box">
+                            <div class="utility-icon">🟥</div>
+                            <strong>Caching Layer</strong>
+                            <span>Redis Cluster</span>
+                        </div>
+
+                        <div class="utility-box">
+                            <div class="utility-icon">🗄️</div>
+                            <strong>PHI Blob Storage</strong>
+                            <span>Encrypted Object Store</span>
+                        </div>
+
+                        <div class="utility-box">
+                            <div class="utility-icon">📨</div>
+                            <strong>Event Queue</strong>
+                            <span>SQS / SNS Event Bus</span>
+                        </div>
+
+                        <div class="utility-box">
+                            <div class="utility-icon">🔔</div>
+                            <strong>Notification Engine</strong>
+                            <span>SMS, WhatsApp, Email</span>
+                        </div>
+
+                        <div class="utility-box">
+                            <div class="utility-icon">🛡️</div>
+                            <strong>WAF & Security</strong>
+                            <span>Secrets & Threat Guard</span>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- EXTERNAL SYSTEMS LAYER -->
+            <section class="panel external-panel" id="externalPanel">
+                <div class="panel-header">External Integrations</div>
+
+                <div class="external-box" id="externalIot">
+                    <div class="external-icon">⌚</div>
+                    <div class="external-content">
+                        <strong>Wearable IoT SDKs</strong>
+                        <span>BLE Band Vital Devices</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalPush">
+                    <div class="external-icon">📲</div>
+                    <div class="external-content">
+                        <strong>Push Notifications</strong>
+                        <span>Firebase FCM</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalSms">
+                    <div class="external-icon">💬</div>
+                    <div class="external-content">
+                        <strong>SMS & WhatsApp</strong>
+                        <span>Twilio & Business API</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalVideo">
+                    <div class="external-icon">📹</div>
+                    <div class="external-content">
+                        <strong>Video Gateway</strong>
+                        <span>Agora / Twilio Video</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalPayment">
+                    <div class="external-icon">💳</div>
+                    <div class="external-content">
+                        <strong>Payment Gateway</strong>
+                        <span>Razorpay / Stripe</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalBi">
+                    <div class="external-icon">📊</div>
+                    <div class="external-content">
+                        <strong>Embedded BI</strong>
+                        <span>Power BI / Metabase</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalEmail">
+                    <div class="external-icon">📧</div>
+                    <div class="external-content">
+                        <strong>Email Gateway</strong>
+                        <span>Transactional Email (SES)</span>
+                    </div>
+                </div>
+
+                <div class="external-box" id="externalLab">
+                    <div class="external-icon">🔬</div>
+                    <div class="external-content">
+                        <strong>LIS / LIMS Systems</strong>
+                        <span>Lab Report Integration</span>
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+
+        <!-- LOWER ARCHITECTURE LAYERS -->
+        <div class="lower-layers">
+
+            <!-- DATA ACCESS & SECURITY LAYER -->
+            <section class="data-access-layer" id="dataAccessLayer">
+                <div class="layer-heading">Data Access & Compliance Security Layer</div>
+                <div class="repository-grid">
+                    <div class="repository-box">
+                        <strong>PHI Data Access</strong>
+                        <span>Role-Based Scoped DAO</span>
+                    </div>
+                    <div class="repository-box">
+                        <strong>AES-256 Encryption</strong>
+                        <span>Field-Level Encryption</span>
+                    </div>
+                    <div class="repository-box">
+                        <strong>Time-Series Repository</strong>
+                        <span>High-Throughput Vitals</span>
+                    </div>
+                    <div class="repository-box">
+                        <strong>Sharding Manager</strong>
+                        <span>Partitioned Query Router</span>
+                    </div>
+                    <div class="repository-box">
+                        <strong>Audit Event Publisher</strong>
+                        <span>HIPAA Immutable Trail</span>
+                    </div>
+                </div>
+                <div class="orm-box">
+                    Node.js Mongoose ORM / ODM Data Access Engine & Transaction Manager
+                </div>
+            </section>
+
+            <!-- DATABASE LAYER -->
+            <section class="database-layer" id="databaseLayer">
+                <div class="layer-heading">Database & Persistence Layer</div>
+                <div class="database-grid">
+
+                    <div class="database-box">
+                        <div class="primary-db-title">
+                            <span style="font-size:24px;">🍃</span>
+                            MongoDB Atlas — Primary Multi-Tenant PHI & Time-Series Database
+                        </div>
+                        <div class="db-tables">
+                            <div class="db-table"><span class="db-table-icon">🗄️</span>Patients</div>
+                            <div class="db-table"><span class="db-table-icon">🗄️</span>Doctors</div>
+                            <div class="db-table"><span class="db-table-icon">🗄️</span>Hospitals</div>
+                            <div class="db-table"><span class="db-table-icon">📈</span>Vital Stream</div>
+                            <div class="db-table"><span class="db-table-icon">🚨</span>Alert Logs</div>
+                            <div class="db-table"><span class="db-table-icon">💊</span>Prescriptions</div>
+                            <div class="db-table"><span class="db-table-icon">🛡️</span>Audit Trail</div>
+                        </div>
+                    </div>
+
+                    <div class="database-box redis-db">
+                        <div class="redis-icon">🟥</div>
+                        <div>Cache & Active Vital Session Store<br>(Redis)</div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- LEGEND -->
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-line"></span>
+                    <span>Synchronous (REST / WSS)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line legend-async"></span>
+                    <span>Asynchronous / Event Queue</span>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- JAVASCRIPT DYNAMIC SVG CONNECTION ENGINE -->
+<script>
+const connectionDefinitions = [
+    // USERS → REST CONNECTIONS
+    { from: "patientClient", to: "restLayer", type: "horizontal" },
+    { from: "doctorClient", to: "restLayer", type: "horizontal" },
+    { from: "hospitalClient", to: "restLayer", type: "horizontal" },
+    { from: "socClient", to: "restLayer", type: "horizontal" },
+
+    // REST → MIDDLE TIER
+    { from: "restLayer", to: "middleTier", type: "horizontal-center" },
+
+    // MIDDLE TIER → EXTERNAL SYSTEMS
+    { from: "middleTier", to: "externalIot", type: "external", anchor: 0.12 },
+    { from: "middleTier", to: "externalPush", type: "external", anchor: 0.24 },
+    { from: "middleTier", to: "externalSms", type: "external", anchor: 0.36 },
+    { from: "middleTier", to: "externalVideo", type: "external", anchor: 0.48 },
+    { from: "middleTier", to: "externalPayment", type: "external", anchor: 0.60 },
+    { from: "middleTier", to: "externalBi", type: "external", anchor: 0.72 },
+    { from: "middleTier", to: "externalEmail", type: "external", anchor: 0.84 },
+    { from: "middleTier", to: "externalLab", type: "external", anchor: 0.96 },
+
+    // MIDDLE TIER ↕ DATA ACCESS
+    { from: "middleTier", to: "dataAccessLayer", type: "vertical" },
+
+    // DATA ACCESS ↕ DATABASE
+    { from: "dataAccessLayer", to: "databaseLayer", type: "vertical" }
+];
+
+function drawConnections() {
+    const container = document.getElementById("diagramContainer");
+    const svg = document.getElementById("connections");
+
+    const existingPaths = svg.querySelectorAll(".connection");
+    existingPaths.forEach(path => path.remove());
+
+    const containerRect = container.getBoundingClientRect();
+
+    svg.setAttribute("viewBox", `0 0 ${container.offsetWidth} ${container.offsetHeight}`);
+    svg.setAttribute("width", container.offsetWidth);
+    svg.setAttribute("height", container.offsetHeight);
+
+    connectionDefinitions.forEach(connection => {
+        const source = document.getElementById(connection.from);
+        const target = document.getElementById(connection.to);
+
+        if (!source || !target) return;
+
+        const sourceRect = source.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+
+        const sourceLeft = sourceRect.left - containerRect.left;
+        const sourceRight = sourceRect.right - containerRect.left;
+        const sourceTop = sourceRect.top - containerRect.top;
+        const sourceBottom = sourceRect.bottom - containerRect.top;
+
+        const targetLeft = targetRect.left - containerRect.left;
+        const targetRight = targetRect.right - containerRect.left;
+        const targetTop = targetRect.top - containerRect.top;
+        const targetBottom = targetRect.bottom - containerRect.top;
+
+        let x1, y1, x2, y2;
+
+        if (connection.type === "horizontal") {
+            x1 = sourceRight;
+            y1 = sourceTop + sourceRect.height / 2;
+            x2 = targetLeft;
+            y2 = sourceTop + sourceRect.height / 2;
+        } else if (connection.type === "horizontal-center") {
+            x1 = sourceRight;
+            y1 = sourceTop + sourceRect.height / 2;
+            x2 = targetLeft;
+            y2 = targetTop + targetRect.height / 2;
+        } else if (connection.type === "external") {
+            const externalCenterY = targetTop + targetRect.height / 2;
+            x1 = sourceRight;
+            y1 = externalCenterY;
+            x2 = targetLeft;
+            y2 = externalCenterY;
+        } else if (connection.type === "vertical") {
+            x1 = sourceLeft + sourceRect.width / 2;
+            y1 = sourceBottom;
+            x2 = targetLeft + targetRect.width / 2;
+            y2 = targetTop;
+        }
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        let pathData;
+
+        if (connection.type === "horizontal" || connection.type === "external") {
+            pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+        } else if (connection.type === "horizontal-center") {
+            const controlX = (x1 + x2) / 2;
+            pathData = `M ${x1} ${y1} C ${controlX} ${y1}, ${controlX} ${y2}, ${x2} ${y2}`;
+        } else if (connection.type === "vertical") {
+            const controlY = (y1 + y2) / 2;
+            pathData = `M ${x1} ${y1} C ${x1} ${controlY}, ${x2} ${controlY}, ${x2} ${y2}`;
+        }
+
+        path.setAttribute("d", pathData);
+        path.setAttribute("class", connection.type === "vertical" ? "connection vertical" : "connection");
+        path.setAttribute("marker-start", "url(#arrowStart)");
+        path.setAttribute("marker-end", "url(#arrowEnd)");
+
+        svg.appendChild(path);
+    });
+}
+
+window.addEventListener("load", () => { setTimeout(drawConnections, 100); });
+window.addEventListener("resize", drawConnections);
+document.addEventListener("DOMContentLoaded", drawConnections);
+
+const resizeObserver = new ResizeObserver(() => { requestAnimationFrame(drawConnections); });
+resizeObserver.observe(document.getElementById("diagramContainer"));
+</script>
+
+</body>
+</html>
