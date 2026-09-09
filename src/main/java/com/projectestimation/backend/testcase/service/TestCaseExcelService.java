@@ -28,13 +28,14 @@ public class TestCaseExcelService {
     public byte[] generateExcel(List<TestCase> testCases)
             throws IOException {
 
-        try (XSSFWorkbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream outputStream =
-                     new ByteArrayOutputStream()) {
+        try (
+                XSSFWorkbook workbook = new XSSFWorkbook();
+                ByteArrayOutputStream outputStream =
+                        new ByteArrayOutputStream()
+        ) {
 
             Sheet sheet =
                     workbook.createSheet("Test Cases");
-
 
             // ============================================================
             // STYLES
@@ -60,9 +61,7 @@ public class TestCaseExcelService {
             Cell titleCell =
                     titleRow.createCell(0);
 
-            titleCell.setCellValue(
-                    "Test Cases"
-            );
+            titleCell.setCellValue("Test Cases");
 
             CellStyle titleStyle =
                     workbook.createCellStyle();
@@ -71,21 +70,19 @@ public class TestCaseExcelService {
                     workbook.createFont();
 
             titleFont.setBold(true);
-            titleFont.setFontHeightInPoints(
-                    (short) 16
-            );
+            titleFont.setFontHeightInPoints((short) 16);
 
             titleStyle.setFont(titleFont);
+
             titleStyle.setAlignment(
                     HorizontalAlignment.CENTER
             );
+
             titleStyle.setVerticalAlignment(
                     VerticalAlignment.CENTER
             );
 
-            titleCell.setCellStyle(
-                    titleStyle
-            );
+            titleCell.setCellStyle(titleStyle);
 
             sheet.addMergedRegion(
                     new CellRangeAddress(
@@ -107,59 +104,34 @@ public class TestCaseExcelService {
                     sheet.createRow(1);
 
             String[] headers = {
-
                     "Req ID",
-
                     "Test Case ID",
-
-                    "Test Condition",
-
-                    "Test Case Scenario",
-
                     "Test Case Name",
-
                     "Test Case Description",
-
+                    "Test Condition",
+                    "Test Case Scenario",
                     "Test Data",
-
                     "Step #",
-
                     "Step Description",
-
                     "Expected Result",
-
                     "Actual Result",
-
                     "Test Status",
-
                     "PASS/FAIL",
-
                     "Defect ID",
-
                     "Severity",
-
                     "Defect Type",
-
                     "Root Cause",
-
                     "Phase Introduced"
             };
 
-
-            for (int i = 0;
-                 i < headers.length;
-                 i++) {
+            for (int i = 0; i < headers.length; i++) {
 
                 Cell cell =
                         headerRow.createCell(i);
 
-                cell.setCellValue(
-                        headers[i]
-                );
+                cell.setCellValue(headers[i]);
 
-                cell.setCellStyle(
-                        headerStyle
-                );
+                cell.setCellStyle(headerStyle);
             }
 
 
@@ -169,75 +141,27 @@ public class TestCaseExcelService {
 
             int rowNumber = 2;
 
+            if (testCases != null) {
 
-            for (TestCase testCase : testCases) {
+                for (TestCase testCase : testCases) {
 
-                List<TestCaseScenario> scenarios =
-                        testCase.getTestCaseScenario();
+                    if (testCase == null) {
+                        continue;
+                    }
 
-
-                // ========================================================
-                // NO SCENARIOS
-                // ========================================================
-
-                if (scenarios == null
-                        || scenarios.isEmpty()) {
-
-                    Row row =
-                            sheet.createRow(
-                                    rowNumber++
-                            );
-
-
-                    writeTestCaseFields(
-                            row,
-                            testCase,
-                            bodyStyle
-                    );
-
-
-                    // Scenario
-                    setCell(
-                            row,
-                            3,
-                            "",
-                            bodyStyle
-                    );
-
-
-                    writeEmptyStepFields(
-                            row,
-                            bodyStyle,
-                            centerBodyStyle
-                    );
-
-                    continue;
-                }
-
-
-                // ========================================================
-                // SCENARIOS
-                // ========================================================
-
-                for (TestCaseScenario scenario :
-                        scenarios) {
-
-                    List<TestCaseStep> steps =
-                            scenario.getSteps();
+                    List<TestCaseScenario> scenarios =
+                            testCase.getTestCaseScenario();
 
 
                     // ====================================================
-                    // SCENARIO WITHOUT STEPS
+                    // NO SCENARIOS
                     // ====================================================
 
-                    if (steps == null
-                            || steps.isEmpty()) {
+                    if (scenarios == null
+                            || scenarios.isEmpty()) {
 
                         Row row =
-                                sheet.createRow(
-                                        rowNumber++
-                                );
-
+                                sheet.createRow(rowNumber++);
 
                         writeTestCaseFields(
                                 row,
@@ -245,16 +169,13 @@ public class TestCaseExcelService {
                                 bodyStyle
                         );
 
-
+                        // Scenario column
                         setCell(
                                 row,
-                                3,
-                                buildScenarioText(
-                                        scenario
-                                ),
+                                5,
+                                "",
                                 bodyStyle
                         );
-
 
                         writeEmptyStepFields(
                                 row,
@@ -267,194 +188,247 @@ public class TestCaseExcelService {
 
 
                     // ====================================================
-                    // SCENARIO WITH STEPS
+                    // SCENARIOS
                     // ====================================================
 
-                    for (TestCaseStep step :
-                            steps) {
+                    for (TestCaseScenario scenario :
+                            scenarios) {
 
-                        Row row =
-                                sheet.createRow(
-                                        rowNumber++
-                                );
+                        if (scenario == null) {
+                            continue;
+                        }
 
-
-                        // =================================================
-                        // TEST CASE LEVEL DATA
-                        // =================================================
-
-                        writeTestCaseFields(
-                                row,
-                                testCase,
-                                bodyStyle
-                        );
+                        List<TestCaseStep> steps =
+                                scenario.getSteps();
 
 
                         // =================================================
-                        // SCENARIO
+                        // SCENARIO WITHOUT STEPS
                         // =================================================
 
-                        setCell(
-                                row,
-                                3,
-                                buildScenarioText(
-                                        scenario
-                                ),
-                                bodyStyle
-                        );
+                        if (steps == null
+                                || steps.isEmpty()) {
 
+                            Row row =
+                                    sheet.createRow(rowNumber++);
 
-                        // =================================================
-                        // STEP NUMBER
-                        // =================================================
+                            writeTestCaseFields(
+                                    row,
+                                    testCase,
+                                    bodyStyle
+                            );
 
-                        if (step.getStepNumber() != null) {
-
+                            // Scenario
                             setCell(
                                     row,
-                                    7,
-                                    String.valueOf(
-                                            step.getStepNumber()
+                                    5,
+                                    buildScenarioText(
+                                            scenario
                                     ),
-                                    centerBodyStyle
+                                    bodyStyle
                             );
 
-                        } else {
-
-                            setCell(
+                            writeEmptyStepFields(
                                     row,
-                                    7,
-                                    "",
+                                    bodyStyle,
                                     centerBodyStyle
                             );
+
+                            continue;
                         }
 
 
                         // =================================================
-                        // STEP DESCRIPTION
+                        // SCENARIO WITH STEPS
                         // =================================================
 
-                        setCell(
-                                row,
-                                8,
-                                step.getStepDescription(),
-                                bodyStyle
-                        );
+                        for (TestCaseStep step : steps) {
+
+                            if (step == null) {
+                                continue;
+                            }
+
+                            Row row =
+                                    sheet.createRow(rowNumber++);
 
 
-                        // =================================================
-                        // EXPECTED RESULT
-                        // =================================================
+                            // =============================================
+                            // TEST CASE FIELDS
+                            // =============================================
 
-                        setCell(
-                                row,
-                                9,
-                                step.getExpectedResult(),
-                                bodyStyle
-                        );
-
-
-                        // =================================================
-                        // ACTUAL RESULT
-                        // =================================================
-
-                        setCell(
-                                row,
-                                10,
-                                step.getActualResult(),
-                                bodyStyle
-                        );
+                            writeTestCaseFields(
+                                    row,
+                                    testCase,
+                                    bodyStyle
+                            );
 
 
-                        // =================================================
-                        // TEST STATUS
-                        // =================================================
+                            // =============================================
+                            // TEST CASE SCENARIO - COLUMN 5
+                            // =============================================
 
-                        setCell(
-                                row,
-                                11,
-                                step.getTestStatus(),
-                                centerBodyStyle
-                        );
-
-
-                        // =================================================
-                        // PASS / FAIL
-                        // =================================================
-
-                        setCell(
-                                row,
-                                12,
-                                step.getPassFail(),
-                                centerBodyStyle
-                        );
+                            setCell(
+                                    row,
+                                    5,
+                                    buildScenarioText(
+                                            scenario
+                                    ),
+                                    bodyStyle
+                            );
 
 
-                        // =================================================
-                        // DEFECT ID
-                        // =================================================
+                            // =============================================
+                            // STEP NUMBER - COLUMN 7
+                            // =============================================
 
-                        setCell(
-                                row,
-                                13,
-                                step.getDefectId(),
-                                centerBodyStyle
-                        );
+                            if (step.getStepNumber() != null) {
 
+                                setCell(
+                                        row,
+                                        7,
+                                        String.valueOf(
+                                                step.getStepNumber()
+                                        ),
+                                        centerBodyStyle
+                                );
 
-                        // =================================================
-                        // SEVERITY
-                        // =================================================
+                            } else {
 
-                        setCell(
-                                row,
-                                14,
-                                step.getSeverity(),
-                                centerBodyStyle
-                        );
-
-
-                        // =================================================
-                        // DEFECT TYPE
-                        // =================================================
-
-                        setCell(
-                                row,
-                                15,
-                                step.getDefectType(),
-                                centerBodyStyle
-                        );
+                                setCell(
+                                        row,
+                                        7,
+                                        "",
+                                        centerBodyStyle
+                                );
+                            }
 
 
-                        // =================================================
-                        // ROOT CAUSE
-                        // =================================================
+                            // =============================================
+                            // STEP DESCRIPTION - COLUMN 8
+                            // =============================================
 
-                        setCell(
-                                row,
-                                16,
-                                step.getRootCause(),
-                                bodyStyle
-                        );
+                            setCell(
+                                    row,
+                                    8,
+                                    step.getStepDescription(),
+                                    bodyStyle
+                            );
 
 
-                        // =================================================
-                        // PHASE INTRODUCED
-                        // =================================================
+                            // =============================================
+                            // EXPECTED RESULT - COLUMN 9
+                            // =============================================
 
-                        setCell(
-                                row,
-                                17,
-                                step.getPhaseIntroduced(),
-                                centerBodyStyle
-                        );
+                            setCell(
+                                    row,
+                                    9,
+                                    step.getExpectedResult(),
+                                    bodyStyle
+                            );
+
+
+                            // =============================================
+                            // ACTUAL RESULT - COLUMN 10
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    10,
+                                    step.getActualResult(),
+                                    bodyStyle
+                            );
+
+
+                            // =============================================
+                            // TEST STATUS - COLUMN 11
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    11,
+                                    step.getTestStatus(),
+                                    centerBodyStyle
+                            );
+
+
+                            // =============================================
+                            // PASS / FAIL - COLUMN 12
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    12,
+                                    step.getPassFail(),
+                                    centerBodyStyle
+                            );
+
+
+                            // =============================================
+                            // DEFECT ID - COLUMN 13
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    13,
+                                    step.getDefectId(),
+                                    centerBodyStyle
+                            );
+
+
+                            // =============================================
+                            // SEVERITY - COLUMN 14
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    14,
+                                    step.getSeverity(),
+                                    centerBodyStyle
+                            );
+
+
+                            // =============================================
+                            // DEFECT TYPE - COLUMN 15
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    15,
+                                    step.getDefectType(),
+                                    centerBodyStyle
+                            );
+
+
+                            // =============================================
+                            // ROOT CAUSE - COLUMN 16
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    16,
+                                    step.getRootCause(),
+                                    bodyStyle
+                            );
+
+
+                            // =============================================
+                            // PHASE INTRODUCED - COLUMN 17
+                            // =============================================
+
+                            setCell(
+                                    row,
+                                    17,
+                                    step.getPhaseIntroduced(),
+                                    centerBodyStyle
+                            );
+                        }
                     }
                 }
             }
 
 
             // ============================================================
-            // FILTER
+            // AUTO FILTER
             // ============================================================
 
             if (rowNumber > 2) {
@@ -496,17 +470,17 @@ public class TestCaseExcelService {
 
             sheet.setColumnWidth(
                     2,
-                    28 * 256
+                    32 * 256
             );
 
             sheet.setColumnWidth(
                     3,
-                    40 * 256
+                    45 * 256
             );
 
             sheet.setColumnWidth(
                     4,
-                    32 * 256
+                    28 * 256
             );
 
             sheet.setColumnWidth(
@@ -576,62 +550,53 @@ public class TestCaseExcelService {
 
 
             // ============================================================
-            // ROW HEIGHT / WRAPPING
+            // ROW HEIGHT + WRAPPING
             // ============================================================
 
-            for (int i = 2;
-                 i < rowNumber;
-                 i++) {
+            for (int i = 2; i < rowNumber; i++) {
 
                 Row row =
                         sheet.getRow(i);
 
-                if (row != null) {
+                if (row == null) {
+                    continue;
+                }
 
-                    row.setHeightInPoints(
-                            45
-                    );
+                row.setHeightInPoints(45);
 
-                    for (int j = 0;
-                         j < 18;
-                         j++) {
+                for (int j = 0; j < 18; j++) {
 
-                        Cell cell =
-                                row.getCell(j);
+                    Cell cell =
+                            row.getCell(j);
 
-                        if (cell != null) {
+                    if (cell == null) {
+                        continue;
+                    }
 
-                            CellStyle existingStyle =
-                                    cell.getCellStyle()
-                                            != null
-                                            ? cell.getCellStyle()
-                                            : bodyStyle;
+                    CellStyle existingStyle =
+                            cell.getCellStyle();
 
-                            existingStyle.setWrapText(
-                                    true
-                            );
-
-                            cell.setCellStyle(
-                                    existingStyle
-                            );
-                        }
+                    if (existingStyle != null) {
+                        existingStyle.setWrapText(true);
                     }
                 }
             }
 
 
-            workbook.write(
-                    outputStream
-            );
+            // ============================================================
+            // WRITE EXCEL
+            // ============================================================
+
+            workbook.write(outputStream);
 
             return outputStream.toByteArray();
         }
     }
 
 
-    // ================================================================
-    // WRITE TEST CASE FIELDS
-    // ================================================================
+    // ====================================================================
+    // TEST CASE FIELDS
+    // ====================================================================
 
     private void writeTestCaseFields(
             Row row,
@@ -639,7 +604,7 @@ public class TestCaseExcelService {
             CellStyle bodyStyle
     ) {
 
-        // Req ID
+        // Column 0 - Req ID
         setCell(
                 row,
                 0,
@@ -648,7 +613,7 @@ public class TestCaseExcelService {
         );
 
 
-        // Test Case ID
+        // Column 1 - Test Case ID
         setCell(
                 row,
                 1,
@@ -657,39 +622,38 @@ public class TestCaseExcelService {
         );
 
 
-        // Test Condition
+        // Column 2 - Test Case Name
         setCell(
                 row,
                 2,
-                testCase.getTestCondition(),
-                bodyStyle
-        );
-
-
-        // Test Case Scenario
-        // Filled separately because it belongs
-        // to TestCaseScenario entity.
-
-
-        // Test Case Name
-        setCell(
-                row,
-                4,
                 testCase.getTestCaseName(),
                 bodyStyle
         );
 
 
-        // Test Case Description
+        // Column 3 - Test Case Description
         setCell(
                 row,
-                5,
+                3,
                 testCase.getTestCaseDescription(),
                 bodyStyle
         );
 
 
-        // Test Data
+        // Column 4 - Test Condition
+        setCell(
+                row,
+                4,
+                testCase.getTestCondition(),
+                bodyStyle
+        );
+
+
+        // Column 5 = Test Case Scenario
+        // Populated separately.
+
+
+        // Column 6 - Test Data
         setCell(
                 row,
                 6,
@@ -699,9 +663,9 @@ public class TestCaseExcelService {
     }
 
 
-    // ================================================================
+    // ====================================================================
     // EMPTY STEP FIELDS
-    // ================================================================
+    // ====================================================================
 
     private void writeEmptyStepFields(
             Row row,
@@ -754,7 +718,7 @@ public class TestCaseExcelService {
         );
 
 
-        // PASS / FAIL
+        // PASS/FAIL
         setCell(
                 row,
                 12,
@@ -809,9 +773,9 @@ public class TestCaseExcelService {
     }
 
 
-    // ================================================================
-    // BUILD SCENARIO TEXT
-    // ================================================================
+    // ====================================================================
+    // SCENARIO TEXT
+    // ====================================================================
 
     private String buildScenarioText(
             TestCaseScenario scenario
@@ -821,11 +785,11 @@ public class TestCaseExcelService {
             return "";
         }
 
-
         StringBuilder value =
                 new StringBuilder();
 
 
+        // Scenario ID
         if (scenario.getScenarioId() != null
                 && !scenario.getScenarioId().isBlank()) {
 
@@ -835,6 +799,7 @@ public class TestCaseExcelService {
         }
 
 
+        // Scenario Name
         if (scenario.getScenarioName() != null
                 && !scenario.getScenarioName().isBlank()) {
 
@@ -848,6 +813,7 @@ public class TestCaseExcelService {
         }
 
 
+        // Scenario Type
         if (scenario.getScenarioType() != null
                 && !scenario.getScenarioType().isBlank()) {
 
@@ -865,9 +831,9 @@ public class TestCaseExcelService {
     }
 
 
-    // ================================================================
+    // ====================================================================
     // SET CELL
-    // ================================================================
+    // ====================================================================
 
     private void setCell(
             Row row,
@@ -885,15 +851,13 @@ public class TestCaseExcelService {
                         : ""
         );
 
-        cell.setCellStyle(
-                style
-        );
+        cell.setCellStyle(style);
     }
 
 
-    // ================================================================
+    // ====================================================================
     // HEADER STYLE
-    // ================================================================
+    // ====================================================================
 
     private CellStyle createHeaderStyle(
             XSSFWorkbook workbook
@@ -902,15 +866,15 @@ public class TestCaseExcelService {
         CellStyle style =
                 workbook.createCellStyle();
 
-
         Font font =
                 workbook.createFont();
 
         font.setBold(true);
+
+        // White text on blue header
         font.setColor(
                 IndexedColors.WHITE.getIndex()
         );
-
 
         style.setFont(font);
 
@@ -925,6 +889,10 @@ public class TestCaseExcelService {
         style.setWrapText(true);
 
 
+        // ================================================================
+        // BLUE HEADER
+        // ================================================================
+
         style.setFillForegroundColor(
                 IndexedColors.DARK_BLUE.getIndex()
         );
@@ -933,6 +901,10 @@ public class TestCaseExcelService {
                 FillPatternType.SOLID_FOREGROUND
         );
 
+
+        // ================================================================
+        // BORDERS
+        // ================================================================
 
         style.setBorderTop(
                 BorderStyle.THIN
@@ -955,9 +927,9 @@ public class TestCaseExcelService {
     }
 
 
-    // ================================================================
+    // ====================================================================
     // BODY STYLE
-    // ================================================================
+    // ====================================================================
 
     private CellStyle createBodyStyle(
             XSSFWorkbook workbook
@@ -965,7 +937,6 @@ public class TestCaseExcelService {
 
         CellStyle style =
                 workbook.createCellStyle();
-
 
         style.setAlignment(
                 HorizontalAlignment.LEFT
@@ -999,9 +970,9 @@ public class TestCaseExcelService {
     }
 
 
-    // ================================================================
+    // ====================================================================
     // CENTER BODY STYLE
-    // ================================================================
+    // ====================================================================
 
     private CellStyle createCenterBodyStyle(
             XSSFWorkbook workbook
@@ -1009,7 +980,6 @@ public class TestCaseExcelService {
 
         CellStyle style =
                 workbook.createCellStyle();
-
 
         style.setAlignment(
                 HorizontalAlignment.CENTER
