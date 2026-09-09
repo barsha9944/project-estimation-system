@@ -45,9 +45,6 @@ public class TestCase {
     @Column(nullable = false)
     private String testCaseId;
     
-    @Column(columnDefinition = "TEXT")
-    private String testCondition;
-    
     @OneToMany(
             mappedBy = "testCase",
             cascade = CascadeType.ALL,

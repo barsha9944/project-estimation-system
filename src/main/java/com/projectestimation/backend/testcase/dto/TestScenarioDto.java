@@ -10,6 +10,8 @@ public record TestScenarioDto(
 
         String scenarioType,
 
+        String testCondition,
+        
         List<TestStepDto> steps
 
 ) {

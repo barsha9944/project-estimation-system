@@ -126,7 +126,6 @@ public class TestCaseService {
                                 .opportunity(opportunity)
                                 .reqId(dto.reqId())
                                 .testCaseId(dto.testCaseId())
-                                .testCondition(dto.testCondition())
                                 .testCaseName(dto.testCaseName())
                                 .testCaseDescription(
                                         dto.testCaseDescription()
@@ -156,6 +155,7 @@ public class TestCaseService {
                                         .scenarioType(
                                                 scenarioDto.scenarioType()
                                         )
+                                        .testCondition(scenarioDto.testCondition())
                                         .build();
 
 
@@ -326,6 +326,7 @@ public class TestCaseService {
                                 scenario.getScenarioId(),
                                 scenario.getScenarioName(),
                                 scenario.getScenarioType(),
+                                scenario.getTestCondition(),
                                 steps
                         );
 
@@ -338,7 +339,6 @@ public class TestCaseService {
         return new TestCaseDto(
                 testCase.getReqId(),
                 testCase.getTestCaseId(),
-                testCase.getTestCondition(),
                 testCase.getTestCaseName(),
                 scenarios,
                 testCase.getTestCaseDescription(),
@@ -397,10 +397,6 @@ public class TestCaseService {
                     dto.testCaseId()
             );
 
-            testCase.setTestCondition(
-                    dto.testCondition()
-            );
-
             testCase.setTestCaseName(
                     dto.testCaseName()
             );
@@ -442,6 +438,7 @@ public class TestCaseService {
                                     .scenarioType(
                                             scenarioDto.scenarioType()
                                     )
+                                    .testCondition(scenarioDto.testCondition())
                                     .build();
 
 

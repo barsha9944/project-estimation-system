@@ -117,8 +117,11 @@ public class GeminiTestCaseOrchestrator {
                 A single Test Case MAY contain MULTIPLE scenarios.
 
                 Do NOT create a separate Test Case ID for every scenario
-                when those scenarios belong to the same overall functional
-                objective and share the same test condition.
+when those scenarios belong to the same overall functional objective.
+
+Scenarios may have different testCondition values and can still
+belong to the same Test Case when they validate the same overall
+functional objective.
 
                 Multiple Test Cases may exist for the same requirement when
                 the overall functional objective is different.
@@ -140,39 +143,57 @@ public class GeminiTestCaseOrchestrator {
                 validate the same overall authentication objective.
 
                 =========================================================
-                TEST CASE CONDITION
-                =========================================================
+TEST SCENARIO CONDITION
+=========================================================
 
-                Every test case MUST contain a testCaseCondition.
+Every scenario MUST contain its own testCondition.
 
-                testCaseCondition represents the PRECONDITION or SYSTEM STATE
-                that exists BEFORE the test case starts.
+testCondition represents the PRECONDITION or SYSTEM STATE
+required BEFORE that specific scenario starts.
 
-                It must describe the state required before execution.
+The condition belongs to the scenario, NOT to the overall test case.
 
-                Examples:
+Different scenarios MAY have different testCondition values.
 
-                "User is on the login screen."
+Do NOT force all scenarios within a test case to use the same
+condition when their required starting states are different.
 
-                "Administrator is authenticated."
+However, if multiple scenarios genuinely require the same
+precondition or system state, they MAY use the same testCondition.
 
-                "User has an item available for purchase."
+Examples:
 
-                "A valid reservation exists."
+Scenario: Login with valid credentials
+testCondition: "User is on the login screen."
 
-                IMPORTANT:
+Scenario: Login with invalid credentials
+testCondition: "User is on the login screen."
 
-                testCaseCondition is NOT an action.
+Scenario: Attempt access as an unauthorized user
+testCondition: "An unauthorized user account is available."
 
-                Do NOT put actions such as:
+Scenario: Cancel an existing reservation
+testCondition: "A valid reservation exists for the user."
 
-                "Enter username."
+IMPORTANT:
 
-                "Click Login."
+testCondition is NOT an action.
 
-                "Submit the form."
+Do NOT put actions such as:
 
-                Those belong inside scenario steps.
+"Enter username."
+
+"Click Login."
+
+"Submit the form."
+
+Those belong inside scenario steps.
+
+IMPORTANT:
+
+Do NOT generate a testCondition at the test case level.
+
+testCase objects MUST NOT contain a testCondition field.
 
                 =========================================================
                 TEST CASE SCENARIOS
@@ -678,9 +699,10 @@ GENERATE THEM.
 
                 3. Every test case has a reqId.
 
-                4. Every test case has a meaningful testCaseCondition.
+                4. Every scenario has a meaningful testCondition.
 
-                5. testCaseCondition describes a precondition or system state.
+5. testCondition describes the precondition or system state
+   required before that specific scenario starts.
 
                 6. Every test case has a testCaseScenario array.
 
@@ -741,7 +763,6 @@ two scenarios.
     {
       "reqId": "REQ-001",
       "testCaseId": "TC_001",
-      "testCondition": "User is on the login screen",
       "testCaseName": "User Authentication",
       "testCaseDescription": "Verify user authentication",
       "testData": "Valid and invalid credentials",
@@ -750,6 +771,7 @@ two scenarios.
           "scenarioId": "SC_001",
           "scenarioName": "Login with valid credentials",
           "scenarioType": "POSITIVE",
+          "testCondition": "User is on the login screen",
           "steps": [
             {
               "stepNumber": 1,
@@ -767,6 +789,7 @@ two scenarios.
           "scenarioId": "SC_002",
           "scenarioName": "Login with invalid password",
           "scenarioType": "NEGATIVE",
+           "testCondition": "User is on the login screen",
           "steps": [
             {
               "stepNumber": 1,
@@ -790,11 +813,15 @@ two scenarios.
 
                 Each scenario MUST contain:
 
-                "scenario"
+                "scenarioId"
 
-                and
+"scenarioName"
 
-                "steps"
+"scenarioType"
+
+"testCondition"
+
+"steps"
 
                 Each step MUST contain:
 

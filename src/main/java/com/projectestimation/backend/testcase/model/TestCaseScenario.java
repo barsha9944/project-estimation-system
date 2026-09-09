@@ -45,6 +45,9 @@ public class TestCaseScenario {
 
     @Column(columnDefinition = "TEXT")
     private String scenarioType;
+    
+    @Column(name = "test_condition", columnDefinition = "TEXT")
+    private String testCondition;
 
     @OneToMany(
             mappedBy = "scenario",
