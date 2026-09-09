@@ -4,11 +4,11 @@ import java.io.IOException;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.projectestimation.backend.common.response.ApiResponse;
+import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.testcase.dto.SaveTestCaseRequest;
 import com.projectestimation.backend.testcase.dto.TestCaseGenerationResponse;
 import com.projectestimation.backend.testcase.service.TestCaseService;
@@ -17,52 +17,100 @@ import com.projectestimation.backend.testcase.service.TestCaseService;
 @RequestMapping("/api/v1/opportunities/{opportunityId}/test-cases")
 public class TestCaseController {
 
-	private final TestCaseService testCaseService;
+    private final TestCaseService testCaseService;
+    private final OpportunityRepository opportunityRepository;
 
-	public TestCaseController(TestCaseService testCaseService) {
-		this.testCaseService = testCaseService;
-	}
+    public TestCaseController(
+            TestCaseService testCaseService,
+            OpportunityRepository opportunityRepository) {
 
-	@PostMapping("/generate")
-	public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> generate(@PathVariable Long opportunityId) {
+        this.testCaseService = testCaseService;
+        this.opportunityRepository = opportunityRepository;
+    }
 
-		TestCaseGenerationResponse response = testCaseService.generateTestCases(opportunityId);
+    @PostMapping("/generate")
+    public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> generate(
+            @PathVariable Long opportunityId) {
 
-		return ResponseEntity.ok(ApiResponse.success("Test cases generated successfully", response));
-	}
+        TestCaseGenerationResponse response =
+                testCaseService.generateTestCases(opportunityId);
 
-	@GetMapping
-	public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> getTestCases(@PathVariable Long opportunityId) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Test cases generated successfully",
+                        response
+                )
+        );
+    }
 
-		TestCaseGenerationResponse response = testCaseService.getTestCases(opportunityId);
+    @GetMapping
+    public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> getTestCases(
+            @PathVariable Long opportunityId) {
 
-		return ResponseEntity.ok(ApiResponse.success("Test cases retrieved successfully", response));
-	}
+        TestCaseGenerationResponse response =
+                testCaseService.getTestCases(opportunityId);
 
-	@PutMapping("/update")
-	public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> saveTestCases(@PathVariable Long opportunityId,
-			@RequestBody SaveTestCaseRequest request) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Test cases retrieved successfully",
+                        response
+                )
+        );
+    }
 
-		TestCaseGenerationResponse response = testCaseService.saveTestCases(opportunityId, request.testCases());
+    @PutMapping("/update")
+    public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> saveTestCases(
+            @PathVariable Long opportunityId,
+            @RequestBody SaveTestCaseRequest request) {
 
-		return ResponseEntity.ok(ApiResponse.success("Test cases saved successfully", response));
-	}
-	@GetMapping("/download")
-	public ResponseEntity<byte[]> downloadTestCases(
-			@PathVariable Long opportunityId) throws IOException {
+        TestCaseGenerationResponse response =
+                testCaseService.saveTestCases(
+                        opportunityId,
+                        request.testCases()
+                );
 
-		byte[] excel = testCaseService.downloadTestCases(opportunityId);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Test cases saved successfully",
+                        response
+                )
+        );
+    }
 
-		return ResponseEntity.ok()
-				.header(
-						HttpHeaders.CONTENT_DISPOSITION,
-						"attachment; filename=\"TestCases.xlsx\""
-				)
-				.contentType(
-						MediaType.parseMediaType(
-								"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-						)
-				)
-				.body(excel);
-	}
+    @GetMapping("/download")
+    public ResponseEntity<byte[]> downloadTestCases(
+            @PathVariable Long opportunityId) throws IOException {
+
+        byte[] excel =
+                testCaseService.downloadTestCases(opportunityId);
+
+        String opportunityName =
+                opportunityRepository.findById(opportunityId)
+                        .map(opportunity -> opportunity.getOpportunityName())
+                        .orElse("TestCases");
+
+        /*
+         * Remove characters that are not allowed
+         * in Windows/Linux/macOS filenames.
+         */
+        String fileName = opportunityName
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .trim();
+
+        if (fileName.isBlank()) {
+            fileName = "TestCases";
+        }
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileName + ".xlsx\""
+                )
+                .contentType(
+                        MediaType.parseMediaType(
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                )
+                .body(excel);
+    }
 }
