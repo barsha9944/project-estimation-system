@@ -22,6 +22,7 @@ import com.projectestimation.backend.pmp.ai.GeminiPmpOrchestrator;
 import com.projectestimation.backend.pmp.dto.PmpDto;
 import com.projectestimation.backend.pmp.dto.PmpGenerationResponse;
 import com.projectestimation.backend.pmp.dto.PmpItemDto;
+import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
 import com.projectestimation.backend.pmp.model.Pmp;
 import com.projectestimation.backend.pmp.repository.PmpRepository;
 
@@ -29,10 +30,15 @@ import com.projectestimation.backend.pmp.repository.PmpRepository;
 public class PmpService {
 
     private final OpportunityRepository opportunityRepository;
+
     private final EstimationAnalysisRepository estimationAnalysisRepository;
+
     private final EstimationUseCaseRepository estimationUseCaseRepository;
+
     private final GeminiPmpOrchestrator geminiPmpOrchestrator;
+
     private final PmpRepository pmpRepository;
+
     private final ObjectMapper objectMapper;
 
     public PmpService(
@@ -131,7 +137,6 @@ public class PmpService {
 
         // 1. Check opportunity
         if (!opportunityRepository.existsById(opportunityId)) {
-
             throw new ResourceNotFoundException(
                     "Opportunity not found"
             );
@@ -221,7 +226,6 @@ public class PmpService {
 
         // 1. Check opportunity
         if (!opportunityRepository.existsById(opportunityId)) {
-
             throw new ResourceNotFoundException(
                     "Opportunity not found"
             );
@@ -286,7 +290,9 @@ public class PmpService {
                     title.createRun();
 
             titleRun.setText("PROJECT MANAGEMENT PLAN");
+
             titleRun.setBold(true);
+
             titleRun.setFontSize(22);
 
             /*
@@ -501,7 +507,7 @@ public class PmpService {
 
             if (pmpDto.validationPlan() != null) {
 
-                addItem(
+                addValidationPlan(
                         document,
                         pmpDto.validationPlan()
                 );
@@ -535,11 +541,15 @@ public class PmpService {
                 paragraph.createRun();
 
         run.setText(text);
+
         run.setBold(true);
 
         if (level == 1) {
+
             run.setFontSize(16);
+
         } else {
+
             run.setFontSize(14);
         }
     }
@@ -564,6 +574,7 @@ public class PmpService {
                 paragraph.createRun();
 
         labelRun.setText(label + ": ");
+
         labelRun.setBold(true);
 
         XWPFRun valueRun =
@@ -658,6 +669,7 @@ public class PmpService {
                     paragraph.createRun();
 
             run.setText(item.name());
+
             run.setBold(true);
         }
 
@@ -689,6 +701,68 @@ public class PmpService {
                 document,
                 "Status",
                 item.status()
+        );
+
+        document.createParagraph();
+    }
+
+    /**
+     * Add Validation Plan
+     *
+     * ValidationPlanDto is different from PmpItemDto,
+     * so it must not be passed to addItem().
+     */
+    private void addValidationPlan(
+            XWPFDocument document,
+            ValidationPlanDto validationPlan
+    ) {
+
+        if (validationPlan == null) {
+            return;
+        }
+
+        if (validationPlan.name() != null
+                && !validationPlan.name().isBlank()) {
+
+            XWPFParagraph paragraph =
+                    document.createParagraph();
+
+            XWPFRun run =
+                    paragraph.createRun();
+
+            run.setText(validationPlan.name());
+
+            run.setBold(true);
+        }
+
+        addField(
+                document,
+                "Description",
+                validationPlan.description()
+        );
+
+        addField(
+                document,
+                "Responsible",
+                validationPlan.responsible()
+        );
+
+        addField(
+                document,
+                "Timing",
+                validationPlan.timing()
+        );
+
+        addField(
+                document,
+                "Target",
+                validationPlan.target()
+        );
+
+        addField(
+                document,
+                "Status",
+                validationPlan.status()
         );
 
         document.createParagraph();

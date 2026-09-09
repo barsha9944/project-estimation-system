@@ -18,7 +18,9 @@ public record ProjectManagementDto(
 
         List<PmpItemDto> communication,
 
-        List<PmpItemDto> configurationManagement
+        List<PmpItemDto> configurationManagement,
+
+        List<String> qualityObjectives
 
 ) {
 }

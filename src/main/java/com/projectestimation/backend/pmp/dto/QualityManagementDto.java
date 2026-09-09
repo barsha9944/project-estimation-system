@@ -10,7 +10,13 @@ public record QualityManagementDto(
 
         List<PmpItemDto> testing,
 
-        List<PmpItemDto> metrics
+        List<PmpItemDto> metrics,
+
+        List<PmpItemDto> qualityObjectives,
+
+        List<PmpItemDto> audits,
+
+        List<PmpItemDto> productReviews
 
 ) {
 }

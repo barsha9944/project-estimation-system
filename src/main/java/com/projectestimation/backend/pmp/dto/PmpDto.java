@@ -10,7 +10,29 @@ public record PmpDto(
 
         RiskManagementDto riskManagement,
 
-        PmpItemDto validationPlan
+        ValidationPlanDto validationPlan,
+
+        DocumentControlDto documentControl,
+
+        EnvironmentDto environment,
+
+        OrganizationResourcesDto organizationResources,
+
+        MonitoringControlDto monitoringControl,
+
+        InterGroupSupportDto interGroupSupport,
+
+        EstimatedSizeEffortDto estimatedSizeEffort,
+
+        ScheduleDto schedule,
+
+        MetricationPlanDto metricationPlan,
+
+        QualityControlPlanDto qualityControlPlan,
+
+        QualityAuditPlanDto qualityAuditPlan,
+
+        ConfigurationManagementPlanDto configurationManagementPlan
 
 ) {
 }

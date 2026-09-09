@@ -8,7 +8,11 @@ public record RiskManagementDto(
 
         List<PmpItemDto> mitigationStrategies,
 
-        List<PmpItemDto> contingencyPlans
+        List<PmpItemDto> contingencyPlans,
+
+        List<PmpItemDto> dependencies,
+
+        List<PmpItemDto> assumptions
 
 ) {
 }

@@ -18,7 +18,15 @@ public record ProjectOverviewDto(
 
         List<String> constraints,
 
-        List<String> acceptanceCriteria
+        List<String> acceptanceCriteria,
+
+        CustomerInterfaceDto customerInterface,
+
+        List<String> complianceRequirements,
+
+        List<DeliverableDto> detailedDeliverables,
+
+        List<MilestoneDto> milestones
 
 ) {
 }
