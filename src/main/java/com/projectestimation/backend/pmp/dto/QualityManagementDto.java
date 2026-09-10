@@ -12,7 +12,7 @@ public record QualityManagementDto(
 
         List<PmpItemDto> metrics,
 
-        List<PmpItemDto> qualityObjectives,
+        List<String> qualityObjectives,
 
         List<PmpItemDto> audits,
 

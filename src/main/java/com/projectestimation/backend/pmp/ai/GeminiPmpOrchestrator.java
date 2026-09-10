@@ -74,32 +74,49 @@ public class GeminiPmpOrchestrator {
                 Generate a COMPLETE Project Management Plan (PMP) for the
                 software project described below.
 
-                IMPORTANT:
-
                 The output will be converted directly into a professional
                 Microsoft Word document.
 
-                The generated PMP must follow the structure and level of
-                detail of the provided BEAS-style Project Management Plan.
+                The PMP must follow the structure, organization, terminology
+                and level of detail of the provided BEAS-style Project
+                Management Plan.
 
                 DO NOT generate the old simplified PMP structure.
 
-                The PMP must contain all of the following major sections:
+                ============================================================
+                MANDATORY PMP SECTIONS
+                ============================================================
+
+                The PMP must contain ALL of these sections:
 
                 1. INTRODUCTION
+
                 2. PROJECT GOALS AND QUALITY OBJECTIVES
+
                 3. DEFINED PROCESS / PROJECT LIFE CYCLE
+
                 4. PROJECT ENVIRONMENTS
+
                 5. PROJECT MANAGEMENT ISSUES
+
                 6. ORGANIZATION AND RESOURCES
+
                 7. PROJECT MONITORING AND CONTROL
+
                 8. INTER-GROUP SUPPORT
+
                 9. ESTIMATED SIZE AND EFFORT
+
                 10. PROJECT SCHEDULE
+
                 11. METRICATION PLAN
+
                 12. QUALITY CONTROL PLAN
+
                 13. VALIDATION PLAN
+
                 14. QUALITY AUDIT PLAN
+
                 15. CONFIGURATION MANAGEMENT PLAN
 
                 ============================================================
@@ -128,220 +145,388 @@ public class GeminiPmpOrchestrator {
                 %s
 
                 ============================================================
+                IMPORTANT CONTENT GENERATION RULE
+                ============================================================
+
+                Every major PMP section must contain meaningful,
+                project-specific content.
+
+                DO NOT leave sections empty merely because the supplied
+                project information does not contain an exact value.
+
+                If an exact value is unavailable:
+
+                - Use a professional descriptive value.
+                - Use "To Be Confirmed" where appropriate.
+                - Use "Based on approved project schedule" where appropriate.
+                - Use "Project-defined" where appropriate.
+                - Use "As applicable" where appropriate.
+
+                DO NOT fabricate unsupported exact dates, monetary amounts,
+                effort numbers, resource quantities, infrastructure
+                specifications or other precise values.
+
+                DO NOT invent specific technologies, tools, products,
+                infrastructure, team members, budgets, percentages,
+                dates or numerical targets unless they are supported by
+                the supplied project information.
+
+                If a specific value is not available, use a professional
+                descriptive statement instead of inventing a precise value.
+
+                However, DO NOT return empty arrays for a section simply
+                because exact information is unavailable.
+
+                Each major section should contain multiple useful entries
+                wherever the section logically supports multiple entries.
+
+                ============================================================
                 GENERAL PMP RULES
                 ============================================================
 
                 1. Generate a realistic professional PMP.
 
-                2. Use the project information as the primary source.
+                2. Use the supplied project information as the PRIMARY source.
 
                 3. Use the existing use cases as additional project context.
 
-                4. Do not invent unsupported business functionality.
+                4. Keep the PMP specific to the supplied project.
 
-                5. Do not introduce unrelated technologies, modules or
-                   business processes.
+                5. Do not invent unsupported business functionality.
 
-                6. Keep the entire PMP internally consistent.
+                6. Do not introduce unrelated technologies, modules,
+                   products or business processes.
 
-                7. Project objectives, scope, deliverables, schedule,
-                   resources, risks, quality activities and metrics must
-                   describe the same project.
+                7. Keep the entire PMP internally consistent.
 
-                8. Do not invent specific dates unless dates are available
-                   from the project information.
+                8. Project objectives, scope, deliverables, lifecycle,
+                   resources, risks, quality activities, metrics, schedule
+                   and configuration management must describe the same
+                   project.
 
-                9. Do not invent specific effort, duration, budget or
-                   resource numbers unless sufficient project information
-                   is available.
+                9. Use the supplied implementation type, requirements,
+                   components and use cases when determining appropriate
+                   project activities.
 
-                10. If an exact value is unavailable, use a professional
-                    descriptive value rather than fabricating a number.
+                10. Do not invent specific calendar dates unless dates are
+                    available from the project information.
 
-                11. Arrays MUST always be JSON arrays.
+                11. Do not invent precise effort, duration, budget or
+                    resource quantities unless sufficient information exists.
 
-                12. Never return null for an array.
+                12. Descriptive values are preferred over fabricated
+                    numerical values.
 
-                13. If a section has no applicable entries, return [].
+                13. Arrays MUST always be JSON arrays.
 
-                14. Return JSON only.
+                14. NEVER return null for an array.
 
-                15. Do not return Markdown.
+                15. Every required section must be populated with useful
+                    content unless it is genuinely not applicable.
 
-                16. Do not use ```json.
+                16. Return JSON only.
 
-                17. Do not include explanations before or after the JSON.
+                17. Do not return Markdown.
+
+                18. Do not use code fences.
+
+                19. Do not include explanations before or after the JSON.
+
+                20. Do not create fields that are not defined by the required
+                    JSON structure below.
+
+                21. Do not create additional DTO fields.
+
+                ============================================================
+                MINIMUM CONTENT DEPTH
+                ============================================================
+
+                Generate multiple meaningful entries where appropriate.
+
+                Use the following as content-depth targets:
+
+                organization: 3-5 items
+
+                resources: 3-5 items
+
+                estimation: 3-5 items
+
+                schedule: 6-10 items
+
+                communication: 3-5 items
+
+                configurationManagement: 3-5 items
+
+                qualityStandards: 4-6 items
+
+                reviews: 3-5 items
+
+                testing: 5-8 items
+
+                metrics: 4-6 items
+
+                audits: 3-5 items
+
+                productReviews: 4-6 items
+
+                risks: 4-6 items
+
+                mitigationStrategies: 4-6 items
+
+                contingencyPlans: 3-5 items
+
+                dependencies: 3-5 items
+
+                riskManagement.assumptions: 3-5 items
+
+                hardwareNetworking: 2-4 items
+
+                softwareTools: 3-6 items
+
+                manpowerCompetency: 3-5 items
+
+                projectTeam: 4-6 items
+
+                trainingPlan: 2-4 items
+
+                monitoringMechanism: 4-6 items
+
+                quantitativeMonitoring: 4-6 items
+
+                supportItems: 3-5 items
+
+                sizeDetails: 3-5 items
+
+                effortDetails: 3-5 items
+
+                criticalProcessMetrics: 4-6 items
+
+                otherMetrics: 4-6 items
+
+                dataCapturing: 3-5 items
+
+                standardsApplicable: 4-6 items
+
+                productReviewTesting: 6-10 items
+
+                validationPlan.activities: 4-6 items
+
+                qualityAuditPlan.audits: 3-5 items
+
+                configurationItems: 5-8 items
+
+                These are content-depth targets, not permission to invent
+                unsupported project facts.
+
+                If project information does not support a specific
+                technology, quantity, date, budget, person or numerical
+                target, use "To Be Confirmed" or another descriptive
+                professional value.
 
                 ============================================================
                 CRITICAL JSON TYPE RULES
                 ============================================================
 
-                FOLLOW THESE RULES EXACTLY.
-
                 The Java backend will deserialize your response into Java
-                DTO classes. Therefore the JSON data types MUST match
-                the following definitions exactly.
+                DTO classes.
 
-                ------------------------------------------------------------
+                Therefore JSON types MUST match these rules exactly.
+
+                ============================================================
                 SIMPLE STRING ARRAYS
-                ------------------------------------------------------------
+                ============================================================
 
                 The following fields MUST contain ONLY strings:
 
                 projectOverview.objectives
+
                 projectOverview.deliverables
+
                 projectOverview.assumptions
+
                 projectOverview.constraints
+
                 projectOverview.acceptanceCriteria
 
-                These fields MUST look like this:
+                projectManagement.lifecyclePhases
+
+                projectManagement.qualityObjectives
+
+                qualityManagement.qualityObjectives
+
+                complianceRequirements
+
+                Example:
 
                 "objectives": [
-                    "Eliminate duplicate administration across five travel websites.",
-                    "Implement a centralized Laravel application with a single database.",
-                    "Support 10 languages across all system components."
+                  "Establish a centralized application architecture.",
+                  "Improve maintainability and operational consistency.",
+                  "Provide reliable and secure project delivery."
                 ]
 
-                "deliverables": [
-                    "Technical Architecture Specification",
-                    "Figma Wireframes and Designs",
-                    "Centralized Laravel 12 Platform"
-                ]
-
-                "assumptions": [
-                    "Client will provide timely feedback on design and functional milestones."
-                ]
-
-                "constraints": [
-                    "Fixed budget of $10,000 USD."
-                ]
-
-                "acceptanceCriteria": [
-                    "Successful technical review of architecture and code quality."
-                ]
-
-                VERY IMPORTANT:
-
-                NEVER generate an object inside these arrays.
+                NEVER place objects inside these arrays.
 
                 WRONG:
 
                 "objectives": [
-                    {
-                        "name": "Eliminate duplicate administration"
-                    }
-                ]
-
-                WRONG:
-
-                "objectives": [
-                    {
-                        "description": "Eliminate duplicate administration"
-                    }
-                ]
-
-                WRONG:
-
-                "objectives": [
-                    {
-                        "objective": "Eliminate duplicate administration"
-                    }
+                  {
+                    "name": "Centralized Architecture"
+                  }
                 ]
 
                 CORRECT:
 
                 "objectives": [
-                    "Eliminate duplicate administration across five travel websites."
+                  "Establish a centralized application architecture."
                 ]
 
-                The same rule applies to:
-
-                - objectives
-                - deliverables
-                - assumptions
-                - constraints
-                - acceptanceCriteria
-
-                ------------------------------------------------------------
+                ============================================================
                 PMP ITEM ARRAYS
-                ------------------------------------------------------------
+                ============================================================
 
-                The following arrays contain PmpItemDto objects:
+                The following fields MUST contain arrays of PmpItemDto
+                objects:
 
-                - organization
-                - resources
-                - estimation
-                - schedule
-                - communication
-                - configurationManagement
-                - qualityStandards
-                - reviews
-                - testing
-                - metrics
-                - risks
-                - mitigationStrategies
-                - contingencyPlans
+                projectManagement.organization
 
-                Every element in these arrays MUST be a JSON OBJECT.
+                projectManagement.resources
 
-                Every object MUST contain these six fields:
+                projectManagement.estimation
+
+                projectManagement.schedule
+
+                projectManagement.communication
+
+                projectManagement.configurationManagement
+
+                qualityManagement.qualityStandards
+
+                qualityManagement.reviews
+
+                qualityManagement.testing
+
+                qualityManagement.metrics
+
+                qualityManagement.audits
+
+                qualityManagement.productReviews
+
+                riskManagement.risks
+
+                riskManagement.mitigationStrategies
+
+                riskManagement.contingencyPlans
+
+                riskManagement.dependencies
+
+                riskManagement.assumptions
+
+                documentControl.releaseHistory
+
+                documentControl.circulationDetails
+
+                documentControl.amendments
+
+                organizationResources.hardwareNetworking
+
+                organizationResources.softwareTools
+
+                organizationResources.manpowerCompetency
+
+                organizationResources.projectTeam
+
+                organizationResources.trainingPlan
+
+                monitoringControl.monitoringMechanism
+
+                monitoringControl.quantitativeMonitoring
+
+                interGroupSupport.supportItems
+
+                estimatedSizeEffort.sizeDetails
+
+                estimatedSizeEffort.effortDetails
+
+                schedule.scheduleItems
+
+                metricationPlan.criticalProcessMetrics
+
+                metricationPlan.otherMetrics
+
+                metricationPlan.dataCapturing
+
+                qualityControlPlan.standardsApplicable
+
+                qualityControlPlan.productReviewTesting
+
+                qualityAuditPlan.audits
+
+                configurationManagementPlan.configurationItems
+
+                validationPlan.activities
+
+                ============================================================
+                PMP ITEM OBJECT FORMAT
+                ============================================================
+
+                Every PmpItemDto object MUST contain exactly these fields:
 
                 {
-                    "name": "...",
-                    "description": "...",
-                    "responsible": "...",
-                    "timing": "...",
-                    "target": "...",
-                    "status": "..."
+                  "name": "...",
+                  "description": "...",
+                  "responsible": "...",
+                  "timing": "...",
+                  "target": "...",
+                  "status": "..."
                 }
+
+                Do not replace these field names with other names.
+
+                Do not return simple strings in these arrays.
 
                 Example:
 
                 "organization": [
-                    {
-                        "name": "Lead Laravel Architect",
-                        "description": "Responsible for system architecture, core development, and technical decisions.",
-                        "responsible": "Lead Developer",
-                        "timing": "Entire Project",
-                        "target": "Technical Excellence",
-                        "status": "Active"
-                    }
+                  {
+                    "name": "Project Manager",
+                    "description": "Coordinates project planning,
+                    tracking, communication, risks and delivery activities.",
+                    "responsible": "Project Manager",
+                    "timing": "Entire Project",
+                    "target": "Controlled Project Delivery",
+                    "status": "Planned"
+                  }
                 ]
-
-                NEVER generate:
-
-                "organization": [
-                    "Lead Laravel Architect"
-                ]
-
-                NEVER generate:
-
-                "organization": [
-                    {
-                        "role": "Lead Laravel Architect"
-                    }
-                ]
-
-                Use the exact six field names specified above.
 
                 ============================================================
-                DOCUMENT CONTROL
+                HOW TO USE PMP ITEM FIELDS
                 ============================================================
 
-                Generate:
+                Because the backend uses a common six-field PmpItemDto,
+                combine table-specific information into these fields.
 
-                - Document release history
-                - Circulation details
-                - Amendments
+                name
+                = Main item, activity, role, tool, metric, standard,
+                  configuration item or subject.
 
-                Release history should contain appropriate information such
-                as version, date, author, reason for change and approver.
+                description
+                = Detailed information including additional attributes
+                  such as configuration, quantity, purpose, method,
+                  acceptance criteria, repository, evidence, threshold,
+                  phase or other relevant information.
 
-                Circulation details should contain appropriate recipient,
-                designation, organization, email and purpose information.
+                responsible
+                = Person or role responsible.
 
-                Amendments should contain section, description, reason,
-                date and author.
+                timing
+                = Project phase, frequency or applicable period.
+
+                target
+                = Expected outcome, threshold, objective or control target.
+
+                status
+                = Planned, Active, Approved, Controlled, In Progress,
+                  Completed, To Be Confirmed or another appropriate status.
 
                 ============================================================
                 SECTION 1 - INTRODUCTION
@@ -356,47 +541,93 @@ public class GeminiPmpOrchestrator {
                 - Project deliverables
                 - Project milestones
                 - Acceptance criteria
+                - Project assumptions
+                - Project constraints
 
-                Customer interface should support:
+                customerInterface MUST contain exactly:
 
-                - Name
-                - Designation
-                - Phone number
-                - Fax number
-                - Email
-                - Skype ID
+                - name
+                - designation
+                - phoneNumber
+                - faxNumber
+                - email
+                - skypeId
 
-                Detailed deliverables should contain:
+                If contact information is not supplied, use "N/A"
+                rather than inventing personal contact information.
 
-                - Serial number
-                - Item description
-                - Delivery date
-                - Delivery location
-                - Quantity
-                - Remarks
+                detailedDeliverables MUST contain objects with:
 
-                Milestones should contain:
+                - serialNumber
+                - itemDescription
+                - deliveryDate
+                - deliveryLocation
+                - quantity
+                - remarks
 
-                - Phase
-                - Milestone
-                - Description
-                - Target date
-                - Deliverable
+                If exact dates or quantities are unavailable, use
+                descriptive values such as "To Be Confirmed".
+
+                milestones MUST contain objects with:
+
+                - phase
+                - milestone
+                - description
+                - targetDate
+                - deliverable
 
                 ============================================================
                 SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
                 ============================================================
 
-                Generate:
+                Generate meaningful project goals and quality objectives.
 
-                - Project objectives
-                - Mapping between project objectives and business objectives
-                - Project goals
-                - Quality objectives
-                - Quantifiable quality targets where supported
+                The Java DTO does NOT contain a separate projectGoals field.
 
-                Objective/business-objective mapping should explain how each
-                project objective contributes to the business objective.
+                Therefore:
+
+                1. Do NOT generate a projectGoals field.
+
+                2. Represent project goals using:
+                   projectOverview.objectives
+
+                3. Represent quality objectives using:
+                   projectManagement.qualityObjectives
+
+                   AND
+
+                   qualityManagement.qualityObjectives
+
+                projectManagement.qualityObjectives MUST be a JSON array
+                containing ONLY string values.
+
+                qualityManagement.qualityObjectives MUST be a JSON array
+                containing ONLY string values.
+
+                Both quality objective arrays MUST always be present.
+
+                Neither array may be null.
+
+                Quality objectives should cover relevant areas such as:
+
+                - functionality
+                - performance
+                - reliability
+                - security
+                - maintainability
+                - usability
+                - compliance
+                - test quality
+
+                Only include quality objectives relevant to the project.
+
+                Do NOT generate projectGoals as a separate field.
+
+                Do NOT generate processGoals as a separate field.
+
+                Do NOT generate tailoredProcesses as a separate field.
+
+                Do NOT generate decisionAnalysis as a separate field.
 
                 ============================================================
                 SECTION 3 - DEFINED PROCESS / PROJECT LIFE CYCLE
@@ -404,20 +635,14 @@ public class GeminiPmpOrchestrator {
 
                 Define an appropriate software development lifecycle.
 
-                Include:
+                lifecyclePhases MUST be populated with string values.
 
-                - Project lifecycle
-                - Software development lifecycle
-                - Critical processes
-                - Process goals
-                - Tailored processes
-                - Decision Analysis and Resolution activities
-
-                Use appropriate lifecycle activities such as:
+                Use appropriate phases such as:
 
                 - Planning
                 - Requirement Analysis
                 - Design
+                - Architecture
                 - Development
                 - Unit Testing
                 - Integration / SIT
@@ -426,340 +651,504 @@ public class GeminiPmpOrchestrator {
                 - Deployment
                 - Project Closure
 
-                Do not include irrelevant lifecycle phases.
+                Do not include irrelevant phases.
+
+                The methodology must be consistent with the supplied
+                implementation type and project requirements.
+
+                Use the following supported fields only:
+
+                - methodology
+                - lifecyclePhases
+                - organization
+                - resources
+                - estimation
+                - schedule
+                - communication
+                - configurationManagement
+                - qualityObjectives
+
+                Do NOT create additional fields for:
+
+                - processGoals
+                - tailoredProcesses
+                - decisionAnalysis
+                - projectGoals
 
                 ============================================================
                 SECTION 4 - PROJECT ENVIRONMENTS
                 ============================================================
 
-                Describe:
+                Populate all three environments:
 
-                - Development environment
-                - Testing environment
-                - Production / Operation environment
+                development
 
-                For each environment describe:
+                testing
 
-                - Environment name
-                - Purpose
-                - Hardware
-                - Software
-                - Configuration
-                - Responsible person/role
+                operation
+
+                Each environment MUST contain:
+
+                - name
+                - description
+                - responsible
+                - timing
+                - target
+                - status
+
+                Put hardware, software and configuration details inside
+                description.
+
+                Do NOT leave development, testing or operation empty.
+
+                Do not invent specific infrastructure technologies.
+
+                If infrastructure details are unavailable, use descriptive
+                values such as:
+
+                "Project-defined development environment"
+
+                "Project-defined test environment"
+
+                "Production environment as approved for deployment"
 
                 ============================================================
                 SECTION 5 - PROJECT MANAGEMENT ISSUES
                 ============================================================
 
-                Generate realistic:
+                Generate project-specific:
 
-                - Dependencies
-                - Assumptions
-                - Project risks
+                - dependencies
+                - assumptions
+                - risks
+                - mitigation strategies
+                - contingency plans
 
-                Risks should include:
+                Each risk should describe:
 
-                - Risk name
-                - Description
-                - Responsible person/role
-                - Timing
-                - Impact
-                - Probability
-                - Mitigation
-                - Contingency
-                - Status
+                - risk
+                - impact
+                - probability
+                - mitigation
+                - contingency
 
-                Do not generate unrelated risks.
+                Because the DTO uses six fields, include these details
+                inside description where necessary.
+
+                Generate multiple realistic risks where applicable.
+
+                Examples of generic risk areas that may be considered
+                ONLY when relevant:
+
+                - requirement changes
+                - integration dependency
+                - resource availability
+                - schedule dependency
+                - quality defects
+                - security concerns
+                - performance concerns
+                - client approval delays
+                - environment availability
+
+                Do not introduce risks unrelated to the supplied project.
 
                 ============================================================
                 SECTION 6 - ORGANIZATION AND RESOURCES
                 ============================================================
 
-                Generate:
+                Populate all five subsections:
 
                 6.1 Hardware and Networking
+
                 6.2 Software and Tools
+
                 6.3 Manpower and Competency
+
                 6.4 Project Team
+
                 6.5 Training Plan
 
-                Hardware and networking should contain appropriate:
+                Do NOT leave these arrays empty.
 
-                - Name
-                - Configuration
-                - Quantity
-                - Purpose
-                - Responsibility
+                HARDWARE AND NETWORKING:
 
-                Software and tools should contain appropriate:
+                Use name for the hardware/network item.
 
-                - Software/tool
-                - Version
-                - Purpose
-                - License
-                - Responsibility
+                Put configuration, quantity and purpose in description.
 
-                Manpower should contain:
+                Put responsibility in responsible.
 
-                - Role
-                - Competency
-                - Experience
-                - Quantity
-                - Responsibility
+                Put required phase in timing.
 
-                Project team should contain:
+                Put availability objective in target.
 
-                - Name
-                - Designation
-                - Role
-                - Responsibility
-                - Allocation
+                Do not invent exact hardware specifications.
 
-                Training plan should contain:
+                SOFTWARE AND TOOLS:
 
-                - Training
-                - Audience
-                - Trainer
-                - Timing
-                - Objective
-                - Status
+                Use name for software/tool.
+
+                Put version, purpose and license information in description
+                ONLY when such information is known.
+
+                Do not invent software tools.
+
+                If a tool is not specified, use a generic project-related
+                description rather than inventing a product name.
+
+                MANPOWER:
+
+                Use name for role.
+
+                Put competency, experience and quantity in description.
+
+                Do not invent exact resource quantities.
+
+                PROJECT TEAM:
+
+                Use name for role/person/team position.
+
+                Put designation, responsibility and allocation in description.
+
+                Do not invent personal names unless supplied.
+
+                TRAINING:
+
+                Use name for training activity.
+
+                Put audience, trainer and objective in description.
 
                 ============================================================
                 SECTION 7 - PROJECT MONITORING AND CONTROL
                 ============================================================
 
-                Generate:
+                Populate:
 
-                - Monitoring mechanisms
-                - Quantitative monitoring
+                monitoringMechanism
 
-                Monitoring mechanisms should explain:
+                quantitativeMonitoring
 
-                - Activity
-                - Frequency
-                - Who monitors
-                - Measurement
-                - Target
-                - Corrective action
+                Do NOT leave either array empty.
 
-                Quantitative monitoring should contain:
+                Monitoring mechanisms should cover relevant controls such as:
 
-                - Parameter
-                - Measurement method
-                - Frequency
-                - Target
-                - Threshold
-                - Action
+                - project progress tracking
+                - requirements tracking
+                - defect tracking
+                - issue tracking
+                - risk monitoring
+                - change monitoring
+                - quality reviews
+                - milestone tracking
+
+                Put frequency, measurement and corrective action in
+                description.
+
+                Quantitative monitoring should include relevant parameters
+                such as:
+
+                - schedule progress
+                - defect levels
+                - test execution
+                - requirement completion
+                - quality indicators
+                - performance indicators
+
+                Do not fabricate unsupported numerical thresholds.
+
+                Use descriptive targets where necessary.
 
                 ============================================================
                 SECTION 8 - INTER-GROUP SUPPORT
                 ============================================================
 
-                Generate realistic inter-group support requirements.
+                Populate supportItems.
 
-                Include:
+                Include realistic collaboration between groups such as:
 
-                - Supporting group
-                - Supported group
-                - Support required
-                - Timing
-                - Responsible person
-                - Status
+                - project management
+                - development
+                - testing / QA
+                - infrastructure / deployment
+                - client / business stakeholders
+
+                Only include groups relevant to the project.
+
+                Put supporting group, supported group and support required
+                into name and description.
 
                 ============================================================
                 SECTION 9 - ESTIMATED SIZE AND EFFORT
                 ============================================================
 
-                Use available estimation information and existing use cases.
+                Use the supplied estimation information and use cases.
 
-                Include:
+                Populate both:
 
-                - Estimated size details
-                - Estimation method
-                - Estimated size
-                - Unit
-                - Basis
+                sizeDetails
 
-                Also include effort details:
+                effortDetails
 
-                - Activity
-                - Role
-                - Effort
-                - Unit
-                - Basis
+                Do NOT leave these arrays empty when estimation/use-case
+                information exists.
 
-                If exact values are not available, do not fabricate
-                precise numbers.
+                For sizeDetails:
+
+                name = size measure or estimation area
+
+                description = estimation method, estimated size, unit
+                and basis.
+
+                For effortDetails:
+
+                name = activity or effort area
+
+                description = role, effort, unit and basis.
+
+                Existing use cases should influence the estimation.
+
+                If precise numerical values are unavailable, use
+                descriptive statements rather than fabricated numbers.
+
+                Do not invent effort hours, person-days, costs or duration.
 
                 ============================================================
                 SECTION 10 - PROJECT SCHEDULE
                 ============================================================
 
-                Generate a realistic project schedule based on the available
-                project information.
+                Populate schedule.scheduleItems.
 
-                Each schedule item should contain:
+                Do NOT leave the schedule empty.
 
-                - Serial number
-                - Phase
-                - Activity
-                - Start date
-                - End date
-                - Duration
-                - Responsible person
-                - Status
+                Generate a logical sequence of project activities.
 
-                Do not invent calendar dates when dates are not provided.
+                Use phases such as:
+
+                - Planning
+                - Requirement Analysis
+                - Design
+                - Architecture
+                - Development
+                - Unit Testing
+                - Integration / SIT
+                - System Testing
+                - UAT
+                - Deployment
+                - Closure
+
+                Use name for the activity.
+
+                Put phase, duration and date information in description.
+
+                Put responsible role in responsible.
+
+                Put project phase/timing in timing.
+
+                Put expected outcome in target.
+
+                Put status in status.
+
+                If exact calendar dates are unavailable, do NOT invent them.
+
+                Use "To Be Confirmed" or "Based on approved project schedule"
+                where appropriate.
 
                 ============================================================
                 SECTION 11 - METRICATION PLAN
                 ============================================================
 
-                Generate:
+                Populate:
 
-                11.1 Critical Process Metrics
-                11.2 Other Metrics
-                11.3 Data Capturing
+                criticalProcessMetrics
 
-                Metrics should contain:
+                otherMetrics
 
-                - Serial number
-                - Metric
-                - Purpose
-                - Measurement method
-                - Frequency
-                - Target
-                - Responsible person
+                dataCapturing
 
-                Data capturing should contain:
+                Do NOT leave these arrays empty.
 
-                - Data item
-                - Source
-                - Collection method
-                - Frequency
-                - Owner
-                - Storage
+                Critical process metrics may include:
 
-                Include useful software project metrics such as quality,
-                defects, schedule, effort, productivity, testing and
-                performance only where applicable.
+                - requirements completion
+                - schedule adherence
+                - defect detection
+                - defect resolution
+                - review completion
+                - test progress
+                - change request tracking
+
+                Other metrics may include:
+
+                - productivity
+                - quality
+                - performance
+                - reliability
+                - maintainability
+                - customer feedback
+
+                Data capturing should describe:
+
+                - data item
+                - source
+                - collection method
+                - frequency
+                - owner
+                - storage
+
+                Put additional metric attributes into description.
+
+                Do not fabricate numerical thresholds.
 
                 ============================================================
                 SECTION 12 - QUALITY CONTROL PLAN
                 ============================================================
 
-                Generate:
+                Populate:
 
-                12.1 Standards Applicable
-                12.2 Product Review and Testing
+                standardsApplicable
 
-                Standards should contain:
+                productReviewTesting
 
-                - Serial number
-                - Standard
-                - Applicable area
-                - Requirement
-                - Responsible person
-                - Evidence
+                Do NOT leave these arrays empty.
 
-                Product review/testing should contain:
+                Standards may include relevant project standards such as:
 
-                - Serial number
-                - Work product
-                - Type of review/testing
-                - Reviewer/tester level
-                - Timing
-                - Remarks
+                - coding standards
+                - architecture standards
+                - security practices
+                - accessibility requirements
+                - documentation standards
+                - testing standards
 
-                Include appropriate reviews such as:
+                Only include standards relevant to the supplied project.
 
-                - Requirement review
+                Product review/testing may include:
+
+                - requirement review
                 - SRS/FS review
-                - Design review
-                - Architecture review
-                - Code review
-                - Test plan review
-                - Test case review
-                - User documentation review
-
-                Include appropriate testing such as:
-
-                - Unit Testing
-                - Integration Testing
-                - System Testing
+                - architecture review
+                - design review
+                - code review
+                - test plan review
+                - test case review
+                - unit testing
+                - integration testing
+                - system testing
                 - UAT
-                - Regression Testing
-                - Performance Testing
+                - regression testing
+                - performance testing
 
-                Only include testing that is appropriate to the project.
+                Only include activities appropriate to the project.
 
                 ============================================================
                 SECTION 13 - VALIDATION PLAN
                 ============================================================
 
-                Generate:
+                Populate:
 
-                - Validation plan name
-                - Description
-                - Responsible
-                - Timing
-                - Target
-                - Status
-                - Validation activities
+                validationPlan.name
 
-                Validation activities should contain:
+                validationPlan.description
 
-                - Serial number
-                - Activity
-                - Acceptance criteria
-                - Method
-                - Responsible
-                - Timing
-                - Evidence
-                - Status
+                validationPlan.responsible
+
+                validationPlan.timing
+
+                validationPlan.target
+
+                validationPlan.status
+
+                validationPlan.activities
+
+                Do NOT leave activities empty.
+
+                Validation activities MUST use PmpItemDto objects.
+
+                Use name for the validation activity.
+
+                Put acceptance criteria, method and evidence in description.
+
+                Do not fabricate specific acceptance percentages or
+                numerical thresholds.
 
                 ============================================================
                 SECTION 14 - QUALITY AUDIT PLAN
                 ============================================================
 
-                Generate a quality audit plan.
+                Populate qualityAuditPlan.audits.
 
-                Each audit should contain:
+                Do NOT leave this array empty.
 
-                - Serial number
-                - Audit type
-                - Audit item / lifecycle activities covered
-                - Periodicity of audit
-                - Target date
-                - Person responsible for conducting audit
-                - Remarks
+                Include appropriate audits such as:
+
+                - process compliance audit
+                - documentation audit
+                - configuration audit
+                - quality management audit
+                - release readiness audit
+
+                Only include relevant audits.
+
+                Put audit type, covered activities, periodicity and remarks
+                into the six PmpItemDto fields.
+
+                Do not invent an audit frequency unless supported.
+                "As applicable" or "Project-defined" may be used.
 
                 ============================================================
                 SECTION 15 - CONFIGURATION MANAGEMENT PLAN
                 ============================================================
 
-                Generate:
+                Populate:
 
-                15.1 Configuration Items
-                15.2 Baselining
-                15.3 Release Procedure
-                15.4 Version Control
-                15.5 Status Accounting
-                15.6 Configuration Audit
-                15.7 Backup
+                configurationItems
 
-                Configuration items should contain:
+                baselining
 
-                - Serial number
-                - Configuration item
-                - Type
-                - Repository
-                - Owner
-                - Baseline
-                - Remarks
+                releaseProcedure
 
-                The remaining configuration management sections should
-                contain professional project-specific descriptions.
+                versionControl
+
+                statusAccounting
+
+                audit
+
+                backup
+
+                configurationItems MUST NOT be empty.
+
+                Configuration items may include:
+
+                - source code
+                - requirements
+                - architecture/design documents
+                - database scripts
+                - test artifacts
+                - deployment configuration
+                - user documentation
+
+                Put type, repository, owner, baseline and remarks inside
+                description.
+
+                Only mention a specific repository or version-control
+                platform if it is supplied in the project information.
+
+                The following scalar fields must contain meaningful
+                project-specific descriptions:
+
+                baselining
+
+                releaseProcedure
+
+                versionControl
+
+                statusAccounting
+
+                audit
+
+                backup
+
+                Do not invent specific backup frequencies or tools.
 
                 ============================================================
                 OUTPUT JSON STRUCTURE
@@ -767,7 +1156,7 @@ public class GeminiPmpOrchestrator {
 
                 Return exactly ONE JSON object.
 
-                The root object MUST contain:
+                The root object MUST contain ONLY:
 
                 {
                   "pmp": {
@@ -802,6 +1191,7 @@ public class GeminiPmpOrchestrator {
 
                 {
                   "pmp": {
+
                     "documentControl": {
                       "releaseHistory": [],
                       "circulationDetails": [],
@@ -812,27 +1202,11 @@ public class GeminiPmpOrchestrator {
                       "projectName": "",
                       "projectDescription": "",
                       "projectScope": "",
-
-                      "objectives": [
-                        "Objective text"
-                      ],
-
-                      "deliverables": [
-                        "Deliverable text"
-                      ],
-
-                      "assumptions": [
-                        "Assumption text"
-                      ],
-
-                      "constraints": [
-                        "Constraint text"
-                      ],
-
-                      "acceptanceCriteria": [
-                        "Acceptance criterion text"
-                      ],
-
+                      "objectives": [],
+                      "deliverables": [],
+                      "assumptions": [],
+                      "constraints": [],
+                      "acceptanceCriteria": [],
                       "customerInterface": {
                         "name": "",
                         "designation": "",
@@ -841,7 +1215,6 @@ public class GeminiPmpOrchestrator {
                         "email": "",
                         "skypeId": ""
                       },
-
                       "complianceRequirements": [],
                       "detailedDeliverables": [],
                       "milestones": []
@@ -850,166 +1223,29 @@ public class GeminiPmpOrchestrator {
                     "projectManagement": {
                       "methodology": "",
                       "lifecyclePhases": [],
-
-                      "organization": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "resources": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "estimation": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "schedule": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "communication": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "configurationManagement": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "projectGoals": [],
-                      "qualityObjectives": [],
-                      "processGoals": [],
-                      "tailoredProcesses": [],
-                      "decisionAnalysis": []
+                      "organization": [],
+                      "resources": [],
+                      "estimation": [],
+                      "schedule": [],
+                      "communication": [],
+                      "configurationManagement": [],
+                      "qualityObjectives": []
                     },
 
                     "qualityManagement": {
-
-                      "qualityStandards": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "reviews": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "testing": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "metrics": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
+                      "qualityStandards": [],
+                      "reviews": [],
+                      "testing": [],
+                      "metrics": [],
                       "qualityObjectives": [],
                       "audits": [],
                       "productReviews": []
                     },
 
                     "riskManagement": {
-
-                      "risks": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "mitigationStrategies": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
-                      "contingencyPlans": [
-                        {
-                          "name": "",
-                          "description": "",
-                          "responsible": "",
-                          "timing": "",
-                          "target": "",
-                          "status": ""
-                        }
-                      ],
-
+                      "risks": [],
+                      "mitigationStrategies": [],
+                      "contingencyPlans": [],
                       "dependencies": [],
                       "assumptions": []
                     },
@@ -1087,102 +1323,248 @@ public class GeminiPmpOrchestrator {
                 FINAL VALIDATION BEFORE RETURNING
                 ============================================================
 
-                Before returning the response, verify ALL of the following:
+                Before returning the JSON, verify ALL of the following:
 
                 1. The response is valid JSON.
 
-                2. The response contains only the root "pmp" object.
+                2. The root contains ONLY "pmp".
 
                 3. All required PMP sections are present.
 
                 4. All arrays are JSON arrays.
 
-                5. No array is null.
+                5. NO array is null.
 
-                6. No Markdown exists.
+                6. projectManagement.qualityObjectives is present.
 
-                7. No code fences exist.
+                7. projectManagement.qualityObjectives contains ONLY strings.
 
-                8. No explanatory text exists outside the JSON.
+                8. qualityManagement.qualityObjectives is present.
 
-                9. The PMP is internally consistent.
+                9. qualityManagement.qualityObjectives contains ONLY strings.
 
-                10. Content is specific to the supplied project.
+                10. No Markdown exists.
 
-                11. Unsupported functionality is not invented.
+                11. No code fences exist.
 
-                12. Unsupported exact dates/numbers are not fabricated.
+                12. No explanatory text exists outside the JSON.
 
-                13. The generated content is detailed enough to populate
-                    a professional multi-page PMP document.
+                13. The PMP is internally consistent.
+
+                14. Content is specific to the supplied project.
+
+                15. Unsupported functionality is not invented.
+
+                16. Unsupported technologies are not invented.
+
+                17. Unsupported exact dates and numbers are not fabricated.
+
+                18. Every major section contains useful project-specific
+                    content.
+
+                19. Do not leave arrays empty merely because an exact
+                    numerical value is unavailable.
+
+                20. Use descriptive professional values instead.
+
+                21. Do not create fields outside the specified JSON shape.
+
+                22. Every PmpItemDto object contains exactly six fields.
+
+                23. No PmpItemDto array contains strings instead of objects.
+
+                24. No simple string array contains objects.
+
+                25. Do not generate projectGoals.
+
+                26. Do not generate processGoals.
+
+                27. Do not generate tailoredProcesses.
+
+                28. Do not generate decisionAnalysis.
 
                 ============================================================
-                FINAL TYPE CHECK - MANDATORY
+                FINAL TYPE CHECK
                 ============================================================
 
-                Before returning JSON, check these fields specifically:
+                The following fields MUST contain STRING elements:
 
                 projectOverview.objectives
+
                 projectOverview.deliverables
+
                 projectOverview.assumptions
+
                 projectOverview.constraints
+
                 projectOverview.acceptanceCriteria
 
-                EVERY ELEMENT of these five arrays MUST be a STRING.
+                projectOverview.complianceRequirements
+
+                projectManagement.lifecyclePhases
+
+                projectManagement.qualityObjectives
+
+                qualityManagement.qualityObjectives
+
+                IMPORTANT:
+
+                projectManagement.qualityObjectives MUST contain ONLY
+                STRING VALUES.
 
                 Example:
 
-                "objectives": [
-                    "Objective one",
-                    "Objective two",
-                    "Objective three"
+                "qualityObjectives": [
+                  "Ensure functional requirements are implemented correctly.",
+                  "Maintain acceptable application performance.",
+                  "Ensure security and reliability requirements are satisfied.",
+                  "Ensure compliance with applicable project standards."
                 ]
 
-                NEVER:
+                NEVER return objects inside
+                projectManagement.qualityObjectives.
 
-                "objectives": [
-                    {
-                      "name": "Objective one"
-                    }
+                NEVER return null for
+                projectManagement.qualityObjectives.
+
+                IMPORTANT:
+
+                qualityManagement.qualityObjectives MUST contain ONLY
+                STRING VALUES.
+
+                Example:
+
+                "qualityObjectives": [
+                  "Ensure functional requirements are implemented correctly.",
+                  "Maintain acceptable application performance.",
+                  "Ensure security and reliability requirements are satisfied.",
+                  "Ensure compliance with applicable project standards."
                 ]
 
-                NEVER:
+                NEVER return objects inside
+                qualityManagement.qualityObjectives.
 
-                "objectives": [
-                    {
-                      "description": "Objective one"
-                    }
-                ]
+                NEVER return null for
+                qualityManagement.qualityObjectives.
 
-                The following arrays MUST contain OBJECTS:
+                The following fields MUST contain PmpItemDto objects:
 
-                organization
-                resources
-                estimation
-                schedule
-                communication
-                configurationManagement
-                qualityStandards
-                reviews
-                testing
-                metrics
-                risks
-                mitigationStrategies
-                contingencyPlans
+                projectManagement.organization
 
-                Each object in those arrays MUST contain:
+                projectManagement.resources
+
+                projectManagement.estimation
+
+                projectManagement.schedule
+
+                projectManagement.communication
+
+                projectManagement.configurationManagement
+
+                qualityManagement.qualityStandards
+
+                qualityManagement.reviews
+
+                qualityManagement.testing
+
+                qualityManagement.metrics
+
+                qualityManagement.audits
+
+                qualityManagement.productReviews
+
+                riskManagement.risks
+
+                riskManagement.mitigationStrategies
+
+                riskManagement.contingencyPlans
+
+                riskManagement.dependencies
+
+                riskManagement.assumptions
+
+                documentControl.releaseHistory
+
+                documentControl.circulationDetails
+
+                documentControl.amendments
+
+                validationPlan.activities
+
+                organizationResources.hardwareNetworking
+
+                organizationResources.softwareTools
+
+                organizationResources.manpowerCompetency
+
+                organizationResources.projectTeam
+
+                organizationResources.trainingPlan
+
+                monitoringControl.monitoringMechanism
+
+                monitoringControl.quantitativeMonitoring
+
+                interGroupSupport.supportItems
+
+                estimatedSizeEffort.sizeDetails
+
+                estimatedSizeEffort.effortDetails
+
+                schedule.scheduleItems
+
+                metricationPlan.criticalProcessMetrics
+
+                metricationPlan.otherMetrics
+
+                metricationPlan.dataCapturing
+
+                qualityControlPlan.standardsApplicable
+
+                qualityControlPlan.productReviewTesting
+
+                qualityAuditPlan.audits
+
+                configurationManagementPlan.configurationItems
+
+                Every PmpItemDto object MUST contain exactly:
 
                 name
+
                 description
+
                 responsible
+
                 timing
+
                 target
+
                 status
 
                 Do not change these JSON types.
 
-                END OF INSTRUCTIONS
+                Do not add additional fields.
 
+                ============================================================
+                FINAL OUTPUT REQUIREMENT
+                ============================================================
+
+                Return ONLY valid JSON.
+
+                Do not return:
+
+                - Markdown
+                - code fences
+                - comments
+                - explanations
+                - introductory text
+                - trailing text
+
+                The first character of the response must be '{'.
+
+                The last character of the response must be '}'.
+
+                END OF INSTRUCTIONS
                 """.formatted(
                         safe(opportunity.getOpportunityName()),
                         safe(opportunity.getImplementationType()),

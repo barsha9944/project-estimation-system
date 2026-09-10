@@ -15,4 +15,5 @@ public record RiskManagementDto(
         List<PmpItemDto> assumptions
 
 ) {
+
 }
