@@ -2,12 +2,14 @@ package com.projectestimation.backend.pmp.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.TableWidthType;
@@ -40,7 +42,7 @@ import com.projectestimation.backend.pmp.repository.PmpRepository;
 @Service
 public class PmpService {
 
-    private static final String BLUE = "1F4E78";
+    private static final String BLUE = "5B9BD5";
     private static final String WHITE = "FFFFFF";
     private static final String BLACK = "000000";
 
@@ -161,6 +163,9 @@ public class PmpService {
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             configureDocument(document);
+
+            // BEAS logo - first page only
+            addBeasLogo(document);
 
             addTitle(document, "PROJECT MANAGEMENT PLAN");
             if (pmpDto != null && pmpDto.projectOverview() != null) {
@@ -1011,6 +1016,37 @@ public class PmpService {
         }
     }
 
+    private void addBeasLogo(XWPFDocument document) throws IOException {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        paragraph.setSpacingBefore(0);
+        paragraph.setSpacingAfter(80);
+
+        XWPFRun run = paragraph.createRun();
+
+        try (InputStream logoStream =
+                getClass().getClassLoader()
+                        .getResourceAsStream("psr/beas-logo.png")) {
+
+            if (logoStream == null) {
+                throw new IOException(
+                        "BEAS logo not found: src/main/resources/psr/beas-logo.png");
+            }
+
+            try {
+                run.addPicture(
+                        logoStream,
+                        XWPFDocument.PICTURE_TYPE_PNG,
+                        "beas-logo.png",
+                        Units.toEMU(158),
+                        Units.toEMU(24)
+                );
+            } catch (Exception e) {
+                throw new IOException("Failed to add BEAS logo to PMP document", e);
+            }
+        }
+    }
+
     private void addSectionHeading(XWPFDocument document, String text) {
         if (isBlank(text)) return;
         XWPFParagraph paragraph = document.createParagraph();
@@ -1113,8 +1149,10 @@ public class PmpService {
             paragraph.removeRun(i);
         }
 
-        paragraph.setSpacingBefore(0);
-        paragraph.setSpacingAfter(0);
+        // Add vertical breathing room so table rows are slightly larger
+        // without increasing the table text size.
+        paragraph.setSpacingBefore(20);
+        paragraph.setSpacingAfter(60);
 
         XWPFRun run = paragraph.createRun();
         run.setText(safe(text));
