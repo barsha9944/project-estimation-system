@@ -9,5 +9,7 @@ import com.projectestimation.backend.pmp.model.Pmp;
 public interface PmpRepository extends JpaRepository<Pmp, Long> {
 
     Optional<Pmp> findByOpportunityId(Long opportunityId);
+    
+    boolean existsByOpportunityId(Long opportunityId);
 
 }

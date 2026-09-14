@@ -55,6 +55,7 @@ import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepo
 import com.projectestimation.backend.opportunity.dto.DownloadEstimateRequest;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.pmp.repository.PmpRepository;
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
@@ -74,6 +75,7 @@ public class CalculationService {
 	private final ProjectScheduleRepository projectScheduleRepository;
 	private final ProjectMetricsRepository projectMetricsRepository;
 	private final TestCaseRepository testCaseRepository;
+	private final PmpRepository pmpRepository;
 	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
@@ -84,7 +86,8 @@ public class CalculationService {
 			ProposalRepository proposalRepository,
 			ProjectScheduleRepository projectScheduleRepository,
 			ProjectMetricsRepository projectMetricsRepository,
-			TestCaseRepository testCaseRepository) {
+			TestCaseRepository testCaseRepository,
+			PmpRepository pmpRepository) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -96,6 +99,7 @@ public class CalculationService {
 		this.projectScheduleRepository = projectScheduleRepository;
 		this.projectMetricsRepository = projectMetricsRepository;
 		this.testCaseRepository = testCaseRepository;
+		this.pmpRepository = pmpRepository;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -1562,6 +1566,7 @@ public class CalculationService {
 	    
 	    response.setTestCaseCompleted(testCaseRepository.existsByOpportunityId(opportunityId));
 
+	    response.setPmpCompleted(pmpRepository.existsByOpportunityId(opportunityId));
 	    
 	    return response;
 	}
