@@ -83,41 +83,117 @@ public class GeminiPmpOrchestrator {
 
                 DO NOT generate the old simplified PMP structure.
 
+                STRUCTURE RULES:
+
+                1. Use the exact section and subsection structure listed below.
+                2. Keep every section and subsection in the specified order.
+                3. Do not create additional sections or subsections.
+                4. Do not duplicate any section or subsection.
+                5. Do not rename any heading.
+                6. Methodology must appear only under 3.2 Methodology.
+                7. Schedule must appear only under 10.0 Schedule.
+                8. Section 3.6 is Schedule Management and must not become another Schedule section.
+                9. Every listed section must have useful project-specific content through the
+                   fields available in the required JSON structure.
+                10. Do not create JSON fields solely to represent headings that do not exist
+                    in the DTO. Use the closest existing DTO field as instructed below.
+                11. Keep the amount of detail professional and moderate, similar to the
+                    original BEAS PMP template; do not produce unnecessarily long prose.
+
                 ============================================================
                 MANDATORY PMP SECTIONS
                 ============================================================
 
-                The PMP must contain ALL of these sections:
+                The PMP must contain ALL of the following sections and subsections,
+                in exactly this order. Do not add, remove, merge, rename or duplicate them.
 
-                1. INTRODUCTION
+                A. Document Release History
+                B. Circulation Details
+                C. List of Amendments Made on the Previous Version No.:
 
-                2. PROJECT GOALS AND QUALITY OBJECTIVES
+                1.0 Introduction
+                1.1 Project Overview
+                1.2 Customer Interface
+                1.3 Scope of Work
+                1.4 Project Compliance Requirements
+                1.5 Project Deliverables to Customer
+                1.6 List of Milestones
+                1.7 Acceptance Criteria
 
-                3. DEFINED PROCESS / PROJECT LIFE CYCLE
+                2.0 Project Goals and Quality Objectives
+                2.1 Project Objectives
+                2.2 Project Quality Objectives
+                2.3 Quality Management Objectives
 
-                4. PROJECT ENVIRONMENTS
+                3.0 The Project's Defined Process
+                3.1 Project Life Cycle Phases
+                3.2 Methodology
+                3.3 Organization
+                3.4 Resources
+                3.5 Estimation
+                3.6 Schedule Management
+                3.7 Communication
+                3.8 Configuration Management
 
-                5. PROJECT MANAGEMENT ISSUES
+                4.0 Project Environments
+                4.1 Development Environment
+                4.2 Testing Environment
+                4.3 Operational Environment
 
-                6. ORGANIZATION AND RESOURCES
+                5.0 Project Management Issues
+                5.1 Project Risks
+                5.2 Risk Mitigation Strategies
+                5.3 Contingency Plans
+                5.4 Dependencies
+                5.5 Assumptions
 
-                7. PROJECT MONITORING AND CONTROL
+                6.0 Organization and Resources
+                6.1 Hardware and Networking
+                6.2 Software and Tools
+                6.3 Manpower and Competency
+                6.4 Project Team
+                6.5 Training Plan
 
-                8. INTER-GROUP SUPPORT
+                7.0 Project Monitoring & Control Mechanism
+                7.1 Project Monitoring & Control Mechanism
+                7.2 Quantitative Project Monitoring
 
-                9. ESTIMATED SIZE AND EFFORT
+                8.0 Requirement of Inter Group Support & Co-ordination
 
-                10. PROJECT SCHEDULE
+                9.0 Estimated Size & Effort
+                9.1 Estimated Size Details of the Project
+                9.2 Estimated Effort Details of the Project
 
-                11. METRICATION PLAN
+                10.0 Schedule
 
-                12. QUALITY CONTROL PLAN
+                11.0 Metrication Plan
+                11.1 Metrication Plan Measurements of Critical Processes / Sub-processes
+                11.2 Other Metrics for the Project and Corresponding Goals
+                11.3 Metrics Data Capturing
 
-                13. VALIDATION PLAN
+                12.0 Quality Control Plan
+                12.1 Standards Applicable
+                12.2 Product Review & Testing
+                12.3 Quality Standards
+                12.4 Reviews
+                12.5 Testing
+                12.6 Quality Metrics
+                12.7 Quality Audits
+                12.8 Product Reviews
 
-                14. QUALITY AUDIT PLAN
+                13.0 Validation Plan
+                13.1 Validation Activities
 
-                15. CONFIGURATION MANAGEMENT PLAN
+                14.0 Quality Audit Plan
+
+                15.0 Configuration Management Plan
+                15.1 List of Configuration Items (CI)
+                15.2 Procedure for Baselining a CI
+                15.3 Release Procedure
+                15.4 Version Control & Nomenclature
+                15.5 CI Status Accounting & Reporting
+                15.6 Configuration Management Audit
+                15.7 Back-up Plan
 
                 ============================================================
                 PROJECT INFORMATION
@@ -538,46 +614,41 @@ public class GeminiPmpOrchestrator {
                 - Customer/client interface
                 - Scope of work
                 - Compliance requirements
-                - Project deliverables
-                - Project milestones
-                - Acceptance criteria
-                - Project assumptions
-                - Project constraints
 
-                customerInterface MUST contain exactly:
+                PROJECT SCOPE - MODERATE DETAIL REQUIREMENT
 
-                - name
-                - designation
-                - phoneNumber
-                - faxNumber
-                - email
-                - skypeId
+                Generate a clear and moderately detailed Project Scope based
+                strictly on the provided project requirements, project
+                description, components, use cases and other available project
+                information.
 
-                If contact information is not supplied, use "N/A"
-                rather than inventing personal contact information.
+                The scope should explain:
+                - The overall solution and its purpose.
+                - The major modules or functional areas included in the project.
+                - The key functionality and activities covered under those areas.
+                - Application development, integration, database and testing
+                  activities where applicable.
+                - Major project deliverables included within the scope.
+                - Important assumptions, dependencies or exclusions where
+                  supported by the requirements.
 
-                detailedDeliverables MUST contain objects with:
+                The scope must be specific to the current project and written
+                in professional Project Management Plan language.
 
-                - serialNumber
-                - itemDescription
-                - deliveryDate
-                - deliveryLocation
-                - quantity
-                - remarks
+                Do not generate a generic scope.
+                Do not invent modules, functionality, integrations, technologies,
+                deliverables, dates, costs or numerical values that are not
+                supported by the provided information.
 
-                If exact dates or quantities are unavailable, use
-                descriptive values such as "To Be Confirmed".
+                Keep the scope concise but sufficiently detailed to clearly
+                communicate what is included in the project. Normally generate
+                approximately 3-5 well-developed paragraphs rather than a very
+                long multi-section explanation.
 
-                milestones MUST contain objects with:
+                Put the complete scope into the existing
+                projectOverview.projectScope STRING field.
 
-                - phase
-                - milestone
-                - description
-                - targetDate
-                - deliverable
-
-                ============================================================
-                SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
+SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
                 ============================================================
 
                 Generate meaningful project goals and quality objectives.
@@ -944,14 +1015,23 @@ public class GeminiPmpOrchestrator {
 
                 Put project phase/timing in timing.
 
-                Put expected outcome in target.
+                IMPORTANT SCHEDULE DATA RULE:
 
-                Put status in status.
+                Do not invent or guess Schedule Target or Status values.
+
+                The application will populate the final Schedule Target and Status
+                from the actual Work Schedule after AI generation.
+
+                Therefore:
+                - target must not be treated as a source of authoritative schedule data.
+                - status must not be treated as a source of authoritative schedule data.
+                - Do not invent completion states, dates or target outcomes that conflict
+                  with the Work Schedule.
 
                 If exact calendar dates are unavailable, do NOT invent them.
 
                 Use "To Be Confirmed" or "Based on approved project schedule"
-                where appropriate.
+                where appropriate for non-authoritative schedule information.
 
                 ============================================================
                 SECTION 11 - METRICATION PLAN
@@ -1383,6 +1463,16 @@ public class GeminiPmpOrchestrator {
 
                 28. Do not generate decisionAnalysis.
 
+                29. All required PMP headings and subsections are represented by the
+                    existing DTO structure and must appear exactly once in the final document.
+
+                30. Do not create a second Methodology section.
+
+                31. Do not create a second Schedule section.
+
+                32. Section 10 Schedule Target and Status must ultimately be taken from
+                    the application's Work Schedule data, not invented by the AI.
+
                 ============================================================
                 FINAL TYPE CHECK
                 ============================================================
@@ -1563,6 +1653,35 @@ public class GeminiPmpOrchestrator {
                 The first character of the response must be '{'.
 
                 The last character of the response must be '}'.
+                
+					                DETAILED DELIVERABLES AND MILESTONES:
+					
+					Do not return empty arrays for detailedDeliverables or milestones when
+					the project information is sufficient to derive them.
+					
+					For detailedDeliverables, generate 4-8 realistic project deliverables.
+					Each deliverable must contain:
+					- serialNumber
+					- deliverable
+					- description
+					- responsible
+					- acceptanceCriteria
+					
+					For milestones, generate the major project milestones.
+					Each milestone must contain:
+					- serialNumber
+					- milestone
+					- targetDate
+					- acceptanceCriteria
+					
+					Use the project scope, requirements, schedule, phases, and other available
+					project information to derive these values.
+					
+					Do not invent unrelated requirements.
+					
+					serialNumber MUST be an integer.
+					Use 1, 2, 3, 4 etc.
+					Do NOT use values such as D-01, D-02, M-01, or M-02.
 
                 END OF INSTRUCTIONS
                 """.formatted(

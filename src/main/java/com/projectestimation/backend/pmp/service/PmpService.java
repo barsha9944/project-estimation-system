@@ -7,7 +7,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.BreakType;
@@ -37,6 +42,9 @@ import com.projectestimation.backend.pmp.dto.PmpItemDto;
 import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
 import com.projectestimation.backend.pmp.model.Pmp;
 import com.projectestimation.backend.pmp.repository.PmpRepository;
+import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 
 
 @Service
@@ -51,6 +59,7 @@ public class PmpService {
     private final EstimationUseCaseRepository estimationUseCaseRepository;
     private final GeminiPmpOrchestrator geminiPmpOrchestrator;
     private final PmpRepository pmpRepository;
+    private final ProjectScheduleRepository projectScheduleRepository;
     private final ObjectMapper objectMapper;
 
     public PmpService(
@@ -59,12 +68,14 @@ public class PmpService {
             EstimationUseCaseRepository estimationUseCaseRepository,
             GeminiPmpOrchestrator geminiPmpOrchestrator,
             PmpRepository pmpRepository,
+            ProjectScheduleRepository projectScheduleRepository,
             ObjectMapper objectMapper) {
         this.opportunityRepository = opportunityRepository;
         this.estimationAnalysisRepository = estimationAnalysisRepository;
         this.estimationUseCaseRepository = estimationUseCaseRepository;
         this.geminiPmpOrchestrator = geminiPmpOrchestrator;
         this.pmpRepository = pmpRepository;
+        this.projectScheduleRepository = projectScheduleRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -93,6 +104,10 @@ public class PmpService {
         }
 
         try {
+            // Use the actual Work Schedule for the PMP Schedule section.
+            // Target = plannedEndDate and Status = current task status.
+            response = applyWorkScheduleToPmpJson(response, opportunityId);
+
             PmpGenerationResponse generated = objectMapper.readValue(
                     response, PmpGenerationResponse.class);
             Pmp pmp = pmpRepository.findByOpportunityId(opportunityId).orElseGet(Pmp::new);
@@ -103,6 +118,88 @@ public class PmpService {
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Failed to generate and save PMP: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Replaces the AI-generated PMP schedule items with the actual Work
+     * Schedule tasks for this opportunity.
+     *
+     * Target  -> ProjectScheduleTask.plannedEndDate
+     * Status  -> ProjectScheduleTask.status
+     *
+     * If no saved Work Schedule exists, the AI-generated schedule is kept.
+     */
+    private String applyWorkScheduleToPmpJson(String response, Long opportunityId) {
+        try {
+            if (response == null || response.isBlank()) {
+                return response;
+            }
+
+            ProjectSchedule schedule = projectScheduleRepository
+                    .findByOpportunityIdWithTasks(opportunityId)
+                    .orElse(null);
+
+            if (schedule == null || schedule.getTasks() == null || schedule.getTasks().isEmpty()) {
+                return response;
+            }
+
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode pmpNode = root.path("pmp");
+
+            if (!pmpNode.isObject()) {
+                return response;
+            }
+
+            ObjectNode pmpObject = (ObjectNode) pmpNode;
+            JsonNode scheduleNode = pmpObject.get("schedule");
+
+            if (scheduleNode == null || !scheduleNode.isObject()) {
+                ObjectNode newSchedule = objectMapper.createObjectNode();
+                pmpObject.set("schedule", newSchedule);
+                scheduleNode = newSchedule;
+            }
+
+            ObjectNode scheduleObject = (ObjectNode) scheduleNode;
+            ArrayNode scheduleItems = objectMapper.createArrayNode();
+
+            List<ProjectScheduleTask> tasks = new ArrayList<>(schedule.getTasks());
+            tasks.removeIf(task -> task == null);
+            tasks.sort(Comparator.comparing(
+                    ProjectScheduleTask::getSequence,
+                    Comparator.nullsLast(Integer::compareTo)
+            ));
+
+            for (ProjectScheduleTask task : tasks) {
+                ObjectNode item = objectMapper.createObjectNode();
+
+                item.put("name", safe(task.getTaskName()));
+                item.put("description",
+                        "Work schedule task planned from "
+                                + safe(task.getPlannedStartDate())
+                                + " to "
+                                + safe(task.getPlannedEndDate())
+                                + ".");
+                item.put("responsible", "Project Team");
+                item.put("timing",
+                        safe(task.getPlannedStartDate())
+                                + " to "
+                                + safe(task.getPlannedEndDate()));
+
+                // Target and Status come directly from the Work Schedule.
+                item.put("target", safe(task.getPlannedEndDate()));
+                item.put("status", safe(task.getStatus()));
+
+                scheduleItems.add(item);
+            }
+
+            scheduleObject.set("scheduleItems", scheduleItems);
+
+            return objectMapper.writeValueAsString(root);
+
+        } catch (Exception e) {
+            // Do not fail PMP generation if the Work Schedule override fails.
+            return response;
         }
     }
 
@@ -181,7 +278,7 @@ public class PmpService {
             addSectionHeading(document, "1.0 Introduction");
             addIntroduction(document, pmpDto);
 
-            addSectionHeading(document, "2.0 Project Objectives & Goals");
+            addSectionHeading(document, "2.0 Project Goals and Quality Objectives");
             addProjectGoals(document, pmpDto);
 
             addSectionHeading(document, "3.0 The Project's Defined Process");
@@ -193,7 +290,7 @@ public class PmpService {
             addSectionHeading(document, "5.0 Project Management Issues");
             addProjectManagementIssues(document, pmpDto);
 
-            addSectionHeading(document, "6.0 Project Organization & Resources");
+            addSectionHeading(document, "6.0 Organization and Resources");
             addOrganizationAndResources(document, pmpDto);
 
             addSectionHeading(document, "7.0 Project Monitoring & Control Mechanism");
@@ -401,12 +498,26 @@ public class PmpService {
                 dto.projectOverview().complianceRequirements());
 
         addSubHeading(document, "1.5 Project Deliverables to Customer");
-        addDynamicRecordListTable(document, "Project Deliverables",
-                dto.projectOverview().detailedDeliverables());
+
+        List<?> detailedDeliverables = dto.projectOverview().detailedDeliverables();
+
+        if (detailedDeliverables != null && !detailedDeliverables.isEmpty()) {
+            addDetailedDeliverablesTable(document, detailedDeliverables,
+                    dto.projectOverview().deliverables());
+        } else {
+            addListTable(document, "Project Deliverables",
+                    dto.projectOverview().deliverables());
+        }
 
         addSubHeading(document, "1.6 List of Milestones");
-        addDynamicRecordListTable(document, "Milestones",
-                dto.projectOverview().milestones());
+
+        List<?> milestones = dto.projectOverview().milestones();
+
+        if (milestones != null && !milestones.isEmpty()) {
+            addMilestonesTable(document, milestones);
+        } else {
+            addScheduleAsMilestones(document, dto);
+        }
 
         addSubHeading(document, "1.7 Acceptance Criteria");
         addListTable(document, "Acceptance Criteria",
@@ -419,7 +530,7 @@ public class PmpService {
         if (dto == null) return;
 
         if (dto.projectOverview() != null) {
-            addSubHeading(document, "2.1 Organization's Business Objectives");
+            addSubHeading(document, "2.1 Project Objectives");
             addListTable(document, "Business Objectives",
                     dto.projectOverview().objectives());
         }
@@ -440,7 +551,7 @@ public class PmpService {
     private void addDefinedProcess(XWPFDocument document, PmpDto dto) {
         if (dto == null || dto.projectManagement() == null) return;
 
-        addSubHeading(document, "3.1 Project Life Cycle");
+        addSubHeading(document, "3.1 Project Life Cycle Phases");
         addListTable(document, "Lifecycle Phases",
                 dto.projectManagement().lifecyclePhases());
 
@@ -461,7 +572,7 @@ public class PmpService {
         addPmpItemsTable(document, "Estimation",
                 dto.projectManagement().estimation());
 
-        addSubHeading(document, "3.6 Schedule");
+        addSubHeading(document, "3.6 Schedule Management");
         addPmpItemsTable(document, "Schedule Management",
                 dto.projectManagement().schedule());
 
@@ -522,15 +633,15 @@ public class PmpService {
     private void addOrganizationAndResources(XWPFDocument document, PmpDto dto) {
         if (dto == null || dto.organizationResources() == null) return;
 
-        addSubHeading(document, "6.1 Hardware & Networking");
+        addSubHeading(document, "6.1 Hardware and Networking");
         addPmpItemsTable(document, "Hardware & Networking",
                 dto.organizationResources().hardwareNetworking());
 
-        addSubHeading(document, "6.2 Software & Tools");
+        addSubHeading(document, "6.2 Software and Tools");
         addPmpItemsTable(document, "Software & Tools",
                 dto.organizationResources().softwareTools());
 
-        addSubHeading(document, "6.3 Manpower & Competency");
+        addSubHeading(document, "6.3 Manpower and Competency");
         addPmpItemsTable(document, "Manpower & Competency",
                 dto.organizationResources().manpowerCompetency());
 
@@ -580,6 +691,20 @@ public class PmpService {
     }
 
     // =========================== 10.0 ============================
+    
+    private void addScheduleAsMilestones(XWPFDocument document, PmpDto dto) {
+        if (dto == null || dto.schedule() == null
+                || dto.schedule().scheduleItems() == null
+                || dto.schedule().scheduleItems().isEmpty()) {
+            return;
+        }
+
+        addPmpItemsTable(
+                document,
+                "Milestones",
+                dto.schedule().scheduleItems()
+        );
+    }
 
     private void addSchedule(XWPFDocument document, PmpDto dto) {
         if (dto == null || dto.schedule() == null) return;
@@ -904,6 +1029,97 @@ public class PmpService {
         addSpacer(document);
     }
 
+    // ===================== PMP-SPECIFIC TABLES ==================
+
+    private void addDetailedDeliverablesTable(
+            XWPFDocument document,
+            List<?> deliverables,
+            List<String> projectDeliverables) {
+
+        if (deliverables == null || deliverables.isEmpty()) return;
+
+        addTableTitle(document, "Project Deliverables");
+
+        XWPFTable table = document.createTable(deliverables.size() + 1, 6);
+        formatTable(table);
+
+        setCellText(table.getRow(0).getCell(0), "Serial Number", true);
+        setCellText(table.getRow(0).getCell(1), "Item Description", true);
+        setCellText(table.getRow(0).getCell(2), "Delivery Date", true);
+        setCellText(table.getRow(0).getCell(3), "Delivery Location", true);
+        setCellText(table.getRow(0).getCell(4), "Quantity", true);
+        setCellText(table.getRow(0).getCell(5), "Remarks", true);
+
+        for (int i = 0; i < deliverables.size(); i++) {
+            Object item = deliverables.get(i);
+            XWPFTableRow row = table.getRow(i + 1);
+
+            String description = readProperty(item, "itemDescription");
+            if (isBlank(description) && projectDeliverables != null
+                    && i < projectDeliverables.size()) {
+                description = safe(projectDeliverables.get(i));
+            }
+
+            setCellText(row.getCell(0), String.valueOf(i + 1), false);
+            setCellText(row.getCell(1), displayValue(description,
+                    "Project deliverable"), false);
+            setCellText(row.getCell(2), displayValue(
+                    readProperty(item, "deliveryDate"), "To Be Confirmed"), false);
+            setCellText(row.getCell(3), displayValue(
+                    readProperty(item, "deliveryLocation"), "To Be Confirmed"), false);
+            setCellText(row.getCell(4), displayValue(
+                    readProperty(item, "quantity"), "1"), false);
+            setCellText(row.getCell(5), displayValue(
+                    readProperty(item, "remarks"), "To Be Confirmed"), false);
+        }
+
+        addSpacer(document);
+    }
+
+    private void addMilestonesTable(
+            XWPFDocument document,
+            List<?> milestones) {
+
+        if (milestones == null || milestones.isEmpty()) return;
+
+        addTableTitle(document, "Milestones");
+
+        XWPFTable table = document.createTable(milestones.size() + 1, 5);
+        formatTable(table);
+
+        setCellText(table.getRow(0).getCell(0), "Phase", true);
+        setCellText(table.getRow(0).getCell(1), "Milestone", true);
+        setCellText(table.getRow(0).getCell(2), "Description", true);
+        setCellText(table.getRow(0).getCell(3), "Target Date", true);
+        setCellText(table.getRow(0).getCell(4), "Deliverable", true);
+
+        for (int i = 0; i < milestones.size(); i++) {
+            Object item = milestones.get(i);
+            XWPFTableRow row = table.getRow(i + 1);
+
+            String milestone = readProperty(item, "milestone");
+
+            setCellText(row.getCell(0), displayValue(
+                    readProperty(item, "phase"), "Project Phase"), false);
+            setCellText(row.getCell(1), displayValue(
+                    milestone, "Milestone " + (i + 1)), false);
+            setCellText(row.getCell(2), displayValue(
+                    readProperty(item, "description"),
+                    "Major project milestone"), false);
+            setCellText(row.getCell(3), displayValue(
+                    readProperty(item, "targetDate"), "To Be Confirmed"), false);
+            setCellText(row.getCell(4), displayValue(
+                    readProperty(item, "deliverable"),
+                    "Milestone deliverable"), false);
+        }
+
+        addSpacer(document);
+    }
+
+    private String displayValue(String value, String fallback) {
+        return isBlank(value) ? fallback : value;
+    }
+
     // ======================= REFLECTION ==========================
 
     private List<String> getFieldNames(Class<?> type) {
@@ -1192,6 +1408,10 @@ public class PmpService {
 
     private String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String safe(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     private boolean isBlank(String value) {
