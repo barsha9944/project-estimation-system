@@ -575,7 +575,7 @@ public class GeminiPmpOrchestrator {
                 ]
 
                 ============================================================
-                HOW TO USE PMP ITEM FIELDS
+                         HOW TO USE PMP ITEM FIELDS
                 ============================================================
 
                 Because the backend uses a common six-field PmpItemDto,
@@ -605,8 +605,35 @@ public class GeminiPmpOrchestrator {
                   Completed, To Be Confirmed or another appropriate status.
 
                 ============================================================
-                SECTION 1 - INTRODUCTION
+                       SECTION 1 - INTRODUCTION
                 ============================================================
+
+                Generate a separate project introduction in:
+                projectOverview.introduction
+
+                The Introduction must describe the ACTUAL PROJECT and must
+                be based strictly on the provided Requirement Summary,
+                Project Name, Components and Existing Use Cases.
+
+                The Introduction should explain:
+                - What the project is.
+                - Why the project is being developed.
+                - The main business or operational requirement/problem being addressed.
+                - The proposed solution and its purpose.
+                - The major capabilities or functional areas supported by the project.
+
+                Do NOT describe what a Project Management Plan is.
+                Do NOT write a generic PMP introduction.
+                Do NOT duplicate the Project Scope.
+
+                Keep the Introduction moderately detailed, approximately
+                2-3 well-developed paragraphs.
+
+                The value of projectOverview.introduction MUST NOT be null
+                or empty.
+
+                Store the Introduction ONLY in:
+                projectOverview.introduction
 
                 Generate:
 
@@ -648,7 +675,7 @@ public class GeminiPmpOrchestrator {
                 Put the complete scope into the existing
                 projectOverview.projectScope STRING field.
 
-SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
+                    SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
                 ============================================================
 
                 Generate meaningful project goals and quality objectives.
@@ -1281,6 +1308,7 @@ SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
                     "projectOverview": {
                       "projectName": "",
                       "projectDescription": "",
+                      "introduction": "",
                       "projectScope": "",
                       "objectives": [],
                       "deliverables": [],
@@ -1447,7 +1475,11 @@ SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
 
                 20. Use descriptive professional values instead.
 
-                21. Do not create fields outside the specified JSON shape.
+                21. projectOverview.introduction MUST be present.
+
+                22. projectOverview.introduction MUST be a non-empty STRING.
+
+                23. Do not create fields outside the specified JSON shape.
 
                 22. Every PmpItemDto object contains exactly six fields.
 
