@@ -290,9 +290,10 @@ public class PmpService {
         addTocEntry(document, "10.0", "Schedule", true);
 
         addTocEntry(document, "11.0", "Metrication Plan", true);
-        addTocEntry(document, "11.1", "Metrication Plan Measurements of Critical Processes / Sub-processes");
-        addTocEntry(document, "11.2", "Other Metrics for the Project and Corresponding Goals");
-        addTocEntry(document, "11.3", "Metrics Data Capturing");
+        addTocEntry(document, "11.1", "Project Goals / Organization Goals");
+        addTocEntry(document, "11.2", "Goals for Critical Processes / Sub-processes");
+        addTocEntry(document, "11.3", "Other Metrics for the Project and Corresponding Goals");
+        addTocEntry(document, "11.4", "Metrics Data Capturing");
 
         addTocEntry(document, "12.0", "Quality Control Plan", true);
         addTocEntry(document, "12.1", "Standards Applicable");
@@ -595,19 +596,35 @@ public class PmpService {
     private void addMetricationPlan(XWPFDocument document, PmpDto dto) {
         if (dto == null || dto.metricationPlan() == null) return;
 
-        addSubHeading(document,
-                "11.1 Metrication Plan Measurements of Critical Processes / Sub-processes");
-        addPmpItemsTable(document, "Critical Process / Sub-process Metrics",
-                dto.metricationPlan().criticalProcessMetrics());
+        Object metrication = dto.metricationPlan();
 
-        addSubHeading(document,
-                "11.2 Other Metrics for the Project and Corresponding Goals");
-        addPmpItemsTable(document, "Other Project Metrics",
-                dto.metricationPlan().otherMetrics());
+        addSubHeading(document, "11.1 Project Goals / Organization Goals");
+        addDynamicRecordListTable(
+                document,
+                "Project Goals / Organization Goals",
+                asObjectList(readPropertyObject(metrication, "projectGoals"))
+        );
 
-        addSubHeading(document, "11.3 Metrics Data Capturing");
-        addPmpItemsTable(document, "Metrics Data Capturing",
-                dto.metricationPlan().dataCapturing());
+        addSubHeading(document, "11.2 Goals for Critical Processes / Sub-processes");
+        addDynamicRecordListTable(
+                document,
+                "Goals for Critical Processes / Sub-processes",
+                asObjectList(readPropertyObject(metrication, "criticalProcessMetrics"))
+        );
+
+        addSubHeading(document, "11.3 Other Metrics for the Project and Corresponding Goals");
+        addDynamicRecordListTable(
+                document,
+                "Other Metrics for the Project and Corresponding Goals",
+                asObjectList(readPropertyObject(metrication, "otherMetrics"))
+        );
+
+        addSubHeading(document, "11.4 Metrics Data Capturing");
+        addDynamicRecordListTable(
+                document,
+                "Metrics Data Capturing",
+                asObjectList(readPropertyObject(metrication, "dataCapturing"))
+        );
     }
 
     // =========================== 12.0 ============================
@@ -905,6 +922,38 @@ public class PmpService {
             setCellText(table.getRow(i + 1).getCell(1), objectToText(objects.get(i)), false);
         }
         addSpacer(document);
+    }
+
+    private Object readPropertyObject(Object object, String propertyName) {
+        if (object == null || isBlank(propertyName)) return null;
+
+        try {
+            Class<?> type = object.getClass();
+
+            if (type.isRecord()) {
+                for (RecordComponent component : type.getRecordComponents()) {
+                    if (component.getName().equals(propertyName)) {
+                        return component.getAccessor().invoke(object);
+                    }
+                }
+            }
+
+            String suffix = Character.toUpperCase(propertyName.charAt(0))
+                    + propertyName.substring(1);
+
+            Method getter = type.getMethod("get" + suffix);
+            return getter.invoke(object);
+
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private List<?> asObjectList(Object value) {
+        if (value instanceof List<?>) {
+            return (List<?>) value;
+        }
+        return Collections.emptyList();
     }
 
     // ======================= REFLECTION ==========================

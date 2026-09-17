@@ -1064,49 +1064,93 @@ public class GeminiPmpOrchestrator {
                 SECTION 11 - METRICATION PLAN
                 ============================================================
 
-                Populate:
+                The Metrication Plan MUST follow this exact structure:
 
-                criticalProcessMetrics
+                11.0 Metrication Plan
+                11.1 Project Goals / Organization Goals
+                11.2 Goals for Critical Processes / Sub-processes
+                11.3 Other Metrics for the Project and Corresponding Goals
+                11.4 Metrics Data Capturing
 
-                otherMetrics
+                Do NOT merge these four parts.
+                Do NOT use PmpItemDto for these metrication records.
 
-                dataCapturing
+                11.1 PROJECT GOALS / ORGANIZATION GOALS
 
-                Do NOT leave these arrays empty.
+                Populate metricationPlan.projectGoals with 3-5 meaningful
+                project-specific mappings. Each object MUST contain exactly:
 
-                Critical process metrics may include:
+                {
+                  "serialNumber": 1,
+                  "businessObjective": "...",
+                  "metricIdentified": "...",
+                  "organizationalGoal": "...",
+                  "projectGoal": "...",
+                  "respectivePpm": "..."
+                }
 
-                - requirements completion
-                - schedule adherence
-                - defect detection
-                - defect resolution
-                - review completion
-                - test progress
-                - change request tracking
+                serialNumber MUST be an integer (1, 2, 3...).
+                businessObjective = relevant business objective.
+                metricIdentified = metric used to measure it.
+                organizationalGoal = relevant organization-level goal.
+                projectGoal = goal established for this project.
+                respectivePpm = Project Performance Measure / monitoring method.
 
-                Other metrics may include:
+                11.2 GOALS FOR CRITICAL PROCESSES / SUB-PROCESSES
 
-                - productivity
-                - quality
-                - performance
-                - reliability
-                - maintainability
-                - customer feedback
+                Populate metricationPlan.criticalProcessMetrics with 4-6 entries.
+                Each object MUST contain exactly:
 
-                Data capturing should describe:
+                {
+                  "serialNumber": 1,
+                  "projectGoal": "...",
+                  "relevantCriticalProcesses": "...",
+                  "metricsForCriticalProcess": "...",
+                  "upperSpecificationLimit": "...",
+                  "mean": "...",
+                  "lowerSpecificationLimit": "...",
+                  "periodicityOfAnalysisAndReview": "..."
+                }
 
-                - data item
-                - source
-                - collection method
-                - frequency
-                - owner
-                - storage
+                The three specification fields represent USL, Mean and LSL.
+                Do not invent unsupported numerical thresholds; use
+                "To Be Confirmed" when an exact value is unavailable.
 
-                Put additional metric attributes into description.
+                11.3 OTHER METRICS FOR THE PROJECT AND CORRESPONDING GOALS
 
-                Do not fabricate numerical thresholds.
+                Populate metricationPlan.otherMetrics with 4-6 entries.
+                Each object MUST contain exactly:
 
-                ============================================================
+                {
+                  "serialNumber": 1,
+                  "metricName": "...",
+                  "organizationalGoal": "...",
+                  "projectGoal": "...",
+                  "periodicityOfAnalysisAndReview": "...",
+                  "reasonsForDeviation": "..."
+                }
+
+                11.4 METRICS DATA CAPTURING
+
+                Populate metricationPlan.dataCapturing with 5-8 entries.
+                Each object MUST contain exactly:
+
+                {
+                  "serialNumber": 1,
+                  "inputData": "...",
+                  "source": "...",
+                  "whenToCapture": "...",
+                  "remarks": "..."
+                }
+
+                Use project-supported sources such as approved schedules,
+                requirements, defect records, test records and review records
+                where applicable. Do not invent specific tools or repositories.
+
+                All four metrication arrays MUST be present and MUST NOT be null.
+                Keep the content project-specific and consistent with the supplied
+                requirements and existing use cases.
+
                 SECTION 12 - QUALITY CONTROL PLAN
                 ============================================================
 
@@ -1401,6 +1445,7 @@ public class GeminiPmpOrchestrator {
                     },
 
                     "metricationPlan": {
+                      "projectGoals": [],
                       "criticalProcessMetrics": [],
                       "otherMetrics": [],
                       "dataCapturing": []
@@ -1568,6 +1613,28 @@ public class GeminiPmpOrchestrator {
 
                 NEVER return null for
                 qualityManagement.qualityObjectives.
+
+                METRICATION PLAN TYPE CHECK
+
+                metricationPlan.projectGoals MUST contain objects with exactly:
+                serialNumber, businessObjective, metricIdentified, organizationalGoal,
+                projectGoal, respectivePpm.
+
+                metricationPlan.criticalProcessMetrics MUST contain objects with exactly:
+                serialNumber, projectGoal, relevantCriticalProcesses, metricsForCriticalProcess,
+                upperSpecificationLimit, mean, lowerSpecificationLimit,
+                periodicityOfAnalysisAndReview.
+
+                metricationPlan.otherMetrics MUST contain objects with exactly:
+                serialNumber, metricName, organizationalGoal, projectGoal,
+                periodicityOfAnalysisAndReview, reasonsForDeviation.
+
+                metricationPlan.dataCapturing MUST contain objects with exactly:
+                serialNumber, inputData, source, whenToCapture, remarks.
+
+                serialNumber MUST be an INTEGER in all metrication objects.
+                Do not return strings or PmpItemDto objects in metrication arrays.
+                Do not return null for any metrication array.
 
                 The following fields MUST contain PmpItemDto objects:
 
