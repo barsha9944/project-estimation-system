@@ -3,13 +3,9 @@ package com.projectestimation.backend.pmp.dto;
 import java.util.List;
 
 public record ProjectOverviewDto(
-
         String projectName,
-
         String projectDescription,
-        
         String introduction,
-
         String projectScope,
 
         List<String> objectives,
@@ -26,9 +22,9 @@ public record ProjectOverviewDto(
 
         List<String> complianceRequirements,
 
-//        List<DeliverableDto> detailedDeliverables,
+        List<BusinessObjectiveDto> businessObjectives,
+
+        List<DeliverableDto> detailedDeliverables,
 
         List<MilestoneDto> milestones
-
-) {
-}
+) {}

@@ -10,6 +10,7 @@ import java.util.List;
 
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.TableRowHeightRule;
 import org.apache.poi.xwpf.usermodel.TableWidthType;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -35,7 +36,6 @@ import com.projectestimation.backend.pmp.dto.PmpItemDto;
 import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
 import com.projectestimation.backend.pmp.model.Pmp;
 import com.projectestimation.backend.pmp.repository.PmpRepository;
-import org.apache.poi.xwpf.usermodel.TableRowHeightRule;
 
 
 @Service
@@ -408,6 +408,16 @@ public class PmpService {
 //        addDynamicRecordListTable(document, "Project Deliverables",
 //                dto.projectOverview().detailedDeliverables());
 
+        addSubHeading(
+                document,
+                "1.5 Project Deliverables to Customer"
+        );
+
+        addDynamicRecordListTable(
+                document,
+                "Project Deliverables",
+                dto.projectOverview().detailedDeliverables()
+        );
         addSubHeading(document, "1.6 List of Milestones");
         addDynamicRecordListTable(document, "Milestones",
                 dto.projectOverview().milestones());
@@ -420,25 +430,170 @@ public class PmpService {
     // =========================== 2.0 =============================
 
     private void addProjectGoals(XWPFDocument document, PmpDto dto) {
-        if (dto == null) return;
-
-        if (dto.projectOverview() != null) {
-            addSubHeading(document, "2.1 Organization's Business Objectives");
-            addListTable(document, "Business Objectives",
-                    dto.projectOverview().objectives());
-        }
-        if (dto.projectManagement() != null) {
-            addSubHeading(document, "2.2 Project Quality Objectives");
-            addListTable(document, "Project Quality Objectives",
-                    dto.projectManagement().qualityObjectives());
-        }
-        if (dto.qualityManagement() != null) {
-            addSubHeading(document, "2.3 Quality Management Objectives");
-            addListTable(document, "Quality Objectives",
-                    dto.qualityManagement().qualityObjectives());
-        }
+    if (dto == null) {
+        return;
     }
 
+    if (dto.projectOverview() != null) {
+
+        addSubHeading(
+                document,
+                "2.1 Project Objective vis-à-vis Business Objectives"
+        );
+
+        addBusinessObjectivesTable(
+                document,
+                dto.projectOverview().businessObjectives()
+        );
+    }
+
+    if (dto.projectManagement() != null) {
+
+        addSubHeading(
+                document,
+                "2.2 Project Goals as Set"
+        );
+
+        addListTable(
+                document,
+                "Project Goals",
+                dto.projectOverview() != null
+                        ? dto.projectOverview().objectives()
+                        : Collections.emptyList()
+        );
+
+        addSubHeading(
+                document,
+                "2.3 Project Quality Objectives"
+        );
+
+        addListTable(
+                document,
+                "Project Quality Objectives",
+                dto.projectManagement().qualityObjectives()
+        );
+    }
+
+    if (dto.qualityManagement() != null) {
+
+        addSubHeading(
+                document,
+                "2.4 Quality Management Objectives"
+        );
+
+        addListTable(
+                document,
+                "Quality Objectives",
+                dto.qualityManagement().qualityObjectives()
+        );
+    }
+}
+
+    private void addBusinessObjectivesTable(
+            XWPFDocument document,
+            List<?> businessObjectives) {
+
+        if (businessObjectives == null || businessObjectives.isEmpty()) {
+            return;
+        }
+
+        addTableTitle(
+                document,
+                "Business Objectives and Project Objectives"
+        );
+
+        String[] headers = {
+                "Serial No.",
+                "Business Objective",
+                "Description",
+                "Project Objective",
+                "Related Metrics",
+                "QPPO - Goal/KPI"
+        };
+
+        XWPFTable table = document.createTable(
+                businessObjectives.size() + 1,
+                headers.length
+        );
+
+        formatTable(table);
+
+        // Header
+        for (int column = 0; column < headers.length; column++) {
+            setCellText(
+                    table.getRow(0).getCell(column),
+                    headers[column],
+                    true
+            );
+        }
+
+        // Data
+        for (int rowIndex = 0;
+             rowIndex < businessObjectives.size();
+             rowIndex++) {
+
+            Object businessObjective =
+                    businessObjectives.get(rowIndex);
+
+            XWPFTableRow row = table.getRow(rowIndex + 1);
+
+            setCellText(
+                    row.getCell(0),
+                    readProperty(
+                            businessObjective,
+                            "serialNumber"
+                    ),
+                    false
+            );
+
+            setCellText(
+                    row.getCell(1),
+                    readProperty(
+                            businessObjective,
+                            "businessObjective"
+                    ),
+                    false
+            );
+
+            setCellText(
+                    row.getCell(2),
+                    readProperty(
+                            businessObjective,
+                            "description"
+                    ),
+                    false
+            );
+
+            setCellText(
+                    row.getCell(3),
+                    readProperty(
+                            businessObjective,
+                            "projectObjective"
+                    ),
+                    false
+            );
+
+            setCellText(
+                    row.getCell(4),
+                    readProperty(
+                            businessObjective,
+                            "relatedMetrics"
+                    ),
+                    false
+            );
+
+            setCellText(
+                    row.getCell(5),
+                    readProperty(
+                            businessObjective,
+                            "qppoGoalKpi"
+                    ),
+                    false
+            );
+        }
+
+        addSpacer(document);
+    }
     // =========================== 3.0 =============================
 
     private void addDefinedProcess(XWPFDocument document, PmpDto dto) {

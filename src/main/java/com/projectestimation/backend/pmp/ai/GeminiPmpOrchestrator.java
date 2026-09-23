@@ -524,12 +524,6 @@ public class GeminiPmpOrchestrator {
 
                 schedule.scheduleItems
 
-                metricationPlan.criticalProcessMetrics
-
-                metricationPlan.otherMetrics
-
-                metricationPlan.dataCapturing
-
                 qualityControlPlan.standardsApplicable
 
                 qualityControlPlan.productReviewTesting
@@ -819,29 +813,35 @@ public class GeminiPmpOrchestrator {
                 Do not create generic objectives.
 
                 ------------------------------------------------------------
-                EXACT JSON STRUCTURE FOR THE TABLE
-                ------------------------------------------------------------
+EXACT JSON STRUCTURE FOR THE TABLE
+------------------------------------------------------------
 
-                The projectOverview.businessObjectives array MUST contain one
-                object for each selected Business Objective.
+The projectOverview.businessObjectives array MUST contain one
+object for each selected Business Objective.
 
-                Every object MUST contain EXACTLY these six fields:
+Every object MUST contain EXACTLY these six fields:
 
-                {
-                  "serialNumber": 1,
-                  "businessObjective": "...",
-                  "description": "...",
-                  "projectObjective": "...",
-                  "relatedMetrics": "...",
-                  "qppoGoalKpi": "..."
-                }
+{
+  "serialNumber": 1,
+  "businessObjective": "...",
+  "description": "...",
+  "projectObjective": "...",
+  "relatedMetrics": "...",
+  "qppoGoalKpi": "..."
+}
 
-                Do not add fields.
-                Do not remove fields.
-                Do not use PmpItemDto format for this table.
-                Do not use simple strings for this array.
+Do not add fields.
+Do not remove fields.
+Do not use PmpItemDto format for this table.
+Do not use simple strings for this array.
 
-                The serialNumber must be an integer.
+Every selected businessObjectives object MUST have all six fields
+present and populated. No field may be null or an empty string.
+If a project-specific Project Objective cannot be derived exactly,
+generate a meaningful project-specific objective from the supplied
+project information. Do not return null or an empty Project Objective.
+
+The serialNumber must be an integer.
 
                 IMPORTANT:
                 The Excel's Serial No. values are retained exactly for the
@@ -1942,12 +1942,6 @@ public class GeminiPmpOrchestrator {
 
                 schedule.scheduleItems
 
-                metricationPlan.criticalProcessMetrics
-
-                metricationPlan.otherMetrics
-
-                metricationPlan.dataCapturing
-
                 qualityControlPlan.standardsApplicable
 
                 qualityControlPlan.productReviewTesting
@@ -1993,34 +1987,118 @@ public class GeminiPmpOrchestrator {
 
                 The last character of the response must be '}'.
                 
-					                DETAILED DELIVERABLES AND MILESTONES:
-					
-					Do not return empty arrays for detailedDeliverables or milestones when
-					the project information is sufficient to derive them.
-					
-					For detailedDeliverables, generate 4-8 realistic project deliverables.
-					Each deliverable must contain:
-					- serialNumber
-					- deliverable
-					- description
-					- responsible
-					- acceptanceCriteria
-					
-					For milestones, generate the major project milestones.
-					Each milestone must contain:
-					- serialNumber
-					- milestone
-					- targetDate
-					- acceptanceCriteria
-					
-					Use the project scope, requirements, schedule, phases, and other available
-					project information to derive these values.
-					
-					Do not invent unrelated requirements.
-					
-					serialNumber MUST be an integer.
-					Use 1, 2, 3, 4 etc.
-					Do NOT use values such as D-01, D-02, M-01, or M-02.
+                ------------------------------------------------------------
+                DETAILED DELIVERABLES AND MILESTONES
+                ------------------------------------------------------------
+
+                Do not return empty arrays for detailedDeliverables or
+                milestones when the project information is sufficient to
+                derive them.
+
+                ============================================================
+                PROJECT DELIVERABLES TO CUSTOMER
+                ============================================================
+
+                Populate projectOverview.detailedDeliverables with meaningful
+                project-specific customer deliverables.
+
+                Every detailedDeliverables object MUST contain EXACTLY these
+                six fields, matching DeliverableDto:
+
+                {
+                  "serialNumber": 1,
+                  "itemDescription": "...",
+                  "deliveryDate": "...",
+                  "deliveryLocation": "...",
+                  "quantity": "...",
+                  "remarks": "..."
+                }
+
+                Rules:
+
+                - serialNumber MUST be an integer and sequential: 1, 2, 3...
+                - itemDescription MUST describe an actual customer-facing
+                  deliverable relevant to the current project.
+                - deliveryDate MUST use a supported project date when one is
+                  available; otherwise use "To Be Confirmed".
+                - deliveryLocation MUST use a project-supported location when
+                  known; otherwise use "To Be Confirmed".
+                - quantity MUST use a meaningful supported quantity; use "1"
+                  when the deliverable is a single project artifact/system.
+                - remarks MUST explain what is included in the deliverable.
+                - Do NOT use null values.
+                - Do NOT use empty strings.
+                - Do NOT add fields.
+                - Do NOT rename fields.
+                - Do NOT use PmpItemDto for detailedDeliverables.
+                - Do NOT invent unsupported exact dates or quantities.
+                - Use "To Be Confirmed" when an exact value is unavailable.
+
+                Generate 4-8 meaningful deliverables when the supplied project
+                information supports that level of detail. Do not create
+                artificial deliverables merely to reach a count.
+
+                ============================================================
+                PROJECT MILESTONES
+                ============================================================
+
+                Populate projectOverview.milestones with the major project
+                milestones supported by the supplied project information.
+
+                Every milestone object MUST contain EXACTLY these five fields,
+                matching MilestoneDto:
+
+                {
+                  "phase": "...",
+                  "milestone": "...",
+                  "description": "...",
+                  "targetDate": "...",
+                  "deliverable": "..."
+                }
+
+                Rules:
+
+                - phase MUST identify the relevant project phase.
+                - milestone MUST identify the milestone.
+                - description MUST explain the milestone.
+                - targetDate MUST use a supported project date when available;
+                  otherwise use "To Be Confirmed".
+                - deliverable MUST identify the corresponding deliverable or
+                  outcome.
+                - Do NOT add serialNumber.
+                - Do NOT add acceptanceCriteria.
+                - Do NOT add any other fields.
+                - Do NOT use PmpItemDto for milestones.
+                - Do NOT invent unsupported dates.
+                - Do NOT use null or empty values.
+
+                ============================================================
+                FINAL STRUCTURAL VALIDATION
+                ============================================================
+
+                Before returning the final JSON, validate every
+                projectOverview.businessObjectives object. Each selected object
+                must contain non-null, non-empty values for:
+
+                serialNumber, businessObjective, description, projectObjective,
+                relatedMetrics and qppoGoalKpi.
+
+                Also validate every projectOverview.detailedDeliverables object
+                against DeliverableDto exactly:
+
+                serialNumber, itemDescription, deliveryDate, deliveryLocation,
+                quantity and remarks.
+
+                Also validate every projectOverview.milestones object against
+                MilestoneDto exactly:
+
+                phase, milestone, description, targetDate and deliverable.
+
+                Validate that all metricationPlan arrays use their dedicated
+                custom DTO structures and are not returned as PmpItemDto objects.
+
+                Do not add fields that are not represented by the Java DTOs.
+                Do not omit mandatory DTO fields.
 
                 END OF INSTRUCTIONS
                 """.formatted(
