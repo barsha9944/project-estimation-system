@@ -1,9 +1,6 @@
 package com.projectestimation.backend.pmp.ai;
 
 import java.util.List;
-import java.io.InputStream;
-import org.springframework.core.io.ClassPathResource;
-
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
@@ -677,283 +674,247 @@ public class GeminiPmpOrchestrator {
                 Put the complete scope into the existing
                 projectOverview.projectScope STRING field.
 
-                ============================================================
-                SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
-                ============================================================
-
-                BUSINESS OBJECTIVES ARE HARD-CODED BELOW.
-
-                Do NOT read, infer, replace or expand the organizational
-                Business Objectives from any external source.
-
-                The following five Business Objectives are the COMPLETE and
-                APPROVED organizational Business Objective master list.
-
-                For each Business Objective, the Description, Procedure in brief,
-                Related Metric and QPPO / Goal / KPI are fixed reference values.
-                Preserve their meaning and terminology.
-
-                ------------------------------------------------------------
-                BUSINESS OBJECTIVE 1
-                ------------------------------------------------------------
-
-                Business Objective:
-                Fulfil Delivery Commitments
-
-                Description:
-                Meeting delivery commitments is a major key to success in
-                enhancing business and customer loyalty. So, that should be a
-                priority.
-
-                Procedure in brief:
-                Actual delivery time should always be monitored vis-a-vis the
-                committed delivery schedule and any slippage thereof should
-                always be minimised.
-
-                Related Metrics:
-                Schedule Variance - Revised (in %%)
-
-                QPPO - Goal/KPI:
-                USL: 5%%
-                LSL: -5%%
-
-                ------------------------------------------------------------
-                BUSINESS OBJECTIVE 2
-                ------------------------------------------------------------
-
-                Business Objective:
-                Manage projects within budget
-
-                Description:
-                As the project cost may depend on various factors including and
-                other than cost of effort it is essential that the project cost
-                is contained within the approved estimated effort.
-
-                Procedure in brief:
-                Effort use should be optimized so that project could be
-                delivered within schedule and within budget.
-
-                Related Metrics:
-                Cycle Time measures person-hour needed to produce 1 unit size
-                (UCP) [decrease in value is positive]
-
-                QPPO - Goal/KPI:
-                Mean 14 / SD 1
-
-                ------------------------------------------------------------
-                BUSINESS OBJECTIVE 3
-                ------------------------------------------------------------
-
-                Business Objective:
-                Ensure quality of products delivered to customer - for software
-                development projects
-
-                Description:
-                Ensure that defects in products delivered to customer for their
-                perusal (including UAT) are always at a minimum level. That is
-                another major key to achieving customer satisfaction, customer
-                loyalty, and building company goodwill.
-
-                Procedure in brief:
-                Defect Removal Efficiency measures ratio between all the review
-                and testing defects found by us and (all the review and testing
-                defects found by us + UAT defects).
-
-                Related Metrics:
-                DRE [increase in value is positive]
-
-                QPPO - Goal/KPI:
-                Mean: 0.9 / SD 0.1
-
-                ------------------------------------------------------------
-                BUSINESS OBJECTIVE 4
-                ------------------------------------------------------------
-
-                Business Objective:
-                Improve quality of software engineering while the products are
-                being made ready for delivery
-
-                Description:
-                Productivity and cost in a software project would always depend
-                on the quality of engineering work being done. So, that should
-                be closely monitored.
-
-                Procedure in brief:
-                Pre-delivery Defect Rate is computed from the total number of
-                defects detected by the project team for every product release
-                through various review and testing activities that take place
-                before the software is delivered for UAT.
-
-                Related Metrics:
-                Average Pre-delivery Defect Rate (No. of defects per Person Hour)
-
-                QPPO - Goal/KPI:
-                USL: 1 defects per Person hour
-                LSL: 0 defects per Person hour
-
-                ------------------------------------------------------------
-                BUSINESS OBJECTIVE 5
-                ------------------------------------------------------------
-
-                Business Objective:
-                Continually Improve productivity
-
-                Description:
-                Improving the productivity of the project team is key to
-                minimizing project cost and the time to market. So, major focus
-                should be on maximising productivity.
-
-                Procedure in brief:
-                Productivity should be measured in terms of software size
-                delivered Vs. effort spent in software engineering.
-
-                Related Metrics:
-                Productivity (UCP per Person-Hour) [increase in value is positive]
-
-                QPPO - Goal/KPI:
-                Productivity (UCP per Person-Hour) target mean 0.07 UCP/p-h
-                and 0.01 SD for the year 23-24.
-
-                ============================================================
-                BUSINESS OBJECTIVE SELECTION RULE
+                    SECTION 2.1 - PROJECT OBJECTIVES / BUSINESS OBJECTIVE TABLE
                 ============================================================
 
-                These five Business Objectives are the ONLY organizational
-                Business Objectives that may be used in this PMP.
+                Section 2.1 MUST be generated as a structured table matching
+                the approved project-objective Excel format EXACTLY.
 
-                DO NOT include all five Business Objectives automatically.
+                The table MUST contain exactly these SIX columns, in exactly
+                this order:
 
-                Evaluate all five Business Objectives IN PARALLEL against the
-                current project's: Project Name, Requirement Summary, Components,
-                Implementation Type, Priority, Existing Use Cases, Project Scope,
-                Deliverables and quality requirements.
-
-                Select ONLY the Business Objectives that are genuinely relevant
-                to the current project.
-
-                A PMP may contain one, two, three, four or all five Business
-                Objectives depending on the actual project.
-
-                Do not add an objective simply because it exists in the master
-                list. Do not create a new organizational Business Objective.
-                Do not force every project to use the same combination.
-
-                ============================================================
-                PROJECT OBJECTIVE GENERATION RULE
-                ============================================================
-
-                For EVERY selected Business Objective, generate a CURRENT-PROJECT-
-                SPECIFIC PROJECT OBJECTIVE.
-
-                The Project Objective MUST NOT simply repeat the Business Objective.
-
-                The Project Objective must describe what THIS project will achieve
-                in support of the selected Business Objective.
-
-                Derive the Project Objective using all of the following: 
-
-                1. The selected Business Objective.
-                2. Its hard-coded Description.
-                3. Its hard-coded Procedure in brief.
-                4. Its hard-coded Related Metric.
-                5. Its hard-coded QPPO / Goal / KPI.
-                6. The current project's Requirement Summary.
-                7. Components.
-                8. Existing Use Cases.
-                9. Implementation Type and Priority.
-
-                The Procedure in brief is especially important: use it to
-                translate the organizational Business Objective into a practical
-                Project Objective for the current project.
-
-                Example:
-
-                Business Objective:
-                Fulfil Delivery Commitments
-
-                Procedure in brief:
-                Actual delivery time should be monitored against the committed
-                delivery schedule and slippage minimized.
-
-                Project Objective should therefore be project-specific, such as
-                ensuring that the current project's approved deliverables and
-                implementation activities are completed according to the approved
-                delivery plan, without merely copying the Business Objective text.
-
-                Do NOT use this example literally for every project. Generate the
-                Project Objective from the actual project information.
-
-                ============================================================
-                SECTION 2.1 PROJECT OBJECTIVES
-                ============================================================
-
-                Use projectOverview.objectives for the generated Project Objectives.
+                1. Serial No.
+                2. Business Objective
+                3. Description
+                4. Project Objective
+                5. Related Metrics
+                6. QPPO - Goal/KPI
 
                 IMPORTANT:
 
-                - Each selected Business Objective must have a corresponding
-                  project-specific Project Objective.
-                - The number of relevant Project Objectives should therefore be
-                  aligned with the number of selected Business Objectives.
-                - Each Project Objective must be a STRING.
-                - Do not place objects inside projectOverview.objectives.
-                - Do not place Business Objective master data inside this array.
-                - The array should contain the project-specific objectives, not
-                  the organizational Business Objective names alone.
+                The Excel reference has a column called "Procedure in brief".
+                In the PMP table, that column is replaced by "Project Objective".
 
-                The selected Business Objectives and their project-specific
-                Project Objectives must remain consistent with Section 11.1.
+                Therefore DO NOT generate a "Procedure in brief" column.
+
+                The final table structure is:
+
+                Serial No. | Business Objective | Description |
+                Project Objective | Related Metrics | QPPO - Goal/KPI
+
+                ------------------------------------------------------------
+                HARD-CODED APPROVED BUSINESS OBJECTIVES
+                ------------------------------------------------------------
+
+                Business Objective 1
+
+                Serial No.: 1
+                Business Objective: Fulfil Delivery Commitments
+                Description: Meeting delivery commitments is a major key to
+                success in enhancing business and customer loyalty. So, that
+                should be a priority.
+                Related Metrics: Schedule Variance - Revised (in %%)
+                QPPO - Goal/KPI: USL: 5%%; LSL: -5%%
+
+                Business Objective 2
+
+                Serial No.: 1
+                Business Objective: Manage projects within budget
+                Description: As the project cost may depend on various factors
+                including and other than cost of effort it is essential that
+                the project cost is contained within the approved estimated effort.
+                Related Metrics: Cycle Time measures person-hour needed to
+                produce 1 unit size (UCP) [decrease in value is positive]
+                QPPO - Goal/KPI: Mean 14/ SD 1
+
+                Business Objective 3
+
+                Serial No.: 2
+                Business Objective: Ensure quality of products delivered to
+                customer - for software development projects
+                Description: Ensure that defects in products delivered to
+                customer for their perusal (including UAT) are always at a
+                minimum level. That is another major key to achieving customer
+                satisfaction, customer loyalty, and building company goodwill.
+                Related Metrics: DRE [increase in value is positive]
+                QPPO - Goal/KPI: Mean: 0.9/ SD 0.1
+
+                Business Objective 4
+
+                Serial No.: 4
+                Business Objective: Improve quality of software engineering
+                while the products are being made ready for delivery
+                Description: Productivity and cost in a software project would
+                always depend on the quality of engineering work being done.
+                So, that should be closely monitored.
+                Related Metrics: Average Pre-delivery Defect Rate
+                (No. of defects per Person Hour)
+                QPPO - Goal/KPI: USL: 1 defects per Person hour; LSL: 0 defects
+                per Person hour
+
+                Business Objective 5
+
+                Serial No.: 3
+                Business Objective: Continually Improve productivity
+                Description: Improving the productivity of the project team is
+                key to minimizing project cost and the time to market. So, major
+                focus should be on maximising productivity.
+                Related Metrics: productivity (UCP per Person-Hour)
+                [increase in value is positive]
+                QPPO - Goal/KPI: productivity (UCP per Person-Hour) target mean
+                0.07 UCP/p-h and 0.01 SD for the year 23-24
+
+                ------------------------------------------------------------
+                BUSINESS OBJECTIVE SELECTION
+                ------------------------------------------------------------
+
+                The five Business Objectives above are the COMPLETE approved
+                organizational Business Objective master list.
+
+                Evaluate all five independently and in parallel for the CURRENT
+                PROJECT.
+
+                Include ONLY the Business Objectives that are relevant to the
+                current project's requirements, scope, components, implementation
+                type, priority, use cases, deliverables and quality expectations.
+
+                DO NOT automatically include all five Business Objectives.
+
+                A project may contain one, two, three, four or all five Business
+                Objectives depending on applicability.
+
+                DO NOT invent any new Business Objective.
+                DO NOT rename any Business Objective.
+                DO NOT modify the hardcoded Description, Related Metrics or
+                QPPO - Goal/KPI values.
+
+                ------------------------------------------------------------
+                PROJECT OBJECTIVE RULE
+                ------------------------------------------------------------
+
+                For EACH selected Business Objective, generate a separate
+                project-specific Project Objective.
+
+                The Project Objective is NOT taken from the Excel.
+
+                Generate it from:
+
+                Business Objective
+                + Description
+                + Related Metrics
+                + QPPO - Goal/KPI
+                + Current Project Name
+                + Requirement Summary
+                + Components
+                + Implementation Type
+                + Priority
+                + Existing Use Cases
+
+                The Project Objective must explain how the CURRENT PROJECT will
+                support the selected organizational Business Objective.
+
+                Do not simply repeat the Business Objective.
+                Do not copy the Description.
+                Do not copy the Excel Procedure in brief.
+                Do not create generic objectives.
+
+                ------------------------------------------------------------
+                EXACT JSON STRUCTURE FOR THE TABLE
+                ------------------------------------------------------------
+
+                The projectOverview.businessObjectives array MUST contain one
+                object for each selected Business Objective.
+
+                Every object MUST contain EXACTLY these six fields:
+
+                {
+                  "serialNumber": 1,
+                  "businessObjective": "...",
+                  "description": "...",
+                  "projectObjective": "...",
+                  "relatedMetrics": "...",
+                  "qppoGoalKpi": "..."
+                }
+
+                Do not add fields.
+                Do not remove fields.
+                Do not use PmpItemDto format for this table.
+                Do not use simple strings for this array.
+
+                The serialNumber must be an integer.
+
+                IMPORTANT:
+                The Excel's Serial No. values are retained exactly for the
+                selected master Business Objective. Do not renumber them merely
+                because only some objectives were selected.
+
+                ------------------------------------------------------------
+                SECTION 2.2 - PROJECT GOALS AS SET
+                ------------------------------------------------------------
+
+                Generate project goals based on the SELECTED Business Objectives
+                and their generated Project Objectives.
+
+                projectOverview.objectives remains a simple string array and must
+                contain project-goal statements only.
+
+                Do not put Business Objective objects inside projectOverview.objectives.
+
+                ------------------------------------------------------------
+                SECTION 11.1 CONSISTENCY
+                ------------------------------------------------------------
+
+                Section 11.1 MUST use the SAME selected Business Objectives from
+                projectOverview.businessObjectives.
+
+                Do not select a different set in Section 11.1.
+
+                Keep this relationship consistent throughout the PMP:
+
+                Business Objective
+                -> Project Objective
+                -> Related Metric
+                -> QPPO / Organizational Goal
+                -> Project Goal
+                -> Project Measurement
 
                 ============================================================
-                SECTION 11.1 CONSISTENCY RULE
-                ============================================================
 
-                metricationPlan.projectGoals must use the SAME selected Business
-                Objectives from the selection made above.
-
-                For every metricationPlan.projectGoals record:
-
-                businessObjective = one of the five hard-coded Business Objectives.
-
-                metricIdentified = the corresponding hard-coded Related Metric,
-                unless the current project clearly requires a more specific
-                project-level expression of that same metric.
-
-                organizationalGoal = the corresponding hard-coded QPPO / Goal / KPI.
-
-                projectGoal = the corresponding project-specific Project Objective
-                or a concise measurable project goal derived from it.
-
-                respectivePpm = the project monitoring/performance measure used
-                to track the selected objective.
-
-                Do NOT create a different Business Objective selection in Section 11.1.
+                SECTION 2 REFERENCE FILE
 
                 ============================================================
-                HARD-CODED REFERENCE USAGE RULE
-                ============================================================
 
-                The hard-coded Business Objective information above is the
-                authoritative organizational reference.
+                An approved Excel reference file named "project objective.xlsx"
+                is attached to this Gemini request through the Gemini Files API.
 
-                Do not modify the wording or meaning of:
-                - Business Objective
-                - Description
-                - Procedure in brief
+                Use the attached Excel file as the authoritative REFERENCE/TEMPLATE
+                for Section 2 - Project Objectives & Goals.
+
+                Use it to understand and preserve:
+
+                - Business Objective structure
+                - Project Objective structure
+                - Description and procedure pattern
                 - Related Metrics
-                - QPPO - Goal/KPI
+                - QPPO / Goal / KPI structure
+                - Tracking and monitoring interval
+                - Guiding Note pattern
+                - terminology
+                - level of detail
 
-                You MAY generate the Project Objective because it is specific to
-                the current project.
+                IMPORTANT:
 
-                The Project Objective must be derived from the Procedure in brief
-                and current project information.
+                The Excel file is provided as a reference, not as project data.
+                Do NOT copy project-specific values from the reference.
+                Generate values specifically for the current project using the
+                supplied Project Name, Requirement Summary, Components,
+                Implementation Type, Priority and Existing Use Cases.
 
-                Do not invent organizational Business Objectives, organizational
-                procedures, organizational metrics or organizational KPI targets.
+                Do not invent unsupported exact values.
 
                 ============================================================
-                SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
+
+                                SECTION 2 - PROJECT GOALS AND QUALITY OBJECTIVES
                 ============================================================
 
                 Generate meaningful project goals and quality objectives.
@@ -964,7 +925,7 @@ public class GeminiPmpOrchestrator {
 
                 1. Do NOT generate a projectGoals field.
 
-                2. Represent project-specific Project Objectives using:
+                2. Represent project goals using:
                    projectOverview.objectives
 
                 3. Represent quality objectives using:
@@ -1632,6 +1593,7 @@ public class GeminiPmpOrchestrator {
                       "projectDescription": "",
                       "introduction": "",
                       "projectScope": "",
+                      "businessObjectives": [],
                       "objectives": [],
                       "deliverables": [],
                       "assumptions": [],
@@ -1827,25 +1789,6 @@ public class GeminiPmpOrchestrator {
 
                 32. Section 10 Schedule Target and Status must ultimately be taken from
                     the application's Work Schedule data, not invented by the AI.
-
-                33. Business Objectives must be selected only from the five hard-coded
-                    organizational Business Objectives.
-
-                34. Do not include all five Business Objectives unless all five are
-                    genuinely relevant to the current project.
-
-                35. Every selected Business Objective must have a corresponding
-                    project-specific Project Objective in projectOverview.objectives.
-
-                36. Project Objectives must be derived using the selected Business
-                    Objective, its hard-coded Procedure in brief and the current
-                    project information.
-
-                37. Section 11.1 must use exactly the same selected Business Objectives
-                    as Section 2.1.
-
-                38. Do not alter the hard-coded organizational Description, Procedure,
-                    Related Metric or QPPO / Goal / KPI.
 
                 ============================================================
                 FINAL TYPE CHECK
