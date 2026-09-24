@@ -505,10 +505,9 @@ public class PmpService {
         String[] headers = {
                 "Serial No.",
                 "Business Objective",
-                "Description",
                 "Project Objective",
                 "Related Metrics",
-                "QPPO - Goal/KPI"
+                "Project Goals"
         };
 
         XWPFTable table = document.createTable(
@@ -559,7 +558,7 @@ public class PmpService {
                     row.getCell(2),
                     readProperty(
                             businessObjective,
-                            "description"
+                            "projectObjective"
                     ),
                     false
             );
@@ -568,22 +567,13 @@ public class PmpService {
                     row.getCell(3),
                     readProperty(
                             businessObjective,
-                            "projectObjective"
-                    ),
-                    false
-            );
-
-            setCellText(
-                    row.getCell(4),
-                    readProperty(
-                            businessObjective,
                             "relatedMetrics"
                     ),
                     false
             );
 
             setCellText(
-                    row.getCell(5),
+                    row.getCell(4),
                     readProperty(
                             businessObjective,
                             "qppoGoalKpi"

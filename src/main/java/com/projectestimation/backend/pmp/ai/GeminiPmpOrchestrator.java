@@ -542,8 +542,7 @@ public class GeminiPmpOrchestrator {
 
                 {
                   "name": "...",
-                  "description": "...",
-                  "responsible": "...",
+                                  "responsible": "...",
                   "timing": "...",
                   "target": "...",
                   "status": "..."
@@ -674,27 +673,28 @@ public class GeminiPmpOrchestrator {
                 Section 2.1 MUST be generated as a structured table matching
                 the approved project-objective Excel format EXACTLY.
 
-                The table MUST contain exactly these SIX columns, in exactly
+                The table MUST contain exactly these FIVE columns, in exactly
                 this order:
 
                 1. Serial No.
                 2. Business Objective
-                3. Description
-                4. Project Objective
-                5. Related Metrics
-                6. QPPO - Goal/KPI
+                3. Project Objective
+                4. Related Metrics
+                5. Project Goals
 
                 IMPORTANT:
 
-                The Excel reference has a column called "Procedure in brief".
-                In the PMP table, that column is replaced by "Project Objective".
+                The Excel reference contains "Description" and "Procedure in brief".
+                These are reference information used to understand the approved
+                Business Objective and generate the project-specific Project Objective.
 
-                Therefore DO NOT generate a "Procedure in brief" column.
+                Therefore DO NOT generate "Description" or "Procedure in brief" as
+                PMP table columns.
 
                 The final table structure is:
 
-                Serial No. | Business Objective | Description |
-                Project Objective | Related Metrics | QPPO - Goal/KPI
+                Serial No. | Business Objective | Project Objective | Related Metrics |
+                QPPO - Goal/KPI
 
                 ------------------------------------------------------------
                 HARD-CODED APPROVED BUSINESS OBJECTIVES
@@ -759,7 +759,74 @@ public class GeminiPmpOrchestrator {
                 0.07 UCP/p-h and 0.01 SD for the year 23-24
 
                 ------------------------------------------------------------
-                BUSINESS OBJECTIVE SELECTION
+                MAINTENANCE BUSINESS OBJECTIVES
+
+Business Objective 6
+
+Serial No.: 1
+Business Objective: Continually Improve productivity
+Description: Improving productivity of project team key to efficiently close
+a ticket within timeline.
+Procedure in brief: Productivity in maintenance is measured hours needed
+to close a ticket.
+Related Metrics: Productivity (in hours per ticket) [decrease in value is positive]
+QPPO - Goal/KPI: target of 8 hr mean and SD 2
+Tracking and Monitoring Interval: End of every month / Every week
+Guiding Note: For Maintenance project
+
+Business Objective 7
+
+Serial No.: 1
+Business Objective: Ensure quality of mnt. service delivered to customer -
+for software maintenance projects
+Description: Ensure defects in maintenance service delivered to customer
+for perusal (including UAT) are minimum to achieve customer satisfaction.
+Procedure in brief: Weighted Defect per Ticket is measured adding defects
+per tickets and multiplying values. Review defects 0.5, testing defect 1,
+UAT value 2.
+Related Metrics: WDT [decrease in value is positive]
+QPPO - Goal/KPI: target mean 2 and SD 1
+Tracking and Monitoring Interval: End of every month / Every week
+Guiding Note: For Maintenance project
+
+PROJECT TYPE CLASSIFICATION AND BUSINESS OBJECTIVE SELECTION
+
+Determine the current project's type from the supplied project information.
+Use Requirement Summary and Project Scope as the primary evidence, supported
+by Project Description, Components, Existing Use Cases, Deliverables,
+Implementation Type and other supplied project context.
+
+Classify the project as exactly one of:
+- DEVELOPMENT
+- MAINTENANCE
+- BOTH
+
+Do not classify the project from an isolated keyword. Consider the overall
+nature of the work and the actual activities described.
+
+DEVELOPMENT:
+Select relevant objectives only from the approved Development Business
+Objective master list.
+
+MAINTENANCE:
+Select relevant objectives only from the approved Maintenance Business
+Objective master list.
+
+BOTH:
+Evaluate the Development and Maintenance master lists independently and
+select the relevant objectives from both lists.
+
+Do not automatically include all objectives merely because a project type
+matches. Include only objectives genuinely relevant to the current project.
+
+Do not invent any new Business Objective.
+Do not rename any approved Business Objective.
+Do not modify the approved Related Metrics or QPPO - Goal/KPI values.
+
+Descriptions, procedures, tracking intervals and guiding notes are reference
+information only. They are NOT output fields in projectOverview.businessObjectives.
+
+BUSINESS OBJECTIVE SELECTION
                 ------------------------------------------------------------
 
                 The five Business Objectives above are the COMPLETE approved
@@ -819,12 +886,11 @@ EXACT JSON STRUCTURE FOR THE TABLE
 The projectOverview.businessObjectives array MUST contain one
 object for each selected Business Objective.
 
-Every object MUST contain EXACTLY these six fields:
+Every object MUST contain EXACTLY these five fields:
 
 {
   "serialNumber": 1,
   "businessObjective": "...",
-  "description": "...",
   "projectObjective": "...",
   "relatedMetrics": "...",
   "qppoGoalKpi": "..."
@@ -835,7 +901,7 @@ Do not remove fields.
 Do not use PmpItemDto format for this table.
 Do not use simple strings for this array.
 
-Every selected businessObjectives object MUST have all six fields
+Every selected businessObjectives object MUST have all five fields
 present and populated. No field may be null or an empty string.
 If a project-specific Project Objective cannot be derived exactly,
 generate a meaningful project-specific objective from the supplied
@@ -1316,8 +1382,9 @@ The serialNumber must be an integer.
 
                 11.1 PROJECT GOALS / ORGANIZATION GOALS
 
-                Populate metricationPlan.projectGoals with 3-5 meaningful
-                project-specific mappings. Each object MUST contain exactly:
+                Populate metricationPlan.projectGoals with mappings for the selected
+                Business Objectives. Do not introduce Business Objectives that are not
+                present in projectOverview.businessObjectives. Each object MUST contain exactly:
 
                 {
                   "serialNumber": 1,
@@ -2051,8 +2118,7 @@ The serialNumber must be an integer.
                 {
                   "phase": "...",
                   "milestone": "...",
-                  "description": "...",
-                  "targetDate": "...",
+                                  "targetDate": "...",
                   "deliverable": "..."
                 }
 
@@ -2080,8 +2146,8 @@ The serialNumber must be an integer.
                 projectOverview.businessObjectives object. Each selected object
                 must contain non-null, non-empty values for:
 
-                serialNumber, businessObjective, description, projectObjective,
-                relatedMetrics and qppoGoalKpi.
+                serialNumber, businessObjective, projectObjective, relatedMetrics and
+                qppoGoalKpi.
 
                 Also validate every projectOverview.detailedDeliverables object
                 against DeliverableDto exactly:
