@@ -376,9 +376,9 @@ public class PmpService {
     private void addIntroduction(XWPFDocument document, PmpDto dto) {
         if (dto == null || dto.projectOverview() == null) return;
         
-        addLabelValueTable(document, new String[][] {
-            {"Introduction", dto.projectOverview().introduction()}
-    });
+//        addLabelValueTable(document, new String[][] {
+//            {"Introduction", dto.projectOverview().introduction()}
+//    });
 
         addSubHeading(document, "1.0 Introduction");
         addText(document, dto.projectOverview().introduction());
@@ -387,7 +387,7 @@ public class PmpService {
         addLabelValueTable(document, new String[][] {
                 {"Project Name", dto.projectOverview().projectName()},
                 {"Project Description", dto.projectOverview().projectDescription()},
-                {"Project Scope", dto.projectOverview().projectScope()}
+//                {"Project Scope", dto.projectOverview().projectScope()}
         });
 
         addSubHeading(document, "1.2 Customer Interface");
