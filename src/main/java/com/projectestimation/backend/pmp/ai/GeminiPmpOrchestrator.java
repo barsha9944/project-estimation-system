@@ -687,7 +687,7 @@ public class GeminiPmpOrchestrator {
 
                 The final table structure is:
 
-                Serial No. | Business Objective | Project Objective |
+                Serial No. | Business Objective |
                 Metrics Identified | Organizational Goals | Project's Goals
 
                 IMPORTANT:
@@ -875,7 +875,6 @@ public class GeminiPmpOrchestrator {
                 {
                   "serialNumber": 1,
                   "businessObjective": "...",
-                  "projectObjective": "...",
                   "metricIdentified": "...",
                   "organizationalGoal": "...",
                   "projectGoal": "..."

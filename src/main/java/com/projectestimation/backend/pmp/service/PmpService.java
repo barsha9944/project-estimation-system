@@ -843,7 +843,7 @@ public class PmpService {
 
                 document,
 
-                "Business Objectives and Project Objectives"
+                "Business Objectives"
 
         );
 
@@ -852,8 +852,6 @@ public class PmpService {
                 "Serial No.",
 
                 "Business Objective",
-
-                "Project Objective",
 
                 "Metrics Identified",
 
@@ -943,7 +941,7 @@ public class PmpService {
 
                             businessObjective,
 
-                            "projectObjective"
+                            "metricIdentified"
 
                     ),
 
@@ -959,22 +957,6 @@ public class PmpService {
 
                             businessObjective,
 
-                            "metricIdentified"
-
-                    ),
-
-                    false
-
-            );
-
-            setCellText(
-
-                    row.getCell(4),
-
-                    readProperty(
-
-                            businessObjective,
-
                             "organizationalGoal"
 
                     ),
@@ -985,7 +967,7 @@ public class PmpService {
 
             setCellText(
 
-                    row.getCell(5),
+                    row.getCell(4),
 
                     readProperty(
 
