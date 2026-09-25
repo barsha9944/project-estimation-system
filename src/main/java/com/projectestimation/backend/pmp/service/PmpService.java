@@ -36,6 +36,9 @@ import com.projectestimation.backend.pmp.dto.PmpItemDto;
 import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
 import com.projectestimation.backend.pmp.model.Pmp;
 import com.projectestimation.backend.pmp.repository.PmpRepository;
+import java.io.InputStream;
+
+import org.apache.poi.util.Units;
 
 
 @Service
@@ -162,6 +165,8 @@ public class PmpService {
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             configureDocument(document);
+
+            addBeasLogo(document);
 
             addTitle(document, "PROJECT MANAGEMENT PLAN");
             if (pmpDto != null && pmpDto.projectOverview() != null) {
@@ -310,6 +315,37 @@ public class PmpService {
         addTocEntry(document, "15.5", "CI Status Accounting & Reporting");
         addTocEntry(document, "15.6", "Configuration Management Audit");
         addTocEntry(document, "15.7", "Back-up Plan");
+    }
+    private void addBeasLogo(XWPFDocument document) throws IOException {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        paragraph.setSpacingBefore(0);
+        paragraph.setSpacingAfter(80);
+
+        XWPFRun run = paragraph.createRun();
+
+        try (InputStream logoStream =
+                getClass().getClassLoader()
+                        .getResourceAsStream("psr/beas-logo.png")) {
+
+            if (logoStream == null) {
+                throw new IOException(
+                        "BEAS logo not found: src/main/resources/psr/beas-logo.png");
+            }
+
+            try {
+                run.addPicture(
+                        logoStream,
+                        XWPFDocument.PICTURE_TYPE_PNG,
+                        "beas-logo.png",
+                        Units.toEMU(158),
+                        Units.toEMU(24)
+                );
+            } catch (Exception e) {
+                throw new IOException(
+                        "Failed to add BEAS logo to PMP document", e);
+            }
+        }
     }
 
     private void addTocEntry(
