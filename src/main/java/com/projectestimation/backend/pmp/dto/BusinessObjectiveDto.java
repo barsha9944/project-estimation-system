@@ -4,6 +4,7 @@ public record BusinessObjectiveDto(
         Integer serialNumber,
         String businessObjective,
         String projectObjective,
-        String relatedMetrics,
-        String qppoGoalKpi
+        String metricIdentified,
+        String organizationalGoal,
+        String projectGoal
 ) {}
