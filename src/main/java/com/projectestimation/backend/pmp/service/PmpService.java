@@ -427,19 +427,27 @@ public class PmpService {
 
         addTocEntry(document, "3.1", "Project Life Cycle Phases");
 
-        addTocEntry(document, "3.2", "Methodology");
+        addTocEntry(document, "3.2", "Software Life Cycle Phases");
 
-        addTocEntry(document, "3.3", "Organization");
+        addTocEntry(document, "3.3", "Critical Processes & Sub-processes");
 
-        addTocEntry(document, "3.4", "Resources");
+        addTocEntry(
+                document,
+                "3.4",
+                "Goals for the Critical Processes & Sub-processes"
+        );
 
-        addTocEntry(document, "3.5", "Estimation");
+        addTocEntry(
+                document,
+                "3.5",
+                "Tailored Processes and Use of Tools"
+        );
 
-        addTocEntry(document, "3.6", "Schedule Management");
-
-        addTocEntry(document, "3.7", "Communication");
-
-        addTocEntry(document, "3.8", "Configuration Management");
+        addTocEntry(
+                document,
+                "3.6",
+                "Use of DAR Process"
+        );
 
         addTocEntry(document, "4.0", "Project Environments", true);
 
@@ -993,56 +1001,68 @@ public class PmpService {
 
         if (dto == null || dto.projectManagement() == null) return;
 
-        addSubHeading(document, "3.1 Project Life Cycle");
+        // 3.1 Project Life Cycle Phases
+        addSubHeading(document, "3.1 Project Life Cycle Phases");
 
-        addListTable(document, "Lifecycle Phases",
+        addListTable(
+                document,
+                "Project Life Cycle Phases",
+                dto.projectManagement().projectLifeCyclePhases()
+        );
 
-                dto.projectManagement().lifecyclePhases());
+        // 3.2 Software Life Cycle Phases
+        addSubHeading(document, "3.2 Software Life Cycle Phases");
 
-        addSubHeading(document, "3.2 Methodology");
+        addPmpItemsTable(
+                document,
+                "Software Life Cycle Phases",
+                dto.projectManagement().softwareLifeCyclePhases()
+        );
 
-        addLabelValueTable(document, new String[][] {
+        // 3.3 Critical Processes & Sub-processes
+        addSubHeading(document, "3.3 Critical Processes & Sub-processes");
 
-                {"Methodology", dto.projectManagement().methodology()}
+        addPmpItemsTable(
+                document,
+                "Critical Processes & Sub-processes",
+                dto.projectManagement().criticalProcesses()
+        );
 
-        });
+        // 3.4 Goals for the Critical Processes & Sub-processes
+        addSubHeading(
+                document,
+                "3.4 Goals for the Critical Processes & Sub-processes"
+        );
 
-        addSubHeading(document, "3.3 Organization");
+        addPmpItemsTable(
+                document,
+                "Goals for the Critical Processes & Sub-processes",
+                dto.projectManagement().processGoals()
+        );
 
-        addPmpItemsTable(document, "Organization",
+        // 3.5 Tailored Processes and Use of Tools
+        addSubHeading(
+                document,
+                "3.5 Tailored Processes and Use of Tools"
+        );
 
-                dto.projectManagement().organization());
+        addPmpItemsTable(
+                document,
+                "Tailored Processes and Use of Tools",
+                dto.projectManagement().tailoredProcesses()
+        );
 
-        addSubHeading(document, "3.4 Resources");
+        // 3.6 Use of DAR Process
+        addSubHeading(
+                document,
+                "3.6 Use of DAR Process"
+        );
 
-        addPmpItemsTable(document, "Resources",
-
-                dto.projectManagement().resources());
-
-        addSubHeading(document, "3.5 Estimation");
-
-        addPmpItemsTable(document, "Estimation",
-
-                dto.projectManagement().estimation());
-
-        addSubHeading(document, "3.6 Schedule");
-
-        addPmpItemsTable(document, "Schedule Management",
-
-                dto.projectManagement().schedule());
-
-        addSubHeading(document, "3.7 Communication");
-
-        addPmpItemsTable(document, "Communication",
-
-                dto.projectManagement().communication());
-
-        addSubHeading(document, "3.8 Configuration Management");
-
-        addPmpItemsTable(document, "Configuration Management",
-
-                dto.projectManagement().configurationManagement());
-
+        addPmpItemsTable(
+                document,
+                "Use of DAR Process",
+                dto.projectManagement().darProcess()
+        );
     }
 
     // =========================== 4.0 =============================

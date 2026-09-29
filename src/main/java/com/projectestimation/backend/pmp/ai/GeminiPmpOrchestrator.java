@@ -89,9 +89,9 @@ public class GeminiPmpOrchestrator {
                 3. Do not create additional sections or subsections.
                 4. Do not duplicate any section or subsection.
                 5. Do not rename any heading.
-                6. Methodology must appear only under 3.2 Methodology.
+                6. Section 3 must use only the defined-process subsections listed below.
                 7. Schedule must appear only under 10.0 Schedule.
-                8. Section 3.6 is Schedule Management and must not become another Schedule section.
+                8. Do not create a second Schedule section or move Section 10 schedule content into Section 3.
                 9. Every listed section must have useful project-specific content through the
                    fields available in the required JSON structure.
                 10. Do not create JSON fields solely to represent headings that do not exist
@@ -126,13 +126,11 @@ public class GeminiPmpOrchestrator {
 
                 3.0 The Project's Defined Process
                 3.1 Project Life Cycle Phases
-                3.2 Methodology
-                3.3 Organization
-                3.4 Resources
-                3.5 Estimation
-                3.6 Schedule Management
-                3.7 Communication
-                3.8 Configuration Management
+                3.2 Software Life Cycle Phases
+                3.3 Critical Processes & Sub-processes
+                3.4 Goals for the Critical Processes & Sub-processes
+                3.5 Tailored Processes and Use of Tools
+                3.6 Use of DAR Process
 
                 4.0 Project Environments
                 4.1 Development Environment
@@ -320,17 +318,17 @@ public class GeminiPmpOrchestrator {
 
                 Use the following as content-depth targets:
 
-                organization: 3-5 items
+                projectManagement.projectLifeCyclePhases: 5-10 items
 
-                resources: 3-5 items
+                softwareLifeCyclePhases: 5-10 items
 
-                estimation: 3-5 items
+                criticalProcesses: 4-6 items
 
-                schedule: 6-10 items
+                processGoals: 4-6 items
 
-                communication: 3-5 items
+                tailoredProcesses: 3-5 items
 
-                configurationManagement: 3-5 items
+                darProcess: 1-3 items
 
                 qualityStandards: 4-6 items
 
@@ -423,7 +421,7 @@ public class GeminiPmpOrchestrator {
 
                 projectOverview.acceptanceCriteria
 
-                projectManagement.lifecyclePhases
+                projectManagement.projectLifeCyclePhases
 
                 projectManagement.qualityObjectives
 
@@ -462,17 +460,15 @@ public class GeminiPmpOrchestrator {
                 The following fields MUST contain arrays of PmpItemDto
                 objects:
 
-                projectManagement.organization
+                projectManagement.softwareLifeCyclePhases
 
-                projectManagement.resources
+                projectManagement.criticalProcesses
 
-                projectManagement.estimation
+                projectManagement.processGoals
 
-                projectManagement.schedule
+                projectManagement.tailoredProcesses
 
-                projectManagement.communication
-
-                projectManagement.configurationManagement
+                projectManagement.darProcess
 
                 qualityManagement.qualityStandards
 
@@ -1029,33 +1025,110 @@ public class GeminiPmpOrchestrator {
                 Do not copy unrelated project-specific values from the reference.
 
                 ============================================================
-                SECTION 3 - DEFINED PROCESS / PROJECT LIFE CYCLE
+                SECTION 3 - THE PROJECT'S DEFINED PROCESS
                 ============================================================
 
-                Define an appropriate software development lifecycle.
+                Generate Section 3 using ONLY the following six subsections:
 
-                lifecyclePhases MUST be populated with string values.
+                3.1 Project Life Cycle Phases
+                3.2 Software Life Cycle Phases
+                3.3 Critical Processes & Sub-processes
+                3.4 Goals for the Critical Processes & Sub-processes
+                3.5 Tailored Processes and Use of Tools
+                3.6 Use of DAR Process
 
-                Use appropriate phases such as:
+                ------------------------------------------------------------
+                3.1 PROJECT LIFE CYCLE PHASES
+                ------------------------------------------------------------
 
-                - Planning
-                - Requirement Analysis
-                - Design
-                - Architecture
-                - Development
-                - Unit Testing
-                - Integration / SIT
-                - System Testing
-                - UAT
-                - Deployment
-                - Project Closure
+                projectLifeCyclePhases MUST be a JSON array containing ONLY strings.
 
-                Do not include irrelevant phases.
+                Provide project-level phases appropriate to the CURRENT PROJECT.
+                Use project evidence to determine the lifecycle. Typical phases may
+                include Planning, Requirement Analysis, Design, Development, Testing,
+                Deployment and Project Closure, but do not include irrelevant phases.
 
-                The methodology must be consistent with the supplied
-                implementation type and project requirements.
+                Do not invent unsupported project-specific dates.
 
-                Use the following supported fields only:
+                ------------------------------------------------------------
+                3.2 SOFTWARE LIFE CYCLE PHASES
+                ------------------------------------------------------------
+
+                softwareLifeCyclePhases MUST be a JSON array of PmpItemDto objects.
+
+                Describe the software development lifecycle phases relevant to the
+                CURRENT PROJECT. Each item must explain the phase/activity, its purpose,
+                responsibility, timing, target and status using the six PmpItemDto fields.
+
+                Use the supplied implementation type, requirements, components and
+                use cases to tailor the software lifecycle. Do not invent unsupported
+                technologies or activities.
+
+                ------------------------------------------------------------
+                3.3 CRITICAL PROCESSES & SUB-PROCESSES
+                ------------------------------------------------------------
+
+                criticalProcesses MUST be a JSON array of PmpItemDto objects.
+
+                Identify the processes and sub-processes that are critical to successful
+                delivery of the CURRENT PROJECT. Consider requirements management,
+                design, development, testing, defect management, release management,
+                configuration management, risk management, quality management or other
+                processes only when supported by the project context.
+
+                Do not simply list generic organizational processes. Make the entries
+                specific to the current project.
+
+                ------------------------------------------------------------
+                3.4 GOALS FOR THE CRITICAL PROCESSES & SUB-PROCESSES
+                ------------------------------------------------------------
+
+                processGoals MUST be a JSON array of PmpItemDto objects.
+
+                Define project-specific goals for the critical processes and sub-processes
+                identified in 3.3. Goals should describe the intended outcome or control
+                objective and should be measurable or verifiable where the supplied
+                project information supports that level of detail.
+
+                Do not invent unsupported numerical targets.
+
+                ------------------------------------------------------------
+                3.5 TAILORED PROCESSES AND USE OF TOOLS
+                ------------------------------------------------------------
+
+                tailoredProcesses MUST be a JSON array of PmpItemDto objects.
+
+                Describe how standard project/software processes are tailored for the
+                CURRENT PROJECT and identify the tools or tool categories used only when
+                supported by the supplied project information.
+
+                Do NOT invent named tools, products, platforms or technologies. If a
+                specific tool is not supplied, use a descriptive value such as
+                "Project-approved toolset" or "To Be Confirmed" rather than fabricating
+                a product name.
+
+                ------------------------------------------------------------
+                3.6 USE OF DAR PROCESS
+                ------------------------------------------------------------
+
+                darProcess MUST be a JSON array of PmpItemDto objects.
+
+                Determine whether a Decision Analysis and Resolution (DAR) process is
+                applicable to the CURRENT PROJECT based on the supplied project context.
+
+                If DAR is applicable, describe the decision-analysis activities, criteria,
+                responsibility, timing, target and status without inventing unsupported
+                decision criteria or numerical thresholds.
+
+                If DAR is not applicable or there is insufficient project evidence to
+                establish a specific DAR activity, return ONE professional PmpItemDto item
+                explicitly stating that DAR is not currently applicable / is to be used
+                when a significant project decision requires formal evaluation.
+
+                Do not invent a specific decision or pretend that a DAR activity has
+                already occurred when the supplied project information does not support it.
+
+                Section 3 MUST NOT contain these old fields:
 
                 - methodology
                 - lifecyclePhases
@@ -1065,14 +1138,16 @@ public class GeminiPmpOrchestrator {
                 - schedule
                 - communication
                 - configurationManagement
-                - qualityObjectives
 
-                Do NOT create additional fields for:
+                Section 3 MUST contain these projectManagement fields:
 
+                - projectLifeCyclePhases
+                - softwareLifeCyclePhases
+                - criticalProcesses
                 - processGoals
                 - tailoredProcesses
-                - decisionAnalysis
-                - projectGoals
+                - darProcess
+                - qualityObjectives
 
                 ============================================================
                 SECTION 4 - PROJECT ENVIRONMENTS
@@ -1675,14 +1750,12 @@ public class GeminiPmpOrchestrator {
                     },
 
                     "projectManagement": {
-                      "methodology": "",
-                      "lifecyclePhases": [],
-                      "organization": [],
-                      "resources": [],
-                      "estimation": [],
-                      "schedule": [],
-                      "communication": [],
-                      "configurationManagement": [],
+                      "projectLifeCyclePhases": [],
+                      "softwareLifeCyclePhases": [],
+                      "criticalProcesses": [],
+                      "processGoals": [],
+                      "tailoredProcesses": [],
+                      "darProcess": [],
                       "qualityObjectives": []
                     },
 
@@ -1834,22 +1907,24 @@ public class GeminiPmpOrchestrator {
 
                 24. No simple string array contains objects.
 
-                25. Do not generate projectGoals.
+                25. Do not generate a projectGoals field inside projectManagement.
 
-                26. Do not generate processGoals.
+                26. processGoals MUST be generated for Section 3.4.
 
-                27. Do not generate tailoredProcesses.
+                27. tailoredProcesses MUST be generated for Section 3.5.
 
-                28. Do not generate decisionAnalysis.
+                28. darProcess MUST be generated for Section 3.6.
 
-                29. All required PMP headings and subsections are represented by the
+                29. Do not generate decisionAnalysis as a separate field. Use darProcess.
+
+                30. All required PMP headings and subsections are represented by the
                     existing DTO structure and must appear exactly once in the final document.
 
-                30. Do not create a second Methodology section.
+                31. Do not create a Methodology subsection inside Section 3.
 
-                31. Do not create a second Schedule section.
+                32. Do not create a second Schedule section.
 
-                32. Section 10 Schedule Target and Status must ultimately be taken from
+                33. Section 10 Schedule Target and Status must ultimately be taken from
                     the application's Work Schedule data, not invented by the AI.
 
                 ============================================================
@@ -1870,7 +1945,7 @@ public class GeminiPmpOrchestrator {
 
                 projectOverview.complianceRequirements
 
-                projectManagement.lifecyclePhases
+                projectManagement.projectLifeCyclePhases
 
                 projectManagement.qualityObjectives
 
@@ -1938,19 +2013,17 @@ public class GeminiPmpOrchestrator {
                 Do not return strings or PmpItemDto objects in metrication arrays.
                 Do not return null for any metrication array.
 
-                The following fields MUST contain PmpItemDto objects:
+                The following Section 3 fields MUST contain PmpItemDto objects:
 
-                projectManagement.organization
+                projectManagement.softwareLifeCyclePhases
 
-                projectManagement.resources
+                projectManagement.criticalProcesses
 
-                projectManagement.estimation
+                projectManagement.processGoals
 
-                projectManagement.schedule
+                projectManagement.tailoredProcesses
 
-                projectManagement.communication
-
-                projectManagement.configurationManagement
+                projectManagement.darProcess
 
                 qualityManagement.qualityStandards
 
