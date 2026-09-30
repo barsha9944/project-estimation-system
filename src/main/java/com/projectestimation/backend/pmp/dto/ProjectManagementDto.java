@@ -4,21 +4,17 @@ import java.util.List;
 
 public record ProjectManagementDto(
 
-        String methodology,
+        List<String> projectLifeCyclePhases,
 
-        List<String> lifecyclePhases,
+        List<PmpItemDto> softwareLifeCyclePhases,
 
-        List<PmpItemDto> organization,
+        List<PmpItemDto> criticalProcesses,
 
-        List<PmpItemDto> resources,
+        List<PmpItemDto> processGoals,
 
-        List<PmpItemDto> estimation,
+        List<PmpItemDto> tailoredProcesses,
 
-        List<PmpItemDto> schedule,
-
-        List<PmpItemDto> communication,
-
-        List<PmpItemDto> configurationManagement,
+        List<PmpItemDto> darProcess,
 
         List<String> qualityObjectives
 
