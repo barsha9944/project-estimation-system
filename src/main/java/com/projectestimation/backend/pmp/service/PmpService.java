@@ -77,7 +77,7 @@ import org.apache.poi.util.Units;
 
 public class PmpService {
 
-    private static final String BLUE = "5B9BD5";
+    private static final String BLUE =  "7DBFE3";
 
     private static final String WHITE = "FFFFFF";
 
@@ -650,11 +650,11 @@ public class PmpService {
 
         if (dto == null || dto.projectOverview() == null) return;
 
-        addLabelValueTable(document, new String[][] {
-
-            {"Introduction", dto.projectOverview().introduction()}
-
-    });
+//        addLabelValueTable(document, new String[][] {
+//
+//            {"Introduction", dto.projectOverview().introduction()}
+//
+//    });
         
 //        addLabelValueTable(document, new String[][] {
 //            {"Introduction", dto.projectOverview().introduction()}
@@ -999,68 +999,79 @@ public class PmpService {
 
     private void addDefinedProcess(XWPFDocument document, PmpDto dto) {
 
-        if (dto == null || dto.projectManagement() == null) return;
+        if (dto == null || dto.projectManagement() == null) {
+            return;
+        }
 
+        // =========================================================
         // 3.1 Project Life Cycle Phases
+        // =========================================================
         addSubHeading(document, "3.1 Project Life Cycle Phases");
 
-        addListTable(
+        addTextList(
                 document,
-                "Project Life Cycle Phases",
                 dto.projectManagement().projectLifeCyclePhases()
         );
 
+        // =========================================================
         // 3.2 Software Life Cycle Phases
+        // =========================================================
         addSubHeading(document, "3.2 Software Life Cycle Phases");
 
-        addPmpItemsTable(
+        addPmpItemContent(
                 document,
-                "Software Life Cycle Phases",
                 dto.projectManagement().softwareLifeCyclePhases()
         );
 
+        // =========================================================
         // 3.3 Critical Processes & Sub-processes
-        addSubHeading(document, "3.3 Critical Processes & Sub-processes");
-
-        addPmpItemsTable(
+        // =========================================================
+        addSubHeading(
                 document,
-                "Critical Processes & Sub-processes",
+                "3.3 Critical Processes & Sub-processes"
+        );
+
+        addPmpItemContent(
+                document,
                 dto.projectManagement().criticalProcesses()
         );
 
+        // =========================================================
         // 3.4 Goals for the Critical Processes & Sub-processes
+        // =========================================================
         addSubHeading(
                 document,
                 "3.4 Goals for the Critical Processes & Sub-processes"
         );
 
-        addPmpItemsTable(
+        addPmpItemContent(
                 document,
-                "Goals for the Critical Processes & Sub-processes",
                 dto.projectManagement().processGoals()
         );
 
+        // =========================================================
         // 3.5 Tailored Processes and Use of Tools
+        // =========================================================
         addSubHeading(
                 document,
                 "3.5 Tailored Processes and Use of Tools"
         );
 
-        addPmpItemsTable(
+        addPmpItemContent(
                 document,
-                "Tailored Processes and Use of Tools",
                 dto.projectManagement().tailoredProcesses()
         );
 
+        // =========================================================
         // 3.6 Use of DAR Process
+        // =========================================================
         addSubHeading(
                 document,
                 "3.6 Use of DAR Process"
         );
 
-        addPmpItemsTable(
+        addPmpItemContent(
                 document,
-                "Use of DAR Process",
                 dto.projectManagement().darProcess()
         );
     }
@@ -1431,6 +1442,146 @@ public class PmpService {
 
         addText(document, dto.configurationManagementPlan().backup());
 
+    }
+
+    // ===================== SECTION 3 CONTENT =====================
+
+    private void addTextList(
+            XWPFDocument document,
+            List<String> values) {
+
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        for (String value : values) {
+
+            if (isBlank(value)) {
+                continue;
+            }
+
+            XWPFParagraph paragraph = document.createParagraph();
+
+            paragraph.setSpacingBefore(0);
+            paragraph.setSpacingAfter(60);
+            paragraph.setIndentationLeft(360);
+            XWPFRun bullet = paragraph.createRun();
+            bullet.setText("• ");
+            bullet.setFontFamily("Arial");
+            bullet.setFontSize(10);
+            bullet.setColor(BLACK);
+
+            XWPFRun text = paragraph.createRun();
+            text.setText(safe(value));
+            text.setFontFamily("Arial");
+            text.setFontSize(10);
+            text.setColor(BLACK);
+        }
+
+        addSpacer(document);
+    }
+
+    private void addPmpItemContent(
+            XWPFDocument document,
+            List<PmpItemDto> items) {
+
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+
+        for (PmpItemDto item : items) {
+
+            if (item == null) {
+                continue;
+            }
+
+            // Name
+            if (!isBlank(item.name())) {
+
+                XWPFParagraph nameParagraph = document.createParagraph();
+
+                nameParagraph.setSpacingBefore(50);
+                nameParagraph.setSpacingAfter(30);
+
+                XWPFRun nameRun = nameParagraph.createRun();
+                nameRun.setText(safe(item.name()));
+                nameRun.setBold(true);
+                nameRun.setFontFamily("Arial");
+                nameRun.setFontSize(10);
+                nameRun.setColor(BLACK);
+            }
+
+            // Description
+            if (!isBlank(item.description())) {
+                addText(document, item.description());
+            }
+
+            // Responsible
+            if (!isBlank(item.responsible())) {
+                addLabeledText(
+                        document,
+                        "Responsible",
+                        item.responsible()
+                );
+            }
+
+            // Timing
+            if (!isBlank(item.timing())) {
+                addLabeledText(
+                        document,
+                        "Timing",
+                        item.timing()
+                );
+            }
+
+            // Target
+            if (!isBlank(item.target())) {
+                addLabeledText(
+                        document,
+                        "Target",
+                        item.target()
+                );
+            }
+
+            // Status
+            if (!isBlank(item.status())) {
+                addLabeledText(
+                        document,
+                        "Status",
+                        item.status()
+                );
+            }
+
+            addSpacer(document);
+        }
+    }
+
+    private void addLabeledText(
+            XWPFDocument document,
+            String label,
+            String value) {
+
+        if (isBlank(value)) {
+            return;
+        }
+
+        XWPFParagraph paragraph = document.createParagraph();
+
+        paragraph.setSpacingBefore(0);
+        paragraph.setSpacingAfter(40);
+
+        XWPFRun labelRun = paragraph.createRun();
+        labelRun.setText(label + ": ");
+        labelRun.setBold(true);
+        labelRun.setFontFamily("Arial");
+        labelRun.setFontSize(10);
+        labelRun.setColor(BLACK);
+
+        XWPFRun valueRun = paragraph.createRun();
+        valueRun.setText(safe(value));
+        valueRun.setFontFamily("Arial");
+        valueRun.setFontSize(10);
+        valueRun.setColor(BLACK);
     }
 
     // ========================== PMP TABLE ========================
