@@ -865,7 +865,10 @@ public class PmpService {
 
                 "Organizational Goals",
 
-                "Project's Goals"
+                "Project's Goals",
+                
+                "PPM"
+                
 
         };
 
@@ -982,6 +985,20 @@ public class PmpService {
                             businessObjective,
 
                             "projectGoal"
+
+                    ),
+
+                    false
+
+            );
+            
+            setCellText(
+                    row.getCell(5),
+
+                    readProperty(
+                            businessObjective,
+
+                            "ppm"
 
                     ),
 

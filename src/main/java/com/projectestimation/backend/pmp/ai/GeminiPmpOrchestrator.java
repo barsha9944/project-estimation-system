@@ -671,7 +671,7 @@ public class GeminiPmpOrchestrator {
                 the approved Development and Maintenance Business Objective
                 reference data provided below.
 
-                The final PMP table MUST contain exactly these SIX columns,
+                The final PMP table MUST contain exactly these SEVEN columns,
                 in exactly this order:
 
                 1. Serial No.
@@ -680,11 +680,12 @@ public class GeminiPmpOrchestrator {
                 4. Metrics Identified
                 5. Organizational Goals
                 6. Project's Goals
+                7. PPM
 
                 The final table structure is:
 
-                Serial No. | Business Objective |
-                Metrics Identified | Organizational Goals | Project's Goals
+                Serial No. | Business Objective | Project Objective |
+                Metrics Identified | Organizational Goals | Project's Goals | PPM
 
                 IMPORTANT:
                 - Business Objective MUST come from the approved master data below.
@@ -699,6 +700,9 @@ public class GeminiPmpOrchestrator {
                   Related Metrics. The project goal must explain what the project
                   aims to achieve for that metric and must not introduce a different
                   metric or unrelated goal.
+                - PPM MUST be selected from the approved PPM Dashboard.xlsx reference
+                  for the selected Business Objective and its Metrics Identified.
+                  Do not invent a new PPM equation, coefficients or X variables.
                 - Description, Procedure in brief, Tracking & monitoring interval
                   and Guiding Note are reference information used for objective
                   selection and project-objective generation. They are NOT output
@@ -873,10 +877,11 @@ public class GeminiPmpOrchestrator {
                   "businessObjective": "...",
                   "metricIdentified": "...",
                   "organizationalGoal": "...",
-                  "projectGoal": "..."
+                  "projectGoal": "...",
+                  "ppm": "..."
                 }
 
-                Do NOT add fields.
+                Do NOT add fields other than these six fields.
                 Do NOT remove fields.
                 Do NOT use PmpItemDto format for this array.
                 Do NOT use simple strings.
@@ -910,6 +915,21 @@ public class GeminiPmpOrchestrator {
                   and its approved Related Metrics, using the CURRENT PROJECT context.
                   It must explain the project's goal for managing or improving the
                   selected metric. Do not invent a different metric or unrelated goal.
+
+                ppm
+                = the approved Process Performance Model selected from the
+                  "PPM Dashboard.xlsx" reference file for the selected Business
+                  Objective and Metrics Identified.
+
+                The PPM MUST come from the approved reference workbook.
+                Do NOT invent a PPM.
+                Do NOT invent or modify coefficients.
+                Do NOT invent or modify X variables.
+                Do NOT create a new regression equation.
+                Preserve the approved PPM model name, Y metric, X variables,
+                equation and relevant target information from the workbook.
+                If no matching PPM is available in the workbook, return:
+                "No matching PPM model available in the approved reference."
 
                 The following reference fields MUST NOT be emitted inside
                 projectOverview.businessObjectives:
@@ -990,6 +1010,11 @@ public class GeminiPmpOrchestrator {
                 -> Metric Identified
                 -> Organizational Goal
                 -> Project Goal
+                -> PPM
+
+                The PPM must correspond to the selected Business Objective and
+                Metric Identified and must be taken from the approved
+                "PPM Dashboard.xlsx" reference.
 
                 ============================================================
 
@@ -997,11 +1022,20 @@ public class GeminiPmpOrchestrator {
 
                 ============================================================
 
-                An approved Excel reference file named "project objective.xlsx"
-                is attached to this Gemini request through the Gemini Files API.
+                Approved Excel reference files are used for Section 2.
 
-                Use the attached Excel file as the authoritative REFERENCE/TEMPLATE
-                for Section 2 - Project Objectives & Goals.
+                "project objective.xlsx" is the authoritative reference for
+                Business Objectives, metrics, organizational goals and related
+                Business Objective reference information.
+
+                "PPM Dashboard.xlsx" is the authoritative reference for
+                Process Performance Models.
+
+                Both reference files are attached to this Gemini request through
+                the Gemini Files API.
+
+                Use the attached Excel files as the authoritative REFERENCE/TEMPLATE
+                for Section 2 - Project Objectives & Goals and for PPM selection.
 
                 Use it to understand and preserve:
 
@@ -1014,6 +1048,11 @@ public class GeminiPmpOrchestrator {
                 - Guiding Note pattern
                 - terminology
                 - level of detail
+
+                For "PPM Dashboard.xlsx", use the approved PPM model information
+                including the applicable Business Objective, Y/output metric,
+                X variables, equation, coefficients and target information where
+                available. Do not invent or modify these values.
 
                 IMPORTANT:
 
@@ -2216,7 +2255,7 @@ public class GeminiPmpOrchestrator {
                 must contain non-null, non-empty values for:
 
                 serialNumber, businessObjective, projectObjective,
-                metricIdentified, organizationalGoal and projectGoal.
+                metricIdentified, organizationalGoal, projectGoal and ppm.
 
                 Also validate every projectOverview.detailedDeliverables object
                 against DeliverableDto exactly:

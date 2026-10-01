@@ -5,5 +5,6 @@ public record BusinessObjectiveDto(
         String businessObjective,
         String metricIdentified,
         String organizationalGoal,
-        String projectGoal
+        String projectGoal,
+        String ppm
 ) {}
