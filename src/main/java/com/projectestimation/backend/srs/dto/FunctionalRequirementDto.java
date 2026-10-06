@@ -13,6 +13,7 @@ public record FunctionalRequirementDto(
         List<String> basicFlow,
         List<String> businessRules,
         List<BusinessRuleFieldDto> fields,
-        List<String> postconditions
+        List<String> postconditions,
+        String uiDesign
 ) {
 }

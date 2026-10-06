@@ -2,6 +2,7 @@ package com.projectestimation.backend.srs.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.List;
 
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
@@ -635,77 +636,135 @@ public class SrsService {
     }
     
     private void addFunctionalRequirements(
-            XWPFDocument document,
-            List<FunctionalRequirementDto> requirements) {
+        XWPFDocument document,
+        List<FunctionalRequirementDto> requirements) {
 
-        if (requirements == null || requirements.isEmpty()) {
-            addText(document, "No functional requirements were generated.");
-            return;
-        }
-
-        for (FunctionalRequirementDto requirement : requirements) {
-
-            if (requirement == null) {
-                continue;
-            }
-
-            addSubHeading(
-                    document,
-                    safe(requirement.requirementId())
-                            + " - "
-                            + safe(requirement.requirementName())
-            );
-
-            addLabelValueTable(
-                    document,
-                    new String[][] {
-                            {"Module", requirement.module()},
-                            {"Description", requirement.description()},
-                            {"Primary Actor", requirement.primaryActor()},
-                            {"Secondary Actor", requirement.secondaryActor()}
-                    }
-            );
-
-            addSubHeading(document, "Preconditions");
-
-            addListTable(
-                    document,
-                    "Preconditions",
-                    requirement.preconditions()
-            );
-
-            addSubHeading(document, "Basic Flow");
-
-            addNumberedListTable(
-                    document,
-                    "Basic Flow",
-                    requirement.basicFlow()
-            );
-
-            addSubHeading(document, "Business Rules");
-
-            addNumberedListTable(
-                    document,
-                    "Business Rules",
-                    requirement.businessRules()
-            );
-
-            addSubHeading(document, "Fields");
-
-            addBusinessRuleFields(
-                    document,
-                    requirement.fields()
-            );
-
-            addSubHeading(document, "Postconditions");
-
-            addListTable(
-                    document,
-                    "Postconditions",
-                    requirement.postconditions()
-            );
-        }
+    if (requirements == null || requirements.isEmpty()) {
+        addText(document, "No functional requirements were generated.");
+        return;
     }
+
+    for (FunctionalRequirementDto requirement : requirements) {
+
+        if (requirement == null) {
+            continue;
+        }
+
+        addSubHeading(
+                document,
+                safe(requirement.requirementId())
+                        + " - "
+                        + safe(requirement.requirementName())
+        );
+
+        XWPFTable table = document.createTable(10, 2);
+
+        setCellText(
+                table.getRow(0).getCell(0),
+                "Module",
+                true
+        );
+        setCellText(
+                table.getRow(0).getCell(1),
+                requirement.module(),
+                false
+        );
+
+        setCellText(
+                table.getRow(1).getCell(0),
+                "Description",
+                true
+        );
+        setCellText(
+                table.getRow(1).getCell(1),
+                requirement.description(),
+                false
+        );
+
+        setCellText(
+                table.getRow(2).getCell(0),
+                "Primary Actor",
+                true
+        );
+        setCellText(
+                table.getRow(2).getCell(1),
+                requirement.primaryActor(),
+                false
+        );
+
+        setCellText(
+                table.getRow(3).getCell(0),
+                "Secondary Actor",
+                true
+        );
+        setCellText(
+                table.getRow(3).getCell(1),
+                requirement.secondaryActor(),
+                false
+        );
+
+        setCellText(
+                table.getRow(4).getCell(0),
+                "Preconditions",
+                true
+        );
+        setNumberedText(
+                table.getRow(4).getCell(1),
+                requirement.preconditions()
+        );
+
+        setCellText(
+                table.getRow(5).getCell(0),
+                "Basic Flow",
+                true
+        );
+        setNumberedText(
+                table.getRow(5).getCell(1),
+                requirement.basicFlow()
+        );
+
+        setCellText(
+                table.getRow(6).getCell(0),
+                "Business Rules",
+                true
+        );
+        setNumberedText(
+                table.getRow(6).getCell(1),
+                requirement.businessRules()
+        );
+
+        setCellText(
+                table.getRow(7).getCell(0),
+                "Fields",
+                true
+        );
+        addFieldsTable(
+                table.getRow(7).getCell(1),
+                requirement.fields()
+        );
+
+        setCellText(
+                table.getRow(8).getCell(0),
+                "Postconditions",
+                true
+        );
+        setNumberedText(
+                table.getRow(8).getCell(1),
+                requirement.postconditions()
+        );
+
+        setCellText(
+                table.getRow(9).getCell(0),
+                "UI Design",
+                true
+        );
+
+        setMarkdownCell(
+                table.getRow(9).getCell(1),
+                requirement.uiDesign()
+        );
+    }
+}
     
     private void addBusinessRuleFields(
             XWPFDocument document,
@@ -1195,4 +1254,323 @@ public class SrsService {
 	            org.openxmlformats.schemas.wordprocessingml.x2006.main.STFldCharType.END
 	    );
 	}
+    
+    private void setNumberedText(
+            XWPFTableCell cell,
+            List<String> values) {
+
+        if (values == null || values.isEmpty()) {
+            setCellText(cell, "None specified.", false);
+            return;
+        }
+
+        cell.removeParagraph(0);
+
+        XWPFParagraph paragraph = cell.addParagraph();
+        paragraph.setSpacingBefore(40);
+        paragraph.setSpacingAfter(40);
+
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily("Arial");
+        run.setFontSize(10);
+
+        for (int i = 0; i < values.size(); i++) {
+
+            if (i > 0) {
+                run.addBreak();
+            }
+
+            run.setText(
+                    (i + 1)
+                            + ". "
+                            + safe(values.get(i))
+            );
+        }
+    }
+    
+    private void addFieldsTable(
+        XWPFTableCell cell,
+        List<BusinessRuleFieldDto> fields) {
+
+    if (fields == null || fields.isEmpty()) {
+        setCellText(cell, "No fields specified.", false);
+        return;
+    }
+
+    cell.removeParagraph(0);
+
+    XWPFParagraph paragraph = cell.addParagraph();
+    paragraph.setSpacingBefore(40);
+    paragraph.setSpacingAfter(40);
+
+    XWPFRun run = paragraph.createRun();
+    run.setFontFamily("Arial");
+    run.setFontSize(10);
+
+    // Header
+    run.setBold(true);
+    run.setText(
+            "Field Name    |    Type    |    Length / Format    |    Mandatory"
+    );
+
+    run.addBreak();
+
+    // Field rows
+    run.setBold(false);
+
+    for (BusinessRuleFieldDto field : fields) {
+
+        run.setText(
+                safe(field.fieldName())
+                        + "    |    "
+                        + safe(field.type())
+                        + "    |    "
+                        + safe(field.lengthOrFormat())
+                        + "    |    "
+                        + (field.mandatory() == null
+                                ? ""
+                                : field.mandatory().toString())
+        );
+
+        run.addBreak();
+    }
+}
+    
+    private void setMarkdownCell(
+            XWPFTableCell cell,
+            String markdown) {
+
+        cell.removeParagraph(0);
+
+        if (markdown == null || markdown.isBlank()) {
+            XWPFParagraph paragraph = cell.addParagraph();
+
+            XWPFRun run = paragraph.createRun();
+            run.setText("Not specified");
+            run.setFontFamily("Arial");
+            run.setFontSize(10);
+
+            return;
+        }
+
+        String[] lines = markdown.split("\\r?\\n");
+
+        for (String line : lines) {
+
+            String trimmedLine = line.trim();
+
+            if (trimmedLine.isEmpty()) {
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Heading
+            // ---------------------------------------------------------
+            if (trimmedLine.startsWith("### ")) {
+
+                XWPFParagraph paragraph = cell.addParagraph();
+                paragraph.setSpacingBefore(100);
+                paragraph.setSpacingAfter(80);
+
+                XWPFRun run = paragraph.createRun();
+                run.setText(trimmedLine.substring(4));
+                run.setBold(true);
+                run.setFontFamily("Arial");
+                run.setFontSize(12);
+
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Checkbox
+            // Example:
+            // [ ] Remember Me
+            // ---------------------------------------------------------
+            if (trimmedLine.startsWith("[ ] ")) {
+
+                XWPFParagraph paragraph = cell.addParagraph();
+                paragraph.setSpacingBefore(40);
+                paragraph.setSpacingAfter(40);
+
+                XWPFRun run = paragraph.createRun();
+                run.setText("☐ " + trimmedLine.substring(4));
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Input field
+            // Example:
+            // [ Enter email ]
+            // ---------------------------------------------------------
+            if (trimmedLine.matches("\\[\\s*Enter .*\\s*\\]")) {
+
+                String text = trimmedLine
+                        .substring(1, trimmedLine.length() - 1)
+                        .trim();
+
+                XWPFParagraph paragraph = cell.addParagraph();
+                paragraph.setSpacingBefore(40);
+                paragraph.setSpacingAfter(60);
+
+                addBoxBorder(paragraph, false);
+
+                XWPFRun run = paragraph.createRun();
+                run.setText("   " + text + "   ");
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Button
+            // Example:
+            // [ LOGIN ]
+            // ---------------------------------------------------------
+            if (trimmedLine.matches("\\[[^\\]]+\\]")) {
+
+                String buttonText = trimmedLine
+                        .substring(1, trimmedLine.length() - 1)
+                        .trim();
+
+                XWPFParagraph paragraph = cell.addParagraph();
+                paragraph.setAlignment(
+                        org.apache.poi.xwpf.usermodel.ParagraphAlignment.CENTER
+                );
+                paragraph.setSpacingBefore(50);
+                paragraph.setSpacingAfter(50);
+
+                addBoxBorder(paragraph, true);
+
+                XWPFRun run = paragraph.createRun();
+                run.setText("  " + buttonText + "  ");
+                run.setBold(true);
+                run.setFontFamily("Arial");
+                run.setFontSize(9);
+
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Bold label
+            // Example:
+            // **Email**
+            // ---------------------------------------------------------
+            if (trimmedLine.startsWith("**")
+                    && trimmedLine.endsWith("**")) {
+
+                String label = trimmedLine.substring(
+                        2,
+                        trimmedLine.length() - 2
+                );
+
+                XWPFParagraph paragraph = cell.addParagraph();
+                paragraph.setSpacingBefore(40);
+                paragraph.setSpacingAfter(20);
+
+                XWPFRun run = paragraph.createRun();
+                run.setText(label);
+                run.setBold(true);
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Bullet
+            // ---------------------------------------------------------
+            if (trimmedLine.startsWith("- ")) {
+
+                XWPFParagraph paragraph = cell.addParagraph();
+                paragraph.setSpacingBefore(20);
+                paragraph.setSpacingAfter(20);
+
+                XWPFRun run = paragraph.createRun();
+                run.setText("• " + trimmedLine.substring(2));
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // ---------------------------------------------------------
+            // Normal text
+            // ---------------------------------------------------------
+            XWPFParagraph paragraph = cell.addParagraph();
+            paragraph.setSpacingBefore(30);
+            paragraph.setSpacingAfter(30);
+
+            XWPFRun run = paragraph.createRun();
+            run.setText(trimmedLine);
+            run.setFontFamily("Arial");
+            run.setFontSize(10);
+        }
+    }
+    
+    private void addBoxBorder(
+            XWPFParagraph paragraph,
+            boolean button) {
+
+        org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr pPr =
+                paragraph.getCTP().isSetPPr()
+                        ? paragraph.getCTP().getPPr()
+                        : paragraph.getCTP().addNewPPr();
+
+        org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPBdr pBdr =
+                pPr.isSetPBdr()
+                        ? pPr.getPBdr()
+                        : pPr.addNewPBdr();
+
+        org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder border =
+                pBdr.isSetTop()
+                        ? pBdr.getTop()
+                        : pBdr.addNewTop();
+
+        border.setVal(
+                org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder.SINGLE
+        );
+        border.setSz(BigInteger.valueOf(button ? 8 : 6));
+        border.setSpace(BigInteger.valueOf(4));
+        border.setColor("808080");
+
+        org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder bottom =
+                pBdr.isSetBottom()
+                        ? pBdr.getBottom()
+                        : pBdr.addNewBottom();
+
+        bottom.setVal(
+                org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder.SINGLE
+        );
+        bottom.setSz(BigInteger.valueOf(button ? 8 : 6));
+        bottom.setSpace(BigInteger.valueOf(4));
+        bottom.setColor("808080");
+
+        org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder left =
+                pBdr.isSetLeft()
+                        ? pBdr.getLeft()
+                        : pBdr.addNewLeft();
+
+        left.setVal(
+                org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder.SINGLE
+        );
+        left.setSz(BigInteger.valueOf(button ? 8 : 6));
+        left.setSpace(BigInteger.valueOf(4));
+        left.setColor("808080");
+
+        org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder right =
+                pBdr.isSetRight()
+                        ? pBdr.getRight()
+                        : pBdr.addNewRight();
+
+        right.setVal(
+                org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder.SINGLE
+        );
+        right.setSz(BigInteger.valueOf(button ? 8 : 6));
+        right.setSpace(BigInteger.valueOf(4));
+        right.setColor("808080");
+    }
 }

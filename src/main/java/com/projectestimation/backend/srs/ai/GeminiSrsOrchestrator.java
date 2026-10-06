@@ -77,7 +77,7 @@ public class GeminiSrsOrchestrator {
                 You are an expert Software Requirements Specification (SRS) analyst.
 
                 Generate a complete Software Requirements Specification for the project
-                using ONLY the project information provided below.
+                using ONLY the project information provided below in a human-like languages and all para-text should be 3 to 4 lines.
 
                 The generated SRS must follow a professional SRS structure and must be
                 suitable for rendering as a formal project document.
@@ -86,7 +86,9 @@ public class GeminiSrsOrchestrator {
 
                 1. Return ONLY valid JSON.
 
-                2. Do NOT return Markdown.
+                2. Do NOT return Markdown outside the uiDesign field.
+				   Markdown is allowed inside the uiDesign field because it is used
+				   as the UI wireframe definition.
 
                 3. Do NOT wrap the JSON inside ```json or any code block.
 
@@ -100,8 +102,6 @@ public class GeminiSrsOrchestrator {
                    than inventing a concrete technology, number, or requirement.
 
                 7. The SRS is a requirements document, not a source-code document.
-
-                8. Do not include UI design/mockup descriptions.
 
                 9. Functional requirements must be derived primarily from the provided
                    estimation use cases and project components.
@@ -242,6 +242,69 @@ public class GeminiSrsOrchestrator {
                    - businessRules
                    - fields
                    - postconditions
+                   - uiDesign
+                   
+                   The uiDesign field must contain a Markdown-formatted UI wireframe
+					for the screen or screens required by this functional requirement.
+					
+					The UI design must show the actual visual arrangement of the interface,
+					not merely describe or list the UI elements.
+					
+					For each screen, include:
+					
+					- Screen title
+					- Overall layout
+					- Clearly positioned labels and input fields
+					- Visible input boxes using [ Enter value ]
+					- Buttons using [ BUTTON TEXT ]
+					- Checkboxes using [ ] Checkbox Label
+					- Tables using Markdown tables when applicable
+					- Navigation elements where applicable
+					- Important messages, filters, tabs, cards, or status indicators
+					- The relative order and grouping of the UI elements
+					
+					Use simple Markdown only:
+					
+					- ### for screen titles
+					- **bold** for labels or important UI text
+					- Markdown tables for tabular UI layouts
+					- [ Enter value ] to represent input fields
+					- [ BUTTON TEXT ] to represent buttons
+					- [ ] to represent checkboxes
+					- - for lists
+					- normal paragraphs where necessary
+					
+					Example:
+					
+					### Login Screen
+					
+					**Layout:** Centered login form.
+					
+					**Email**
+					[ Enter email ]
+					
+					**Password**
+					[ Enter password ]
+					
+					[ ] Remember Me
+					
+					[ LOGIN ]
+					
+					Forgot Password?
+					
+					The design must make it possible to understand what the screen
+					looks like and where the controls are positioned.
+					
+					Do not merely list the UI components.
+					
+					Do not return an actual image, HTML, CSS, SVG, Mermaid,
+					or source code.
+					
+					Do not invent unrelated screens or functionality.
+					Keep the UI wireframe specific to the functional requirement.
+					
+					The Markdown must be valid JSON string content, so escape
+					characters correctly where required.
 
                    The fields section must contain:
 
@@ -462,7 +525,8 @@ public class GeminiSrsOrchestrator {
                           "mandatory": true
                         }
                       ],
-                      "postconditions": []
+                      "postconditions": [],
+                      "uiDesign": ""
                     }
                   ],
 
