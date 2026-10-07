@@ -715,15 +715,6 @@ public class GeminiPmpOrchestrator {
                 Development Business Objective 1
 
                 Serial No.: 1
-                Business Objective: Fulfil Delivery Commitments
-                Description: Meeting delivery commitments is a major key to success
-                in enhancing business and customer loyalty. So, that should be a priority.
-                Related Metrics: Schedule Variance - Revised (in %%)
-        		QPPO - Goal/KPI: USL: 5%%; LSL: -5%%
-
-                Development Business Objective 2
-
-                Serial No.: 1
                 Business Objective: Manage projects within budget
                 Description: As the project cost may depend on various factors
                 including and other than cost of effort it is essential that
@@ -735,8 +726,9 @@ public class GeminiPmpOrchestrator {
                 QPPO - Goal/KPI: Mean 14/ SD 1
                 Tracking & monitoring interval: At every significant delivery milestone
                 Guiding Note: For Development, Enhancement, Migration etc type of job
+                PPM: Effort Variance - EV = -6.7946-3.9807*DDRA+19.1219*DDRUT
 
-                Development Business Objective 3
+                Development Business Objective 2
 
                 Serial No.: 2
                 Business Objective: Ensure quality of products delivered to customer -
@@ -752,16 +744,10 @@ public class GeminiPmpOrchestrator {
                 QPPO - Goal/KPI: Mean: 0.9/ SD 0.1
                 Tracking & monitoring interval: After UAT of every release
                 Guiding Note: For Development, Enhancement etc type of job
+                PPM: Pre-Delivery Defect Rate Model -  PDDR=0.2239-0.0075*RE_A+0.2708*DD_D-0.0085*RE_CR
 
-                Development Business Objective 4
 
-                Serial No.: 4
-                Business Objective: Improve quality of software engineering while the products are being made ready for delivery
-                Description: Productivity and cost in a software project would always depend on the quality of engineering work being done. So, that should be closely monitored.
-                Related Metrics: Average Pre-delivery Defect Rate (No. of defects per Person Hour)
-                QPPO - Goal/KPI: USL: 1 defects per Person hour; LSL: 0 defects per Person hour
-
-                Development Business Objective 5
+                Development Business Objective 3
 
                 Serial No.: 3
                 Business Objective: Continually Improve productivity
@@ -777,40 +763,7 @@ public class GeminiPmpOrchestrator {
                 Tracking & monitoring interval: After UAT of every product release -
                 or completion of each Use-Case
                 Guiding Note: For Development, Enhancement etc type of job
-
-                ------------------------------------------------------------
-                APPROVED MAINTENANCE BUSINESS OBJECTIVES
-                ------------------------------------------------------------
-
-                Maintenance Business Objective 1
-
-                Serial No.: 1
-                Business Objective: Continually Improve productivity
-                Description: Improving the productivity of the project team is key
-                to efficiently close a ticket within timeline.
-                Procedure in brief: Productivity in maintenance is measured hours
-                needed to close a ticket.
-                Related Metrics: Productivity (in hours per ticket)
-                [decrease in value is positive]
-                QPPO - Goal/KPI: target of 8 hr mean and SD 2
-                Tracking & monitoring interval: End of every month / Every week
-                Guiding Note: For Maintenance project
-
-                Maintenance Business Objective 2
-
-                Serial No.: 1
-                Business Objective: Ensure quality of mnt. service delivered to
-                customer - for software maintenance projects
-                Description: Ensure that defects in maintenance service delivered
-                to customer for their perusal (including UAT) are minimum to
-                achieve customer satisfaction.
-                Procedure in brief: Weighted Defect per Ticket is measured adding
-                all the defects per tickets and multiplying them with certain value.
-                Review defects value 0.5, testing defect value 1 and UAT value 2.
-                Related Metrics: WDT [decrease in value is positive]
-                QPPO - Goal/KPI: target mean 2 and SD 1
-                Tracking & monitoring interval: End of every month / every week
-                Guiding Note: For Maintenance project
+                PPM: Productivity - OP=0.0472-.0009*RE_D+0.1773*CP
 
                 ============================================================
                 PROJECT TYPE CLASSIFICATION AND BUSINESS OBJECTIVE SELECTION
@@ -826,8 +779,6 @@ public class GeminiPmpOrchestrator {
                 Classify the project as exactly one of:
 
                 - DEVELOPMENT
-                - MAINTENANCE
-                - BOTH
 
                 Do NOT classify the project from an isolated keyword. Consider
                 the overall nature of the work and the actual activities described.
@@ -836,16 +787,6 @@ public class GeminiPmpOrchestrator {
                 Evaluate ONLY the five approved Development Business Objectives.
                 Select ONLY the Development objectives that are genuinely relevant
                 to the CURRENT PROJECT.
-
-                MAINTENANCE:
-                Evaluate ONLY the two approved Maintenance Business Objectives.
-                Select ONLY the Maintenance objectives that are genuinely relevant
-                to the CURRENT PROJECT.
-
-                BOTH:
-                Evaluate the Development and Maintenance Business Objective lists
-                independently. Select only the genuinely relevant objectives from
-                either list.
 
                 It is NOT mandatory to select all Business Objectives.
                 A project may have one or more applicable objectives from the
