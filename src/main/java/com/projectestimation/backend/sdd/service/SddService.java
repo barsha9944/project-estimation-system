@@ -2,14 +2,23 @@ package com.projectestimation.backend.sdd.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.poi.util.Units;
+import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPBdr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,12 +28,10 @@ import com.projectestimation.backend.sdd.dto.AmendmentDto;
 import com.projectestimation.backend.sdd.dto.ApplicationComponentDetailsDto;
 import com.projectestimation.backend.sdd.dto.ApplicationComponentDto;
 import com.projectestimation.backend.sdd.dto.CirculationDetailsDto;
-import com.projectestimation.backend.sdd.dto.CirculationDetailsEntryDto;
 import com.projectestimation.backend.sdd.dto.DatabaseDesignDto;
 import com.projectestimation.backend.sdd.dto.DesignAlternativeDto;
 import com.projectestimation.backend.sdd.dto.DesignDetailDto;
 import com.projectestimation.backend.sdd.dto.DocumentReleaseHistoryDto;
-import com.projectestimation.backend.sdd.dto.DocumentReleaseHistoryEntryDto;
 import com.projectestimation.backend.sdd.dto.EnvironmentDetailsDto;
 import com.projectestimation.backend.sdd.dto.EnvironmentDto;
 import com.projectestimation.backend.sdd.dto.EnvironmentItemDto;
@@ -51,6 +58,8 @@ public class SddService {
     private final ObjectMapper objectMapper;
     private final SrsService srsService;
     private final GeminiSddOrchestrator geminiSddOrchestrator;
+    private final List<String> tocHeadings = new ArrayList<>();
+    private XWPFParagraph tocParagraph;
 
     public Sdd getByOpportunityId(Long opportunityId) {
 
@@ -150,12 +159,18 @@ public class SddService {
             );
         }
 
+        SrsDto srsDto = getSrsInput(opportunityId);
+
         try (
                 XWPFDocument document = new XWPFDocument();
                 ByteArrayOutputStream out = new ByteArrayOutputStream()
         ) {
 
-            generateSddDocument(document, sddDto);
+            generateSddDocument(
+                    document,
+                    sddDto,
+                    srsDto
+            );
 
             document.write(out);
 
@@ -172,17 +187,28 @@ public class SddService {
 
     private void generateSddDocument(
             XWPFDocument document,
-            SddDto sddDto) {
+            SddDto sddDto,
+            SrsDto srsDto) {
 
         if (sddDto == null) {
             return;
         }
+
+        tocHeadings.clear();
+        
+        addBeasLogo(document);
 
         addTitle(
                 document,
                 "SOFTWARE DESIGN DOCUMENT"
         );
 
+        document.createParagraph().createRun().addBreak(
+                BreakType.PAGE
+        );
+        
+        addTableOfContents(document);
+        
         /*
          * A. Document Release History
          */
@@ -210,7 +236,7 @@ public class SddService {
         /*
          * Table of Contents
          */
-        addTableOfContents(document);
+       
 
         document.createParagraph();
 
@@ -235,7 +261,8 @@ public class SddService {
          */
         addApplicationComponents(
                 document,
-                sddDto.applicationComponents()
+                sddDto.applicationComponents(),
+                srsDto
         );
 
         /*
@@ -271,8 +298,55 @@ public class SddService {
                 document,
                 sddDto.requirementsTraceabilityMatrix()
         );
+        
+        populateTableOfContents();
     }
 
+    private void addBeasLogo(
+            XWPFDocument document) {
+
+        try {
+
+            InputStream inputStream =
+                    getClass()
+                            .getClassLoader()
+                            .getResourceAsStream(
+                                    "psr/beas-logo.png"
+                            );
+
+            if (inputStream == null) {
+                return;
+            }
+
+            XWPFParagraph paragraph =
+                    document.createParagraph();
+
+            paragraph.setAlignment(
+                    ParagraphAlignment.CENTER
+            );
+
+            XWPFRun run =
+                    paragraph.createRun();
+
+            run.addPicture(
+                    inputStream,
+                    XWPFDocument.PICTURE_TYPE_PNG,
+                    "beas-logo.png",
+                    Units.toEMU(158),
+                    Units.toEMU(24)
+            );
+
+            inputStream.close();
+
+        } catch (Exception e) {
+
+            throw new IllegalStateException(
+                    "Failed to add BEAS logo to SDD",
+                    e
+            );
+        }
+    }
+    
     private void addTitle(
             XWPFDocument document,
             String title) {
@@ -296,6 +370,12 @@ public class SddService {
             XWPFDocument document,
             String text) {
 
+        if (text == null || text.isBlank()) {
+            return;
+        }
+
+        tocHeadings.add(text);
+
         XWPFParagraph paragraph =
                 document.createParagraph();
 
@@ -311,8 +391,43 @@ public class SddService {
             XWPFDocument document,
             String text) {
 
+    	if (text == null || text.isBlank()) {
+    	    return;
+    	}
+
+    	tocHeadings.add(text);
+    	
         XWPFParagraph paragraph =
                 document.createParagraph();
+
+        if (text != null
+                && text.matches("^\\d+(\\.\\d+)+\\b.*")) {
+
+            int dotCount = 0;
+
+            for (char character : text.toCharArray()) {
+                if (character == '.') {
+                    dotCount++;
+                }
+            }
+
+            int outlineLevel =
+                    Math.min(dotCount, 3) - 1;
+
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr pPr =
+                    paragraph.getCTP().isSetPPr()
+                            ? paragraph.getCTP().getPPr()
+                            : paragraph.getCTP().addNewPPr();
+
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTDecimalNumber outlineLvl =
+                    pPr.isSetOutlineLvl()
+                            ? pPr.getOutlineLvl()
+                            : pPr.addNewOutlineLvl();
+
+            outlineLvl.setVal(
+                    java.math.BigInteger.valueOf(outlineLevel)
+            );
+        }
 
         XWPFRun run =
                 paragraph.createRun();
@@ -362,22 +477,41 @@ public class SddService {
     private void addTableOfContents(
             XWPFDocument document) {
 
-        addSectionHeading(
-                document,
-                "Table of Contents"
-        );
-
-        XWPFParagraph paragraph =
+        XWPFParagraph titleParagraph =
                 document.createParagraph();
 
-        XWPFRun run =
-                paragraph.createRun();
+        XWPFRun titleRun =
+                titleParagraph.createRun();
 
-        run.setText(
-                "Table of Contents will be generated here."
-        );
+        titleRun.setText("Table of Contents");
+        titleRun.setBold(true);
+        titleRun.setFontSize(17);
 
-        run.setFontSize(12);
+        /*
+         * Keep a reference to the TOC paragraph.
+         * The actual entries will be added after
+         * all SDD headings have been collected.
+         */
+        tocParagraph =
+                document.createParagraph();
+    }
+    
+    private void populateTableOfContents() {
+
+        if (tocParagraph == null || tocHeadings.isEmpty()) {
+            return;
+        }
+
+        for (String heading : tocHeadings) {
+
+            XWPFRun run =
+                    tocParagraph.createRun();
+
+            run.setText(heading);
+            run.setFontSize(11);
+
+            run.addBreak();
+        }
     }
 
     private void addDocumentReleaseHistory(
@@ -389,23 +523,8 @@ public class SddService {
                 "A. Document Release History"
         );
 
-        if (releaseHistory == null
-                || releaseHistory.entries() == null
-                || releaseHistory.entries().isEmpty()) {
-
-            addText(
-                    document,
-                    "No document release history available."
-            );
-
-            return;
-        }
-
         XWPFTable table =
-                document.createTable(
-                        releaseHistory.entries().size() + 1,
-                        6
-                );
+                document.createTable(5, 6);
 
         String[] headers = {
                 "Sl. No.",
@@ -423,48 +542,6 @@ public class SddService {
                     headers[i]
             );
         }
-
-        for (int i = 0;
-             i < releaseHistory.entries().size();
-             i++) {
-
-            DocumentReleaseHistoryEntryDto entry =
-                    releaseHistory.entries().get(i);
-
-            setCellText(
-                    table.getRow(i + 1).getCell(0),
-                    entry.serialNumber() == null
-                            ? ""
-                            : String.valueOf(
-                                    entry.serialNumber()
-                            )
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(1),
-                    entry.versionNumber()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(2),
-                    entry.releaseDate()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(3),
-                    entry.preparedBy()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(4),
-                    entry.reviewedAndApprovedBy()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(5),
-                    entry.reasonsForRelease()
-            );
-        }
     }
 
     private void addCirculationDetails(
@@ -476,32 +553,8 @@ public class SddService {
                 "B. Circulation Details"
         );
 
-        if (circulationDetails == null) {
-
-            addText(
-                    document,
-                    "No circulation details available."
-            );
-
-            return;
-        }
-
-        addText(
-                document,
-                circulationDetails.circulationInstructions()
-        );
-
-        if (circulationDetails.entries() == null
-                || circulationDetails.entries().isEmpty()) {
-
-            return;
-        }
-
         XWPFTable table =
-                document.createTable(
-                        circulationDetails.entries().size() + 1,
-                        3
-                );
+                document.createTable(3, 3);
 
         String[] headers = {
                 "Copy No.",
@@ -516,33 +569,6 @@ public class SddService {
                     headers[i]
             );
         }
-
-        for (int i = 0;
-             i < circulationDetails.entries().size();
-             i++) {
-
-            CirculationDetailsEntryDto entry =
-                    circulationDetails.entries().get(i);
-
-            setCellText(
-                    table.getRow(i + 1).getCell(0),
-                    entry.copyNumber() == null
-                            ? ""
-                            : String.valueOf(
-                                    entry.copyNumber()
-                            )
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(1),
-                    entry.designationOfCopyHolder()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(2),
-                    entry.locationOfCopy()
-            );
-        }
     }
 
     private void addAmendments(
@@ -554,22 +580,8 @@ public class SddService {
                 "C. List of Amendments Made On The Previous Version No. _____"
         );
 
-        if (amendments == null
-                || amendments.isEmpty()) {
-
-            addText(
-                    document,
-                    "No amendments available."
-            );
-
-            return;
-        }
-
         XWPFTable table =
-                document.createTable(
-                        amendments.size() + 1,
-                        5
-                );
+                document.createTable(5, 5);
 
         String[] headers = {
                 "Sl. No.",
@@ -584,43 +596,6 @@ public class SddService {
             setCellText(
                     table.getRow(0).getCell(i),
                     headers[i]
-            );
-        }
-
-        for (int i = 0;
-             i < amendments.size();
-             i++) {
-
-            AmendmentDto amendment =
-                    amendments.get(i);
-
-            setCellText(
-                    table.getRow(i + 1).getCell(0),
-                    amendment.serialNumber() == null
-                            ? ""
-                            : String.valueOf(
-                                    amendment.serialNumber()
-                            )
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(1),
-                    amendment.sectionNoOrPageNo()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(2),
-                    amendment.descriptionOfAmendment()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(3),
-                    amendment.approvedBy()
-            );
-
-            setCellText(
-                    table.getRow(i + 1).getCell(4),
-                    amendment.changeRequestNoAndDate()
             );
         }
     }
@@ -1058,7 +1033,8 @@ public class SddService {
     
     private void addApplicationComponents(
             XWPFDocument document,
-            List<ApplicationComponentDto> applicationComponents) {
+            List<ApplicationComponentDto> applicationComponents,
+            SrsDto srsDto) {
 
         addSectionHeading(
                 document,
@@ -1108,17 +1084,22 @@ public class SddService {
             for (ApplicationComponentDetailsDto detail
                     : component.details()) {
 
-                addApplicationComponentDetail(
-                        document,
-                        detail
-                );
+            	addApplicationComponentDetail(
+            	        document,
+            	        detail,
+            	        getSrsWireframe(
+            	                srsDto,
+            	                componentNumber
+            	        )
+            	);
             }
         }
     }
     
     private void addApplicationComponentDetail(
             XWPFDocument document,
-            ApplicationComponentDetailsDto detail) {
+            ApplicationComponentDetailsDto detail,
+            String srsWireframe) {
 
         addSubHeading(
                 document,
@@ -1177,14 +1158,9 @@ public class SddService {
                         + safe(detail.postCondition())
         );
 
-        addText(
+        addSrsWireframe(
                 document,
-                "UI Design:"
-        );
-
-        addText(
-                document,
-                detail.uiDesign()
+                srsWireframe
         );
 
         addDesignDetails(
@@ -1197,6 +1173,338 @@ public class SddService {
                 detail.sequenceDiagram(),
                 "Sequence Diagram – " + safe(detail.subComponentName())
         );
+    }
+    
+    private void addSrsWireframe(
+            XWPFDocument document,
+            String markdown) {
+
+        if (markdown == null || markdown.isBlank()) {
+
+            addText(
+                    document,
+                    "UI Design: Not specified"
+            );
+
+            return;
+        }
+
+        addText(
+                document,
+                "UI Design:"
+        );
+
+        XWPFTable table =
+                document.createTable(1, 1);
+
+        setMarkdownCell(
+                table.getRow(0).getCell(0),
+                markdown
+        );
+    }
+    
+    private void setMarkdownCell(
+            XWPFTableCell cell,
+            String markdown) {
+
+        cell.removeParagraph(0);
+
+        if (markdown == null || markdown.isBlank()) {
+
+            XWPFParagraph paragraph =
+                    cell.addParagraph();
+
+            XWPFRun run =
+                    paragraph.createRun();
+
+            run.setText("Not specified");
+            run.setFontFamily("Arial");
+            run.setFontSize(10);
+
+            return;
+        }
+
+        String[] lines =
+                markdown.split("\\r?\\n");
+
+        for (String line : lines) {
+
+            String trimmedLine =
+                    line.trim();
+
+            if (trimmedLine.isEmpty()) {
+                continue;
+            }
+
+            // Heading
+            if (trimmedLine.startsWith("### ")) {
+
+                XWPFParagraph paragraph =
+                        cell.addParagraph();
+
+                paragraph.setSpacingBefore(100);
+                paragraph.setSpacingAfter(80);
+
+                XWPFRun run =
+                        paragraph.createRun();
+
+                run.setText(
+                        trimmedLine.substring(4)
+                );
+
+                run.setBold(true);
+                run.setFontFamily("Arial");
+                run.setFontSize(12);
+
+                continue;
+            }
+
+            // Checkbox
+            if (trimmedLine.startsWith("[ ] ")) {
+
+                XWPFParagraph paragraph =
+                        cell.addParagraph();
+
+                paragraph.setSpacingBefore(40);
+                paragraph.setSpacingAfter(40);
+
+                XWPFRun run =
+                        paragraph.createRun();
+
+                run.setText(
+                        "☐ " + trimmedLine.substring(4)
+                );
+
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // Input field
+            if (trimmedLine.matches(
+                    "\\[\\s*Enter .*\\s*\\]")) {
+
+                String text =
+                        trimmedLine.substring(
+                                1,
+                                trimmedLine.length() - 1
+                        ).trim();
+
+                XWPFParagraph paragraph =
+                        cell.addParagraph();
+
+                paragraph.setSpacingBefore(40);
+                paragraph.setSpacingAfter(60);
+
+                addBoxBorder(
+                        paragraph,
+                        false
+                );
+
+                XWPFRun run =
+                        paragraph.createRun();
+
+                run.setText(
+                        "   " + text + "   "
+                );
+
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // Button
+            if (trimmedLine.matches(
+                    "\\[[^\\]]+\\]")) {
+
+                String buttonText =
+                        trimmedLine.substring(
+                                1,
+                                trimmedLine.length() - 1
+                        ).trim();
+
+                XWPFParagraph paragraph =
+                        cell.addParagraph();
+
+                paragraph.setAlignment(
+                        ParagraphAlignment.CENTER
+                );
+
+                paragraph.setSpacingBefore(50);
+                paragraph.setSpacingAfter(50);
+
+                addBoxBorder(
+                        paragraph,
+                        true
+                );
+
+                XWPFRun run =
+                        paragraph.createRun();
+
+                run.setText(
+                        "  " + buttonText + "  "
+                );
+
+                run.setBold(true);
+                run.setFontFamily("Arial");
+                run.setFontSize(9);
+
+                continue;
+            }
+
+            // Bold label
+            if (trimmedLine.startsWith("**")
+                    && trimmedLine.endsWith("**")) {
+
+                String label =
+                        trimmedLine.substring(
+                                2,
+                                trimmedLine.length() - 2
+                        );
+
+                XWPFParagraph paragraph =
+                        cell.addParagraph();
+
+                paragraph.setSpacingBefore(40);
+                paragraph.setSpacingAfter(20);
+
+                XWPFRun run =
+                        paragraph.createRun();
+
+                run.setText(label);
+                run.setBold(true);
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // Bullet
+            if (trimmedLine.startsWith("- ")) {
+
+                XWPFParagraph paragraph =
+                        cell.addParagraph();
+
+                paragraph.setSpacingBefore(20);
+                paragraph.setSpacingAfter(20);
+
+                XWPFRun run =
+                        paragraph.createRun();
+
+                run.setText(
+                        "• " + trimmedLine.substring(2)
+                );
+
+                run.setFontFamily("Arial");
+                run.setFontSize(10);
+
+                continue;
+            }
+
+            // Normal text
+            XWPFParagraph paragraph =
+                    cell.addParagraph();
+
+            paragraph.setSpacingBefore(30);
+            paragraph.setSpacingAfter(30);
+
+            XWPFRun run =
+                    paragraph.createRun();
+
+            run.setText(trimmedLine);
+            run.setFontFamily("Arial");
+            run.setFontSize(10);
+        }
+    }
+    
+    private void addBoxBorder(
+            XWPFParagraph paragraph,
+            boolean button) {
+
+        CTPPr pPr =
+                paragraph.getCTP().isSetPPr()
+                        ? paragraph.getCTP().getPPr()
+                        : paragraph.getCTP().addNewPPr();
+
+        CTPBdr borders =
+                pPr.isSetPBdr()
+                        ? pPr.getPBdr()
+                        : pPr.addNewPBdr();
+
+        CTBorder top = borders.isSetTop()
+                ? borders.getTop()
+                : borders.addNewTop();
+
+        CTBorder bottom = borders.isSetBottom()
+                ? borders.getBottom()
+                : borders.addNewBottom();
+
+        CTBorder left = borders.isSetLeft()
+                ? borders.getLeft()
+                : borders.addNewLeft();
+
+        CTBorder right = borders.isSetRight()
+                ? borders.getRight()
+                : borders.addNewRight();
+
+        CTBorder[] allBorders = {
+                top,
+                bottom,
+                left,
+                right
+        };
+
+        for (CTBorder border : allBorders) {
+
+            border.setVal(STBorder.SINGLE);
+            border.setSz(
+                    BigInteger.valueOf(button ? 8 : 4)
+            );
+            border.setSpace(
+                    BigInteger.valueOf(2)
+            );
+            border.setColor("000000");
+        }
+    }
+    
+    private String getSrsWireframe(
+            SrsDto srsDto,
+            String componentNumber) {
+
+        if (srsDto == null
+                || srsDto.functionalRequirements() == null
+                || srsDto.functionalRequirements().isEmpty()
+                || componentNumber == null) {
+
+            return "";
+        }
+
+        try {
+
+            String number =
+                    componentNumber.substring(
+                            componentNumber.indexOf('.') + 1
+                    );
+
+            int index =
+                    Integer.parseInt(number) - 1;
+
+            if (index < 0
+                    || index >= srsDto.functionalRequirements().size()) {
+
+                return "";
+            }
+
+            return srsDto.functionalRequirements()
+                    .get(index)
+                    .uiDesign();
+
+        } catch (Exception e) {
+
+            return "";
+        }
     }
     
     private void addStringList(

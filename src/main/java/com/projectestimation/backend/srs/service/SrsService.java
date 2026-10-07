@@ -2,9 +2,11 @@ package com.projectestimation.backend.srs.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.List;
 
+import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -157,11 +159,13 @@ public class SrsService {
     
     private void generateSrsDocument(
             XWPFDocument document,
-            SrsDto srsDto) {
+            SrsDto srsDto) throws IOException {
 
         if (srsDto == null) {
             return;
         }
+
+        addBeasLogo(document);
 
         addTitle(document, "SOFTWARE REQUIREMENTS SPECIFICATION");
 
@@ -273,6 +277,41 @@ public class SrsService {
                 document,
                 srsDto.requirementsTraceabilityMatrix()
         );
+    }
+    
+    private void addBeasLogo(XWPFDocument document) throws IOException {
+
+        XWPFParagraph paragraph = document.createParagraph();
+
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        paragraph.setSpacingBefore(0);
+        paragraph.setSpacingAfter(120);
+
+        XWPFRun run = paragraph.createRun();
+
+        try (InputStream logoStream =
+                getClass().getClassLoader()
+                        .getResourceAsStream("psr/beas-logo.png")) {
+
+            if (logoStream == null) {
+                throw new IOException(
+                        "BEAS logo not found: src/main/resources/psr/beas-logo.png");
+            }
+
+            try {
+                run.addPicture(
+                        logoStream,
+                        XWPFDocument.PICTURE_TYPE_PNG,
+                        "beas-logo.png",
+                        Units.toEMU(158),
+                        Units.toEMU(24)
+                );
+
+            } catch (Exception e) {
+                throw new IOException(
+                        "Failed to add BEAS logo to SRS document", e);
+            }
+        }
     }
     
     private void addTitle(
@@ -652,8 +691,8 @@ public class SrsService {
 
         addSubHeading(
                 document,
-                safe(requirement.requirementId())
-                        + " - "
+                safe(requirement.sectionNumber())
+                        + " "
                         + safe(requirement.requirementName())
         );
 
@@ -1289,52 +1328,54 @@ public class SrsService {
     }
     
     private void addFieldsTable(
-        XWPFTableCell cell,
-        List<BusinessRuleFieldDto> fields) {
+            XWPFTableCell cell,
+            List<BusinessRuleFieldDto> fields) {
 
-    if (fields == null || fields.isEmpty()) {
-        setCellText(cell, "No fields specified.", false);
-        return;
-    }
+        if (fields == null || fields.isEmpty()) {
+            setCellText(cell, "No fields specified.", false);
+            return;
+        }
 
-    cell.removeParagraph(0);
+        cell.removeParagraph(0);
 
-    XWPFParagraph paragraph = cell.addParagraph();
-    paragraph.setSpacingBefore(40);
-    paragraph.setSpacingAfter(40);
+        XWPFParagraph paragraph = cell.addParagraph();
+        paragraph.setSpacingBefore(40);
+        paragraph.setSpacingAfter(40);
 
-    XWPFRun run = paragraph.createRun();
-    run.setFontFamily("Arial");
-    run.setFontSize(10);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily("Arial");
+        run.setFontSize(10);
 
-    // Header
-    run.setBold(true);
-    run.setText(
-            "Field Name    |    Type    |    Length / Format    |    Mandatory"
-    );
-
-    run.addBreak();
-
-    // Field rows
-    run.setBold(false);
-
-    for (BusinessRuleFieldDto field : fields) {
-
+        // Header
+        run.setBold(true);
         run.setText(
-                safe(field.fieldName())
-                        + "    |    "
-                        + safe(field.type())
-                        + "    |    "
-                        + safe(field.lengthOrFormat())
-                        + "    |    "
-                        + (field.mandatory() == null
-                                ? ""
-                                : field.mandatory().toString())
+                "No., Field Name, Type, Length / Format, Mandatory"
         );
 
-        run.addBreak();
+        run.setBold(false);
+
+        // Field rows
+        for (int i = 0; i < fields.size(); i++) {
+
+            BusinessRuleFieldDto field = fields.get(i);
+
+            run.addBreak();
+
+            run.setText(
+                    (i + 1)
+                            + ". "
+                            + safe(field.fieldName())
+                            + ", "
+                            + safe(field.type())
+                            + ", "
+                            + safe(field.lengthOrFormat())
+                            + ", "
+                            + (field.mandatory() == null
+                                    ? ""
+                                    : field.mandatory().toString())
+            );
+        }
     }
-}
     
     private void setMarkdownCell(
             XWPFTableCell cell,

@@ -4,6 +4,7 @@ import java.util.List;
 
 public record FunctionalRequirementDto(
         String requirementId,
+        String sectionNumber,
         String module,
         String requirementName,
         String description,

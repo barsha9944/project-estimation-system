@@ -232,6 +232,7 @@ public class GeminiSrsOrchestrator {
                    Each functional requirement must contain:
 
                    - requirementId
+                   - sectionNumber
                    - module
                    - requirementName
                    - description
@@ -315,7 +316,25 @@ public class GeminiSrsOrchestrator {
 
                    Use meaningful requirement IDs such as:
 
-                   FR-001, FR-002, FR-003, etc.
+					FR-001, FR-002, FR-003, etc.
+					
+					The requirementId is an internal traceability identifier and must not be used
+					as the visible document section number.
+					
+					For the Detailed Functional Requirements section:
+					
+					- The parent section is 5.0.
+					- The first functional requirement must have sectionNumber "5.1".
+					- The second functional requirement must have sectionNumber "5.2".
+					- The third functional requirement must have sectionNumber "5.3".
+					- Continue sequentially for all functional requirements.
+					
+					If a functional requirement contains nested functional requirements,
+					use hierarchical numbering such as:
+					5.1.1, 5.1.2, 5.2.1, etc.
+					
+					Always populate sectionNumber with the appropriate visible SRS section number.
+					Never return sectionNumber as null or an empty string..
 
                    Generate exactly one functional requirement for each provided
 					estimation use case.
@@ -509,6 +528,7 @@ public class GeminiSrsOrchestrator {
                   "functionalRequirements": [
                     {
                       "requirementId": "",
+                      "sectionNumber": "",
                       "module": "",
                       "requirementName": "",
                       "description": "",
