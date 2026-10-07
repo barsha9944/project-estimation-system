@@ -13,6 +13,8 @@ public record SddDto(
 
         List<ApplicationComponentDto> applicationComponents,
 
+        String classDiagram,
+
         DatabaseDesignDto databaseDesign,
 
         SpecialConsiderationsDto specialConsiderations,

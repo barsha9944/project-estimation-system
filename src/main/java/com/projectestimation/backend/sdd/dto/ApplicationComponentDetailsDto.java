@@ -13,5 +13,6 @@ public record ApplicationComponentDetailsDto(
         List<String> businessRules,
         String postCondition,
         String uiDesign,
-        List<DesignDetailDto> designDetails
+        List<DesignDetailDto> designDetails,
+        String sequenceDiagram
 ) {}
