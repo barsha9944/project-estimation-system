@@ -21,6 +21,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.unit.DataSize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,12 +33,16 @@ import com.projectestimation.backend.opportunity.dto.OpportunityCreateRequest;
 import com.projectestimation.backend.opportunity.dto.OpportunityListResponse;
 import com.projectestimation.backend.opportunity.dto.OpportunityResponse;
 import com.projectestimation.backend.opportunity.dto.OpportunityUpdateRequest;
+import com.projectestimation.backend.opportunity.dto.ProjectTeamRequest;
+import com.projectestimation.backend.opportunity.dto.ProjectTeamResponse;
 import com.projectestimation.backend.opportunity.mapper.FileStorageMapper;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.OpportunityFile;
 import com.projectestimation.backend.opportunity.model.OpportunityStatus;
+import com.projectestimation.backend.opportunity.model.ProjectTeam;
 import com.projectestimation.backend.opportunity.repository.OpportunityFileRepository;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.opportunity.repository.ProjectTeamRepository;
 import com.projectestimation.backend.util.FileStorage;
 import com.projectestimation.backend.util.FileUploadUtil;
 
@@ -46,21 +51,34 @@ import jakarta.validation.Valid;
 @Validated
 @Service
 public class OpportunityService {
+
 	private static final Logger log = LogManager.getLogger(OpportunityService.class);
+
 	private final OpportunityRepository opportunityRepository;
 	private final FileUploadUtil fileUploadUtil;
 	private final Environment environment;
 	private final OpportunityFileRepository opportunityFileRepository;
 	private final SequenceService sequenceService;
 
-	public OpportunityService(OpportunityRepository opportunityRepository, FileUploadUtil fileUploadUtil,
-			Environment environment, OpportunityFileRepository opportunityFileRepository,
-			SequenceService sequenceService) {
+	// Added for Project Team
+	private final ProjectTeamRepository projectTeamRepository;
+
+	public OpportunityService(
+			OpportunityRepository opportunityRepository,
+			FileUploadUtil fileUploadUtil,
+			Environment environment,
+			OpportunityFileRepository opportunityFileRepository,
+			SequenceService sequenceService,
+			ProjectTeamRepository projectTeamRepository) {
+
 		this.opportunityRepository = opportunityRepository;
 		this.fileUploadUtil = fileUploadUtil;
 		this.environment = environment;
 		this.opportunityFileRepository = opportunityFileRepository;
 		this.sequenceService = sequenceService;
+
+		// Added for Project Team
+		this.projectTeamRepository = projectTeamRepository;
 	}
 
 	public OpportunityResponse createOpportunity(OpportunityCreateRequest request) {
@@ -105,7 +123,7 @@ public class OpportunityService {
 			if (oOpportunityFile != null) {
 				opportunity.setOpportunityFile(oOpportunityFile);
 			}
-			Opportunity saved =  opportunityRepository.save(opportunity);
+			Opportunity saved = opportunityRepository.save(opportunity);
 
 			return toResponse(saved);
 		} catch (Exception e) {
@@ -151,9 +169,51 @@ public class OpportunityService {
 		return toResponse(saved);
 	}
 
+	// ============================================================
+	// PROJECT TEAM - ADDED ONLY FOR ASSIGN PROJECT TEAM
+	// ============================================================
+
+	@Transactional
+	public ProjectTeamResponse saveProjectTeam(
+			Long opportunityId,
+			ProjectTeamRequest request) {
+
+		Opportunity opportunity = findOpportunityOrThrow(opportunityId);
+
+		ProjectTeam projectTeam = projectTeamRepository
+		        .findByOpportunityId(opportunityId)
+		        .orElseGet(() -> {
+		            ProjectTeam newTeam = new ProjectTeam();
+		            newTeam.setOpportunity(opportunity);
+		            return newTeam;
+		        });
+
+		projectTeam.setProjectManager(request.projectManager());
+		projectTeam.setTeamLead(request.teamLead());
+		projectTeam.setDevelopers(request.developers());
+		projectTeam.setTester(request.tester());
+		projectTeam.setDatabaseDevelopers(request.databaseDevelopers());
+		projectTeam.setAdmin(request.admin());
+		projectTeam.setHr(request.hr());
+
+		ProjectTeam saved = projectTeamRepository.save(projectTeam);
+
+		return new ProjectTeamResponse(
+				saved.getId(),
+				opportunityId,
+				saved.getProjectManager(),
+				saved.getTeamLead(),
+				saved.getDevelopers(),
+				saved.getTester(),
+				saved.getDatabaseDevelopers(),
+				saved.getAdmin(),
+				saved.getHr()
+		);
+	}
+
 	private Opportunity findOpportunityOrThrow(Long id) {
 		return opportunityRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+			.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 	}
 
 	private void applyCreateRequest(Opportunity opportunity, OpportunityCreateRequest request) {
@@ -218,6 +278,7 @@ public class OpportunityService {
 				throw new IllegalArgumentException("File size configuration is missing");
 			}
 			allowedSizeString = allowedSizeString.trim().toUpperCase();
+
 			// Convert MB or KB to Bytes cleanly
 			if (allowedSizeString.endsWith(ProjectConstants.SIZE_IN_MB)) {
 
@@ -298,6 +359,7 @@ public class OpportunityService {
 			if (!resource.exists() || !resource.isReadable()) {
 				return ResponseEntity.notFound().build();
 			}
+
 			String contentType = Files.probeContentType(filePath);
 
 			if (contentType == null) {
@@ -311,6 +373,7 @@ public class OpportunityService {
 					.header(HttpHeaders.CONTENT_DISPOSITION,
 							disposition + "; filename=\"" + resource.getFilename() + "\"")
 					.body(resource);
+
 		} catch (Exception ex) {
 			log.error("Error deleting file: {}", fileStorage.getFileName(), ex);
 

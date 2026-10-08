@@ -26,6 +26,8 @@ import com.projectestimation.backend.opportunity.dto.OpportunityCreateRequest;
 import com.projectestimation.backend.opportunity.dto.OpportunityListResponse;
 import com.projectestimation.backend.opportunity.dto.OpportunityResponse;
 import com.projectestimation.backend.opportunity.dto.OpportunityUpdateRequest;
+import com.projectestimation.backend.opportunity.dto.ProjectTeamRequest;
+import com.projectestimation.backend.opportunity.dto.ProjectTeamResponse;
 import com.projectestimation.backend.opportunity.service.OpportunityService;
 import com.projectestimation.backend.util.FileStorage;
 
@@ -43,7 +45,8 @@ public class OpportunityController {
 	}
 
 	@PostMapping("/create")
-	public ResponseEntity<ApiResponse<OpportunityResponse>> create(@Valid @RequestBody OpportunityCreateRequest request,
+	public ResponseEntity<ApiResponse<OpportunityResponse>> create(
+			@Valid @RequestBody OpportunityCreateRequest request,
 			@AuthenticationPrincipal User user) {
 		OpportunityResponse response = opportunityService.createOpportunity(request);
 		return ResponseEntity.status(HttpStatus.CREATED)
@@ -53,7 +56,8 @@ public class OpportunityController {
 	// Added by Shinjan on 21-08-2026
 	@PostMapping(value = "/uploadrequirmentdocument", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<ApiResponse<FileStorage>> uploadRequirmentDocument(
-			@Valid @RequestPart("file") MultipartFile requirmentFile, @AuthenticationPrincipal User user) {
+			@Valid @RequestPart("file") MultipartFile requirmentFile,
+			@AuthenticationPrincipal User user) {
 		FileStorage response = opportunityService.uploadRequirmentFile(requirmentFile);
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(ApiResponse.success("Opportunity requirment file uploaded successfully", response));
@@ -72,10 +76,29 @@ public class OpportunityController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<ApiResponse<OpportunityResponse>> update(@PathVariable Long id,
+	public ResponseEntity<ApiResponse<OpportunityResponse>> update(
+			@PathVariable Long id,
 			@Valid @RequestBody OpportunityUpdateRequest request) {
 		OpportunityResponse response = opportunityService.updateOpportunity(id, request);
 		return ResponseEntity.ok(ApiResponse.success("Opportunity updated successfully", response));
+	}
+
+	// ============================================================
+	// SAVE PROJECT TEAM
+	// ============================================================
+
+	@PostMapping("/{id}/team")
+	public ResponseEntity<ApiResponse<ProjectTeamResponse>> saveProjectTeam(
+			@PathVariable Long id,
+			@Valid @RequestBody ProjectTeamRequest request) {
+
+		ProjectTeamResponse response =
+				opportunityService.saveProjectTeam(id, request);
+
+		return ResponseEntity.ok(
+				ApiResponse.success(
+						"Project team saved successfully",
+						response));
 	}
 
 	@GetMapping("/requirmentdocument/{id}")
@@ -93,7 +116,8 @@ public class OpportunityController {
 	}
 
 	@GetMapping("/requirmentdocument/viewfile/{id}")
-	public ResponseEntity<Resource> viewRequirmentFile(@PathVariable("id") String opportunityId) {
+	public ResponseEntity<Resource> viewRequirmentFile(
+			@PathVariable("id") String opportunityId) {
 		return opportunityService.viewFileById(opportunityId);
 	}
 }

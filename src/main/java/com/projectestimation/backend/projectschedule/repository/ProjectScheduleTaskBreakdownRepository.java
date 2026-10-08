@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,19 +17,35 @@ public interface ProjectScheduleTaskBreakdownRepository
 
     List<ProjectScheduleTaskBreakdown> findByProjectScheduleTaskProjectScheduleOpportunityId(
             Long opportunityId);
-    
-    
+
     @QueryHints({
-        @QueryHint(name = "jakarta.persistence.cache.retrieveMode", value = "BYPASS")
+        @QueryHint(
+            name = "jakarta.persistence.cache.retrieveMode",
+            value = "BYPASS"
+        )
     })
     @Query("""
-    	    SELECT b
-    	    FROM ProjectScheduleTaskBreakdown b
-    	    JOIN FETCH b.projectScheduleTask t
-    	    WHERE t.projectSchedule.opportunity.id = :opportunityId
-    	    ORDER BY t.sequence ASC, b.id ASC
-    	""")
-    	List<ProjectScheduleTaskBreakdown> findByOpportunityIdOrdered(
-    	        @Param("opportunityId") Long opportunityId
-    	);
+        SELECT b
+        FROM ProjectScheduleTaskBreakdown b
+        JOIN FETCH b.projectScheduleTask t
+        WHERE t.projectSchedule.opportunity.id = :opportunityId
+        ORDER BY t.sequence ASC, b.id ASC
+        """)
+    List<ProjectScheduleTaskBreakdown> findByOpportunityIdOrdered(
+            @Param("opportunityId") Long opportunityId
+    );
+
+    @Query("""
+        SELECT b
+        FROM ProjectScheduleTaskBreakdown b
+        JOIN FETCH b.projectScheduleTask t
+        WHERE t.projectSchedule.opportunity.id = :opportunityId
+          AND b.plannedStartDate <= :meetingDate
+          AND b.plannedEndDate >= :meetingDate
+        ORDER BY t.sequence ASC, b.sequence ASC, b.id ASC
+        """)
+    List<ProjectScheduleTaskBreakdown> findByOpportunityIdAndMeetingDate(
+            @Param("opportunityId") Long opportunityId,
+            @Param("meetingDate") LocalDate meetingDate
+    );
 }

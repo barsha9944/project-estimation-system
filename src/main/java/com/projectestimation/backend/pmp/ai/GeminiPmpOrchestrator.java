@@ -671,7 +671,7 @@ public class GeminiPmpOrchestrator {
                 the approved Development and Maintenance Business Objective
                 reference data provided below.
 
-                The final PMP table MUST contain exactly these SIX columns,
+                The final PMP table MUST contain exactly these SEVEN columns,
                 in exactly this order:
 
                 1. Serial No.
@@ -680,11 +680,12 @@ public class GeminiPmpOrchestrator {
                 4. Metrics Identified
                 5. Organizational Goals
                 6. Project's Goals
+                7. PPM
 
                 The final table structure is:
 
-                Serial No. | Business Objective |
-                Metrics Identified | Organizational Goals | Project's Goals
+                Serial No. | Business Objective | Project Objective |
+                Metrics Identified | Organizational Goals | Project's Goals | PPM
 
                 IMPORTANT:
                 - Business Objective MUST come from the approved master data below.
@@ -699,6 +700,9 @@ public class GeminiPmpOrchestrator {
                   Related Metrics. The project goal must explain what the project
                   aims to achieve for that metric and must not introduce a different
                   metric or unrelated goal.
+                - PPM MUST be selected from the approved PPM Dashboard.xlsx reference
+                  for the selected Business Objective and its Metrics Identified.
+                  Do not invent a new PPM equation, coefficients or X variables.
                 - Description, Procedure in brief, Tracking & monitoring interval
                   and Guiding Note are reference information used for objective
                   selection and project-objective generation. They are NOT output
@@ -709,15 +713,6 @@ public class GeminiPmpOrchestrator {
                 ------------------------------------------------------------
 
                 Development Business Objective 1
-
-                Serial No.: 1
-                Business Objective: Fulfil Delivery Commitments
-                Description: Meeting delivery commitments is a major key to success
-                in enhancing business and customer loyalty. So, that should be a priority.
-                Related Metrics: Schedule Variance - Revised (in %%)
-        		QPPO - Goal/KPI: USL: 5%%; LSL: -5%%
-
-                Development Business Objective 2
 
                 Serial No.: 1
                 Business Objective: Manage projects within budget
@@ -731,8 +726,9 @@ public class GeminiPmpOrchestrator {
                 QPPO - Goal/KPI: Mean 14/ SD 1
                 Tracking & monitoring interval: At every significant delivery milestone
                 Guiding Note: For Development, Enhancement, Migration etc type of job
+                PPM: Effort Variance - EV = -6.7946-3.9807*DDRA+19.1219*DDRUT
 
-                Development Business Objective 3
+                Development Business Objective 2
 
                 Serial No.: 2
                 Business Objective: Ensure quality of products delivered to customer -
@@ -748,16 +744,10 @@ public class GeminiPmpOrchestrator {
                 QPPO - Goal/KPI: Mean: 0.9/ SD 0.1
                 Tracking & monitoring interval: After UAT of every release
                 Guiding Note: For Development, Enhancement etc type of job
+                PPM: Pre-Delivery Defect Rate Model -  PDDR=0.2239-0.0075*RE_A+0.2708*DD_D-0.0085*RE_CR
 
-                Development Business Objective 4
 
-                Serial No.: 4
-                Business Objective: Improve quality of software engineering while the products are being made ready for delivery
-                Description: Productivity and cost in a software project would always depend on the quality of engineering work being done. So, that should be closely monitored.
-                Related Metrics: Average Pre-delivery Defect Rate (No. of defects per Person Hour)
-                QPPO - Goal/KPI: USL: 1 defects per Person hour; LSL: 0 defects per Person hour
-
-                Development Business Objective 5
+                Development Business Objective 3
 
                 Serial No.: 3
                 Business Objective: Continually Improve productivity
@@ -773,40 +763,7 @@ public class GeminiPmpOrchestrator {
                 Tracking & monitoring interval: After UAT of every product release -
                 or completion of each Use-Case
                 Guiding Note: For Development, Enhancement etc type of job
-
-                ------------------------------------------------------------
-                APPROVED MAINTENANCE BUSINESS OBJECTIVES
-                ------------------------------------------------------------
-
-                Maintenance Business Objective 1
-
-                Serial No.: 1
-                Business Objective: Continually Improve productivity
-                Description: Improving the productivity of the project team is key
-                to efficiently close a ticket within timeline.
-                Procedure in brief: Productivity in maintenance is measured hours
-                needed to close a ticket.
-                Related Metrics: Productivity (in hours per ticket)
-                [decrease in value is positive]
-                QPPO - Goal/KPI: target of 8 hr mean and SD 2
-                Tracking & monitoring interval: End of every month / Every week
-                Guiding Note: For Maintenance project
-
-                Maintenance Business Objective 2
-
-                Serial No.: 1
-                Business Objective: Ensure quality of mnt. service delivered to
-                customer - for software maintenance projects
-                Description: Ensure that defects in maintenance service delivered
-                to customer for their perusal (including UAT) are minimum to
-                achieve customer satisfaction.
-                Procedure in brief: Weighted Defect per Ticket is measured adding
-                all the defects per tickets and multiplying them with certain value.
-                Review defects value 0.5, testing defect value 1 and UAT value 2.
-                Related Metrics: WDT [decrease in value is positive]
-                QPPO - Goal/KPI: target mean 2 and SD 1
-                Tracking & monitoring interval: End of every month / every week
-                Guiding Note: For Maintenance project
+                PPM: Productivity - OP=0.0472-.0009*RE_D+0.1773*CP
 
                 ============================================================
                 PROJECT TYPE CLASSIFICATION AND BUSINESS OBJECTIVE SELECTION
@@ -822,8 +779,6 @@ public class GeminiPmpOrchestrator {
                 Classify the project as exactly one of:
 
                 - DEVELOPMENT
-                - MAINTENANCE
-                - BOTH
 
                 Do NOT classify the project from an isolated keyword. Consider
                 the overall nature of the work and the actual activities described.
@@ -832,16 +787,6 @@ public class GeminiPmpOrchestrator {
                 Evaluate ONLY the five approved Development Business Objectives.
                 Select ONLY the Development objectives that are genuinely relevant
                 to the CURRENT PROJECT.
-
-                MAINTENANCE:
-                Evaluate ONLY the two approved Maintenance Business Objectives.
-                Select ONLY the Maintenance objectives that are genuinely relevant
-                to the CURRENT PROJECT.
-
-                BOTH:
-                Evaluate the Development and Maintenance Business Objective lists
-                independently. Select only the genuinely relevant objectives from
-                either list.
 
                 It is NOT mandatory to select all Business Objectives.
                 A project may have one or more applicable objectives from the
@@ -873,10 +818,11 @@ public class GeminiPmpOrchestrator {
                   "businessObjective": "...",
                   "metricIdentified": "...",
                   "organizationalGoal": "...",
-                  "projectGoal": "..."
+                  "projectGoal": "...",
+                  "ppm": "..."
                 }
 
-                Do NOT add fields.
+                Do NOT add fields other than these six fields.
                 Do NOT remove fields.
                 Do NOT use PmpItemDto format for this array.
                 Do NOT use simple strings.
@@ -910,6 +856,21 @@ public class GeminiPmpOrchestrator {
                   and its approved Related Metrics, using the CURRENT PROJECT context.
                   It must explain the project's goal for managing or improving the
                   selected metric. Do not invent a different metric or unrelated goal.
+
+                ppm
+                = the approved Process Performance Model selected from the
+                  "PPM Dashboard.xlsx" reference file for the selected Business
+                  Objective and Metrics Identified.
+
+                The PPM MUST come from the approved reference workbook.
+                Do NOT invent a PPM.
+                Do NOT invent or modify coefficients.
+                Do NOT invent or modify X variables.
+                Do NOT create a new regression equation.
+                Preserve the approved PPM model name, Y metric, X variables,
+                equation and relevant target information from the workbook.
+                If no matching PPM is available in the workbook, return:
+                "No matching PPM model available in the approved reference."
 
                 The following reference fields MUST NOT be emitted inside
                 projectOverview.businessObjectives:
@@ -990,6 +951,11 @@ public class GeminiPmpOrchestrator {
                 -> Metric Identified
                 -> Organizational Goal
                 -> Project Goal
+                -> PPM
+
+                The PPM must correspond to the selected Business Objective and
+                Metric Identified and must be taken from the approved
+                "PPM Dashboard.xlsx" reference.
 
                 ============================================================
 
@@ -997,11 +963,20 @@ public class GeminiPmpOrchestrator {
 
                 ============================================================
 
-                An approved Excel reference file named "project objective.xlsx"
-                is attached to this Gemini request through the Gemini Files API.
+                Approved Excel reference files are used for Section 2.
 
-                Use the attached Excel file as the authoritative REFERENCE/TEMPLATE
-                for Section 2 - Project Objectives & Goals.
+                "project objective.xlsx" is the authoritative reference for
+                Business Objectives, metrics, organizational goals and related
+                Business Objective reference information.
+
+                "PPM Dashboard.xlsx" is the authoritative reference for
+                Process Performance Models.
+
+                Both reference files are attached to this Gemini request through
+                the Gemini Files API.
+
+                Use the attached Excel files as the authoritative REFERENCE/TEMPLATE
+                for Section 2 - Project Objectives & Goals and for PPM selection.
 
                 Use it to understand and preserve:
 
@@ -1014,6 +989,11 @@ public class GeminiPmpOrchestrator {
                 - Guiding Note pattern
                 - terminology
                 - level of detail
+
+                For "PPM Dashboard.xlsx", use the approved PPM model information
+                including the applicable Business Objective, Y/output metric,
+                X variables, equation, coefficients and target information where
+                available. Do not invent or modify these values.
 
                 IMPORTANT:
 
@@ -2216,7 +2196,7 @@ public class GeminiPmpOrchestrator {
                 must contain non-null, non-empty values for:
 
                 serialNumber, businessObjective, projectObjective,
-                metricIdentified, organizationalGoal and projectGoal.
+                metricIdentified, organizationalGoal, projectGoal and ppm.
 
                 Also validate every projectOverview.detailedDeliverables object
                 against DeliverableDto exactly:
