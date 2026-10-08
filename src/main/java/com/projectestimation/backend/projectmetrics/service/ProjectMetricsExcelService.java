@@ -652,84 +652,84 @@ public class ProjectMetricsExcelService {
                     dataStyle
             );
 
-            setNumber(row, column++, metrics.getOriginalSize(), dataStyle);
-            setNumber(row, column++, metrics.getActualSize(), dataStyle);
-            setNumber(row, column++, metrics.getSizeVariance(), dataStyle);
+            setNumber(row, column++, sprint.getOriginalSize(), dataStyle);
+            setNumber(row, column++, sprint.getActualSize(), dataStyle);
+            setNumber(row, column++, sprint.getSizeVariance(), dataStyle);
 
             setNumber(
                     row,
                     column++,
-                    metrics.getTotalPlannedEffortWithoutPm(),
+                    sprint.getTotalPlannedEffortWithoutPm(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getTotalPlannedEffort(),
+                    sprint.getTotalPlannedEffort(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getTotalActualEffortWithoutPm(),
+                    sprint.getTotalActualEffortWithoutPm(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getTotalActualEffort(),
+                    sprint.getTotalActualEffort(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getEffortVariance(),
+                    sprint.getEffortVariance(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getPlannedDuration(),
+                    sprint.getPlannedDuration(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getActualDuration(),
+                    sprint.getActualDuration(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getScheduleVariance(),
+                    sprint.getScheduleVariance(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getActualOverallProductivity(),
+                    sprint.getActualOverallProductivity(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getReviewEffectiveness(),
+                    sprint.getReviewEffectiveness(),
                     dataStyle
             );
 
             setNumber(
                     row,
                     column++,
-                    metrics.getTestingEffectiveness(),
+                    sprint.getTestingEffectiveness(),
                     dataStyle
             );
 
