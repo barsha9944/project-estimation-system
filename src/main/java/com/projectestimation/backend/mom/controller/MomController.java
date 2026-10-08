@@ -80,6 +80,9 @@ public class MomController {
                         momId
                 );
 
+        String documentName =
+                momService.getMomDocumentName(momId);
+        
         HttpHeaders headers =
                 new HttpHeaders();
 
@@ -89,9 +92,7 @@ public class MomController {
 
         headers.setContentDisposition(
                 ContentDisposition.attachment()
-                        .filename(
-                                "MOM_" + momId + ".docx"
-                        )
+                        .filename(documentName)
                         .build()
         );
 

@@ -19,14 +19,12 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.projectestimation.backend.mom.dto.MomAgendaItemDto;
 import com.projectestimation.backend.mom.dto.MomDto;
 import com.projectestimation.backend.mom.dto.MomGenerateRequest;
@@ -35,7 +33,11 @@ import com.projectestimation.backend.mom.model.Mom;
 import com.projectestimation.backend.mom.repository.MomRepository;
 import com.projectestimation.backend.momAI.GeminiMomOrchestrator;
 import com.projectestimation.backend.opportunity.model.Opportunity;
+import com.projectestimation.backend.opportunity.model.ProjectTeam;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+import com.projectestimation.backend.opportunity.repository.ProjectTeamRepository;
+import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
+import com.projectestimation.backend.projectschedule.repository.ProjectScheduleTaskBreakdownRepository;
 
 @Service
 public class MomService {
@@ -50,22 +52,27 @@ public class MomService {
     private static final String LIGHT_GRAY = "D9D9D9";
 
     private final OpportunityRepository opportunityRepository;
+    private final ProjectTeamRepository projectTeamRepository;
     private final MomRepository momRepository;
+    private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
     private final GeminiMomOrchestrator geminiMomOrchestrator;
     private final ObjectMapper objectMapper;
-
     public MomService(
             OpportunityRepository opportunityRepository,
+            ProjectTeamRepository projectTeamRepository,
             MomRepository momRepository,
+            ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository,
             GeminiMomOrchestrator geminiMomOrchestrator,
             ObjectMapper objectMapper
     ) {
         this.opportunityRepository = opportunityRepository;
+        this.projectTeamRepository = projectTeamRepository;
         this.momRepository = momRepository;
+        this.projectScheduleTaskBreakdownRepository =
+                projectScheduleTaskBreakdownRepository;
         this.geminiMomOrchestrator = geminiMomOrchestrator;
         this.objectMapper = objectMapper;
     }
-
     // ============================================================
     // GENERATE ALL MOMS
     // ============================================================
@@ -81,6 +88,15 @@ public class MomService {
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Opportunity not found: "
+                                                + opportunityId
+                                )
+                        );
+        ProjectTeam projectTeam =
+                projectTeamRepository
+                        .findByOpportunityId(opportunityId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Project team not found for opportunity: "
                                                 + opportunityId
                                 )
                         );
@@ -174,6 +190,7 @@ public class MomService {
                             meetingType,
                             sequence,
                             meetingDate,
+                            projectTeam,
                             geminiResponse
                     );
 
@@ -243,6 +260,16 @@ public class MomService {
         return generateDocx(mom);
     }
 
+    public String getMomDocumentName(Long momId) {
+
+        return momRepository.findById(momId)
+                .map(Mom::getDocumentName)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "MOM not found: " + momId
+                        )
+                );
+    }
     // ============================================================
     // MEETING SEQUENCE
     // ============================================================
@@ -269,6 +296,163 @@ public class MomService {
     // CREATE MOM
     // ============================================================
 
+    private List<String> buildInvitees(
+            String meetingType,
+            ProjectTeam projectTeam,
+            String clientName
+    ) {
+
+        List<String> invitees = new ArrayList<>();
+
+        switch (meetingType) {
+
+            case KICKOFF -> {
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getAdmin()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getProjectManager()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getTeamLead()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getHr()
+                );
+
+                addAllIfPresent(
+                        invitees,
+                        projectTeam.getDevelopers()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getTester()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getDatabaseDevelopers()
+                );
+            }
+
+            case TEAM -> {
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getProjectManager()
+                );
+
+                addAllIfPresent(
+                        invitees,
+                        projectTeam.getDevelopers()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getTester()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getDatabaseDevelopers()
+                );
+            }
+
+            case CLIENT -> {
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getProjectManager()
+                );
+
+                addAllIfPresent(
+                        invitees,
+                        projectTeam.getDevelopers()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getTester()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getDatabaseDevelopers()
+                );
+
+                addIfPresent(
+                        invitees,
+                        clientName
+                );
+            }
+
+            case SENIOR_MANAGEMENT -> {
+
+                addIfPresent(
+                        invitees,
+                        "CEO"
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getProjectManager()
+                );
+
+                addAllIfPresent(
+                        invitees,
+                        projectTeam.getDevelopers()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getTester()
+                );
+
+                addIfPresent(
+                        invitees,
+                        projectTeam.getDatabaseDevelopers()
+                );
+            }
+
+            default -> {
+                // No invitees
+            }
+        }
+
+        return invitees;
+    }
+    
+    private void addIfPresent(
+            List<String> list,
+            String value
+    ) {
+
+        if (value != null && !value.isBlank()) {
+            list.add(value);
+        }
+    }
+    private void addAllIfPresent(
+            List<String> list,
+            List<String> values
+    ) {
+
+        if (values == null) {
+            return;
+        }
+
+        for (String value : values) {
+            addIfPresent(list, value);
+        }
+    }
     private Mom createMom(
             Long opportunityId,
             String projectName,
@@ -276,6 +460,7 @@ public class MomService {
             String meetingType,
             int sequence,
             LocalDate meetingDate,
+            ProjectTeam projectTeam,
             String geminiResponse
     ) {
 
@@ -330,9 +515,10 @@ public class MomService {
             );
 
             List<String> invitees =
-                    objectMapper.convertValue(
-                            root.path("invitees"),
-                            new TypeReference<List<String>>() {}
+                    buildInvitees(
+                            meetingType,
+                            projectTeam,
+                            clientName
                     );
 
             mom.setInvitees(
@@ -351,9 +537,16 @@ public class MomService {
                             .asText("")
             );
 
+            List<MomAgendaItemDto> scheduleAgenda =
+                    buildScheduleAgenda(
+                            opportunityId,
+                            meetingDate,
+                            projectTeam.getProjectManager()
+                    );
+
             mom.setAgenda(
                     objectMapper.writeValueAsString(
-                            root.path("agenda")
+                            scheduleAgenda
                     )
             );
 
@@ -364,11 +557,7 @@ public class MomService {
             );
 
             mom.setDocumentName(
-                    buildDocumentName(
-                            projectName,
-                            meetingType,
-                            sequence
-                    )
+                    "MOM_" + meetingDate + ".docx"
             );
 
             mom.setCreatedAt(
@@ -385,6 +574,66 @@ public class MomService {
             );
         }
     }
+
+    // ============================================================
+    // BUILD AGENDA FROM PROJECT SCHEDULE
+    // ============================================================
+
+    private List<MomAgendaItemDto> buildScheduleAgenda(
+            Long opportunityId,
+            LocalDate meetingDate,
+            String projectManagerName
+    ) {
+
+    	List<ProjectScheduleTaskBreakdown> breakdowns =
+    	        projectScheduleTaskBreakdownRepository
+    	                .findByOpportunityIdAndMeetingDate(
+    	                        opportunityId,
+    	                        meetingDate
+    	                );
+
+        List<MomAgendaItemDto> agenda =
+                new ArrayList<>();
+
+        int itemNumber = 1;
+
+        for (ProjectScheduleTaskBreakdown breakdown : breakdowns) {
+
+            LocalDate plannedStartDate =
+                    breakdown.getPlannedStartDate();
+
+            LocalDate plannedEndDate =
+                    breakdown.getPlannedEndDate();
+
+            // Include the breakdown when the MOM meeting date falls
+            // within its planned start/end date range (inclusive).
+            if (plannedStartDate == null
+                    || plannedEndDate == null
+                    || meetingDate.isBefore(plannedStartDate)
+                    || meetingDate.isAfter(plannedEndDate)) {
+                continue;
+            }
+
+            String actionItem =
+            		breakdown.getProjectScheduleTask().getTaskName() + " - " +
+                    breakdown.getActivityName();
+
+            System.out.println("ACTION ITEM : " + actionItem);
+            String presenter =
+                    projectManagerName;
+
+            agenda.add(
+                    new MomAgendaItemDto(
+                            itemNumber++,
+                            safe(actionItem),
+                            safe(presenter)
+                    )
+            );
+        }
+
+        return agenda;
+    }
+
 
     // ============================================================
     // PROJECT INFORMATION
@@ -516,33 +765,33 @@ public class MomService {
     // DOCUMENT NAME
     // ============================================================
 
-    private String buildDocumentName(
-            String projectName,
-            String meetingType,
-            int sequence
-    ) {
-
-        String cleanProjectName =
-                projectName == null
-                        ? "Project"
-                        : projectName
-                                .replaceAll(
-                                        "[^a-zA-Z0-9-_ ]",
-                                        ""
-                                )
-                                .trim()
-                                .replaceAll(
-                                        "\\s+",
-                                        "_"
-                                );
-
-        return cleanProjectName
-                + "_MOM_"
-                + meetingType
-                + "_"
-                + sequence
-                + ".docx";
-    }
+//    private String buildDocumentName(
+//            String projectName,
+//            String meetingType,
+//            int sequence
+//    ) {
+//
+//        String cleanProjectName =
+//                projectName == null
+//                        ? "Project"
+//                        : projectName
+//                                .replaceAll(
+//                                        "[^a-zA-Z0-9-_ ]",
+//                                        ""
+//                                )
+//                                .trim()
+//                                .replaceAll(
+//                                        "\\s+",
+//                                        "_"
+//                                );
+//
+//        return cleanProjectName
+//                + "_MOM_"
+//                + meetingType
+//                + "_"
+//                + sequence
+//                + ".docx";
+//    }
 
     // ============================================================
     // FORMAT LIST
