@@ -1,6 +1,7 @@
 package com.projectestimation.backend.sdd.controller;
 
-import org.springframework.http.ContentDisposition;
+import java.io.IOException;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -10,8 +11,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.sdd.dto.SddDto;
 import com.projectestimation.backend.sdd.service.SddService;
+import com.projectestimation.backend.srs.service.SrsService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class SddController {
 
     private final SddService sddService;
+    private final SrsService srsService;
     
     @PostMapping("/generate")
     public ResponseEntity<SddDto> generateSdd(
@@ -46,38 +50,23 @@ public class SddController {
     
     @GetMapping("/download")
     public ResponseEntity<byte[]> downloadSdd(
-            @PathVariable Long opportunityId) {
+            @PathVariable Long opportunityId) throws IOException {
 
-        try {
+        byte[] document = sddService.downloadSdd(opportunityId);
 
-            byte[] document =
-                    sddService.downloadSdd(opportunityId);
+        Opportunity opportunity = srsService.getOpportunity(opportunityId);
 
-            HttpHeaders headers =
-                    new HttpHeaders();
+        String fileName = opportunity.getOpportunityName()
+                + "_sdd.docx";
 
-            headers.setContentType(
-                    MediaType.APPLICATION_OCTET_STREAM
-            );
-
-            headers.setContentDisposition(
-                    ContentDisposition.attachment()
-                            .filename("SDD.docx")
-                            .build()
-            );
-
-            headers.setContentLength(
-                    document.length
-            );
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(document);
-
-        } catch (Exception e) {
-
-            return ResponseEntity.internalServerError()
-                    .build();
-        }
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileName + "\""
+                )
+                .contentType(
+                        MediaType.APPLICATION_OCTET_STREAM
+                )
+                .body(document);
     }
 }

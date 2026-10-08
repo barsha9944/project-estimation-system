@@ -122,17 +122,19 @@ public class SddService {
 
         try {
 
-            SddDto generatedSdd =
-                    geminiSddOrchestrator.generate(srsDto);
+        	SddDto generatedSdd =
+        	        geminiSddOrchestrator.generate(srsDto);
 
-            Sdd sdd = sddRepository.findByOpportunityId(opportunityId)
-                    .orElseGet(() -> Sdd.builder()
-                            .opportunity(srsService.getOpportunity(opportunityId))
-                            .build());
+        	attachSrsWireframes(generatedSdd, srsDto);
 
-            sdd.setSddData(
-                    objectMapper.writeValueAsString(generatedSdd)
-            );
+        	Sdd sdd = sddRepository.findByOpportunityId(opportunityId)
+        	        .orElseGet(() -> Sdd.builder()
+        	                .opportunity(srsService.getOpportunity(opportunityId))
+        	                .build());
+
+        	sdd.setSddData(
+        	        objectMapper.writeValueAsString(generatedSdd)
+        	);
 
             sddRepository.save(sdd);
 
@@ -999,6 +1001,70 @@ public class SddService {
                     item.productServiceOrStandard()
             );
         }
+    }
+    
+    private void attachSrsWireframes(
+            SddDto sddDto,
+            SrsDto srsDto) {
+
+        if (sddDto == null
+                || sddDto.applicationComponents() == null
+                || srsDto == null
+                || srsDto.functionalRequirements() == null) {
+            return;
+        }
+
+        List<ApplicationComponentDto> updatedComponents =
+                new ArrayList<>();
+
+        for (ApplicationComponentDto component
+                : sddDto.applicationComponents()) {
+
+            String wireframe =
+                    getSrsWireframe(
+                            srsDto,
+                            component.componentNumber()
+                    );
+
+            List<ApplicationComponentDetailsDto> updatedDetails =
+                    new ArrayList<>();
+
+            if (component.details() != null) {
+
+                for (ApplicationComponentDetailsDto detail
+                        : component.details()) {
+
+                    updatedDetails.add(
+                            new ApplicationComponentDetailsDto(
+                                    detail.subComponentNumber(),
+                                    detail.subComponentName(),
+                                    detail.description(),
+                                    detail.primaryActor(),
+                                    detail.secondaryActor(),
+                                    detail.precondition(),
+                                    detail.basicFlow(),
+                                    detail.businessRules(),
+                                    detail.postCondition(),
+                                    wireframe,
+                                    detail.designDetails(),
+                                    detail.sequenceDiagram()
+                            )
+                    );
+                }
+            }
+
+            updatedComponents.add(
+                    new ApplicationComponentDto(
+                            component.componentNumber(),
+                            component.componentName(),
+                            component.description(),
+                            updatedDetails
+                    )
+            );
+        }
+
+        sddDto.applicationComponents().clear();
+        sddDto.applicationComponents().addAll(updatedComponents);
     }
     
     private void addApplicationComponents(

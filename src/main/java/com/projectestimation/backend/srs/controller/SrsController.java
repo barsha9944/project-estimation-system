@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.srs.dto.SrsDto;
 import com.projectestimation.backend.srs.service.SrsService;
 
@@ -51,12 +52,19 @@ public class SrsController {
 
         byte[] document = srsService.downloadSrs(opportunityId);
 
+        Opportunity opportunity = srsService.getOpportunity(opportunityId);
+
+        String fileName = opportunity.getOpportunityName()
+                + "_srs.docx";
+
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"SRS.docx\""
+                        "attachment; filename=\"" + fileName + "\""
                 )
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(
+                        MediaType.APPLICATION_OCTET_STREAM
+                )
                 .body(document);
     }
 }

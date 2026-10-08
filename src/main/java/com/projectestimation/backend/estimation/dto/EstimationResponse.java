@@ -44,5 +44,11 @@ public class EstimationResponse {
     private Boolean testCaseCompleted;
     
     private Boolean pmpCompleted;
+    
+    private Boolean srsCompleted;
+    
+    private Boolean sddCompleted;
+    
+    private Boolean rtmCompleted;
 
 }

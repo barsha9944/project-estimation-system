@@ -59,6 +59,8 @@ import com.projectestimation.backend.pmp.repository.PmpRepository;
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
+import com.projectestimation.backend.sdd.repository.SddRepository;
+import com.projectestimation.backend.srs.repository.SrsRepository;
 import com.projectestimation.backend.testcase.repository.TestCaseRepository;
 
 @Service
@@ -76,6 +78,8 @@ public class CalculationService {
 	private final ProjectMetricsRepository projectMetricsRepository;
 	private final TestCaseRepository testCaseRepository;
 	private final PmpRepository pmpRepository;
+	private final SrsRepository srsRepository;
+	private final SddRepository sddRepository;
 	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
@@ -87,7 +91,9 @@ public class CalculationService {
 			ProjectScheduleRepository projectScheduleRepository,
 			ProjectMetricsRepository projectMetricsRepository,
 			TestCaseRepository testCaseRepository,
-			PmpRepository pmpRepository) {
+			PmpRepository pmpRepository,
+			SrsRepository srsRepository,
+			SddRepository sddRepository) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -100,6 +106,8 @@ public class CalculationService {
 		this.projectMetricsRepository = projectMetricsRepository;
 		this.testCaseRepository = testCaseRepository;
 		this.pmpRepository = pmpRepository;
+		this.srsRepository = srsRepository;
+		this.sddRepository = sddRepository;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -1568,6 +1576,11 @@ public class CalculationService {
 
 	    response.setPmpCompleted(pmpRepository.existsByOpportunityId(opportunityId));
 	    
+	    response.setSrsCompleted(srsRepository.existsByOpportunityId(opportunityId));
+	    
+	    
+	    response.setSddCompleted(sddRepository.existsByOpportunityId(opportunityId));
+
 	    return response;
 	}
 	
