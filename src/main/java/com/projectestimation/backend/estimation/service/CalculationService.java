@@ -59,6 +59,7 @@ import com.projectestimation.backend.pmp.repository.PmpRepository;
 import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRepository;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
+import com.projectestimation.backend.rtm.repository.RtmRepository;
 import com.projectestimation.backend.sdd.repository.SddRepository;
 import com.projectestimation.backend.srs.repository.SrsRepository;
 import com.projectestimation.backend.testcase.repository.TestCaseRepository;
@@ -80,6 +81,7 @@ public class CalculationService {
 	private final PmpRepository pmpRepository;
 	private final SrsRepository srsRepository;
 	private final SddRepository sddRepository;
+	private final RtmRepository rtmRepository;
 	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
@@ -93,7 +95,8 @@ public class CalculationService {
 			TestCaseRepository testCaseRepository,
 			PmpRepository pmpRepository,
 			SrsRepository srsRepository,
-			SddRepository sddRepository) {
+			SddRepository sddRepository,
+			RtmRepository rtmRepository) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -108,6 +111,7 @@ public class CalculationService {
 		this.pmpRepository = pmpRepository;
 		this.srsRepository = srsRepository;
 		this.sddRepository = sddRepository;
+		this.rtmRepository = rtmRepository;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -1580,6 +1584,8 @@ public class CalculationService {
 	    
 	    
 	    response.setSddCompleted(sddRepository.existsByOpportunityId(opportunityId));
+	    
+	    response.setRtmCompleted(rtmRepository.existsByOpportunityId(opportunityId));
 
 	    return response;
 	}
