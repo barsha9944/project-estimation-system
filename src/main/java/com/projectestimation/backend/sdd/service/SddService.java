@@ -58,6 +58,7 @@ public class SddService {
     private final ObjectMapper objectMapper;
     private final SrsService srsService;
     private final GeminiSddOrchestrator geminiSddOrchestrator;
+    private final com.projectestimation.backend.review.service.DocumentReviewService documentReviewService;
     private final List<String> tocHeadings = new ArrayList<>();
     private XWPFParagraph tocParagraph;
 
@@ -137,6 +138,16 @@ public class SddService {
         	);
 
             sddRepository.save(sdd);
+
+            try {
+                documentReviewService.initializeOrUpdateSchedule(
+                        srsService.getOpportunity(opportunityId),
+                        com.projectestimation.backend.review.model.DocumentReviewType.SDD,
+                        java.time.LocalDateTime.now()
+                );
+            } catch (Exception reviewEx) {
+                // Log but don't break SDD return
+            }
 
             return generatedSdd;
 

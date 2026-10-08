@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.projectestimation.backend.opportunity.model.Opportunity;
+import com.projectestimation.backend.review.dto.DocumentReviewStatusDto;
+import com.projectestimation.backend.review.model.DocumentReviewType;
+import com.projectestimation.backend.review.service.DocumentReviewService;
 import com.projectestimation.backend.srs.dto.SrsDto;
 import com.projectestimation.backend.srs.service.SrsService;
 
@@ -23,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class SrsController {
 
     private final SrsService srsService;
+    private final DocumentReviewService documentReviewService;
 
     @GetMapping
     public ResponseEntity<SrsDto> getSrs(
@@ -66,5 +70,90 @@ public class SrsController {
                         MediaType.APPLICATION_OCTET_STREAM
                 )
                 .body(document);
+    }
+
+    @GetMapping("/reviews/status")
+    public ResponseEntity<DocumentReviewStatusDto> getReviewStatus(
+            @PathVariable Long opportunityId) {
+
+        DocumentReviewStatusDto status = documentReviewService.getReviewStatus(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        if (status == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(status);
+    }
+
+    @GetMapping("/reviews/cycle1/download")
+    public ResponseEntity<byte[]> downloadReviewCycle1(
+            @PathVariable Long opportunityId) throws IOException {
+
+        byte[] docBytes = documentReviewService.downloadCycle1Note(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        String fileName = documentReviewService.getReview1FileName(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileName + "\""
+                )
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(docBytes);
+    }
+
+    @GetMapping("/reviews/cycle2/download")
+    public ResponseEntity<byte[]> downloadReviewCycle2(
+            @PathVariable Long opportunityId) throws IOException {
+
+        byte[] docBytes = documentReviewService.downloadCycle2Note(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        String fileName = documentReviewService.getReview2FileName(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileName + "\""
+                )
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(docBytes);
+    }
+
+    @GetMapping("/reviews/datasheet/download")
+    public ResponseEntity<byte[]> downloadReviewDataSheet(
+            @PathVariable Long opportunityId) throws IOException {
+
+        byte[] sheetBytes = documentReviewService.downloadDataSheet(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        String fileName = documentReviewService.getDataSheetFileName(
+                opportunityId,
+                DocumentReviewType.SRS
+        );
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + fileName + "\""
+                )
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(sheetBytes);
     }
 }

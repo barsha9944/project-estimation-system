@@ -55,6 +55,7 @@ public class SrsService {
     private final ObjectMapper objectMapper;
     private final EstimationAnalysisRepository estimationAnalysisRepository;
     private final EstimationUseCaseRepository estimationUseCaseRepository;
+    private final com.projectestimation.backend.review.service.DocumentReviewService documentReviewService;
 
     public Srs getByOpportunityId(Long opportunityId) {
         return srsRepository.findByOpportunityId(opportunityId)
@@ -103,6 +104,16 @@ public class SrsService {
 	        srs.setSrsData(objectMapper.writeValueAsString(generatedSrs));
 
 	        srsRepository.save(srs);
+
+	        try {
+	            documentReviewService.initializeOrUpdateSchedule(
+	                    opportunity,
+	                    com.projectestimation.backend.review.model.DocumentReviewType.SRS,
+	                    java.time.LocalDateTime.now()
+	            );
+	        } catch (Exception reviewEx) {
+	            // Log but don't break SRS return
+	        }
 
 	        return generatedSrs;
 
