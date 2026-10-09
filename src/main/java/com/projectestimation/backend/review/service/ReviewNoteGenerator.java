@@ -82,7 +82,7 @@ public class ReviewNoteGenerator {
                     : cycle1DateStr;
 
             // Setup Header (Logo + Company Name + Divider Line)
-            addDocumentHeader(doc);
+            addBeasLogoBeforeTitle(doc);
 
             // Setup Footer (Page X of Y)
             addDocumentFooter(doc);
@@ -262,26 +262,32 @@ public class ReviewNoteGenerator {
     }
 
     private void addDocumentHeader(XWPFDocument doc) {
-        XWPFHeader header = doc.createHeader(HeaderFooterType.DEFAULT);
-        XWPFParagraph headerPara = header.createParagraph();
-        headerPara.setAlignment(ParagraphAlignment.LEFT);
-        headerPara.setSpacingAfter(60);
+    	XWPFHeader header = doc.createHeader(HeaderFooterType.DEFAULT);
 
-        // Add BEAS logo
-        try (InputStream logoStream = getClass().getClassLoader().getResourceAsStream("psr/beas-logo.png")) {
-            if (logoStream != null) {
-                XWPFRun logoRun = headerPara.createRun();
-                logoRun.addPicture(
-                        logoStream,
-                        XWPFDocument.PICTURE_TYPE_PNG,
-                        "beas-logo.png",
-                        Units.toEMU(110),
-                        Units.toEMU(17)
-                );
-            }
-        } catch (Exception e) {
-            // Ignore logo error if missing
+    	XWPFParagraph headerPara = header.getParagraphArray(0);
+    	if (headerPara == null) {
+    	    headerPara = header.createParagraph();
+    	}
+    headerPara.setAlignment(ParagraphAlignment.LEFT);
+    headerPara.setSpacingBefore(0);
+    headerPara.setSpacingAfter(60);
+
+    try (InputStream logoStream = getClass()
+            .getClassLoader()
+            .getResourceAsStream("psr/beas-logo.png")) {
+
+        if (logoStream == null) {
+            throw new IllegalStateException(
+                    "BEAS logo not found: psr/beas-logo.png");
         }
+
+        XWPFRun logoRun = headerPara.createRun();
+        logoRun.addPicture(
+                logoStream,
+                XWPFDocument.PICTURE_TYPE_PNG,
+                "beas-logo.png",
+                Units.toEMU(110),
+                Units.toEMU(17));
 
         XWPFRun textRun = headerPara.createRun();
         textRun.setText("   BEAS Consultancy and Services Pvt. Ltd.");
@@ -289,18 +295,29 @@ public class ReviewNoteGenerator {
         textRun.setFontFamily("Arial");
         textRun.setFontSize(10);
 
-        // Add bottom border line to header paragraph
-        CTPPr ppr = headerPara.getCTP().getPPr();
-        if (ppr == null) {
-            ppr = headerPara.getCTP().addNewPPr();
-        }
-        CTPBdr bdr = ppr.isSetPBdr() ? ppr.getPBdr() : ppr.addNewPBdr();
-        CTBorder bottomBorder = bdr.isSetBottom() ? bdr.getBottom() : bdr.addNewBottom();
-        bottomBorder.setVal(STBorder.SINGLE);
-        bottomBorder.setSz(BigInteger.valueOf(6));
-        bottomBorder.setSpace(BigInteger.valueOf(4));
-        bottomBorder.setColor("888888");
+    } catch (Exception e) {
+        throw new IllegalStateException(
+                "Failed to add BEAS logo to Review Note", e);
     }
+
+    CTPPr ppr = headerPara.getCTP().getPPr();
+    if (ppr == null) {
+        ppr = headerPara.getCTP().addNewPPr();
+    }
+
+    CTPBdr bdr = ppr.isSetPBdr()
+            ? ppr.getPBdr()
+            : ppr.addNewPBdr();
+
+    CTBorder bottomBorder = bdr.isSetBottom()
+            ? bdr.getBottom()
+            : bdr.addNewBottom();
+
+    bottomBorder.setVal(STBorder.SINGLE);
+    bottomBorder.setSz(BigInteger.valueOf(6));
+    bottomBorder.setSpace(BigInteger.valueOf(4));
+    bottomBorder.setColor("888888");
+}
 
     private void addDocumentFooter(XWPFDocument doc) {
         XWPFFooter footer = doc.createFooter(HeaderFooterType.DEFAULT);
@@ -362,5 +379,34 @@ public class ReviewNoteGenerator {
     private void addSpacing(XWPFDocument doc, int space) {
         XWPFParagraph p = doc.createParagraph();
         p.setSpacingAfter(space);
+    }
+ 
+    private void addBeasLogoBeforeTitle(XWPFDocument doc) {
+        XWPFParagraph logoPara = doc.createParagraph();
+        logoPara.setAlignment(ParagraphAlignment.CENTER);
+        logoPara.setSpacingBefore(0);
+        logoPara.setSpacingAfter(10);
+
+        try (InputStream logoStream = getClass()
+                .getClassLoader()
+                .getResourceAsStream("psr/beas-logo.png")) {
+
+            if (logoStream == null) {
+                throw new IllegalStateException(
+                        "BEAS logo not found: psr/beas-logo.png");
+            }
+
+            XWPFRun logoRun = logoPara.createRun();
+            logoRun.addPicture(
+                    logoStream,
+                    XWPFDocument.PICTURE_TYPE_PNG,
+                    "beas-logo.png",
+                    Units.toEMU(158),
+                    Units.toEMU(24));
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Failed to add BEAS logo before title", e);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.projectestimation.backend.review.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -9,6 +10,9 @@ import java.util.List;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
@@ -16,6 +20,7 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 
@@ -81,6 +86,7 @@ public class ReviewDataSheetGenerator {
 
             Sheet sheet = workbook.createSheet(sheetName);
 
+            addBeasLogoToSheet(workbook, sheet);
             // Fonts
             Font boldTitleFont = workbook.createFont();
             boldTitleFont.setFontName("Arial");
@@ -142,22 +148,22 @@ public class ReviewDataSheetGenerator {
             tableCenterDataStyle.setVerticalAlignment(VerticalAlignment.TOP);
 
             // Row 0: Title
-            Row titleRow = sheet.createRow(0);
+            Row titleRow = sheet.createRow(3);
             Cell titleCell = titleRow.createCell(1);
             titleCell.setCellValue(typeTitle + " Review Sheet");
             titleCell.setCellStyle(titleStyle);
 
             // Metadata rows (Rows 3..9)
-            addMetaRow(sheet, 3, "Project Name:", oppName, metaLabelStyle, metaValStyle);
-            addMetaRow(sheet, 4, "Project Manager Name:", pmName, metaLabelStyle, metaValStyle);
-            addMetaRow(sheet, 5, "Reviewer:", FIXED_REVIEWER_NAME, metaLabelStyle, metaValStyle);
-            addMetaRow(sheet, 6, "Prepared by:", preparedBy, metaLabelStyle, metaValStyle);
-            addMetaRow(sheet, 7, "Review Date:", metaCycle1DateStr, metaLabelStyle, metaValStyle);
-            addMetaRow(sheet, 8, "Approver:", FIXED_REVIEWER_NAME, metaLabelStyle, metaValStyle);
-            addMetaRow(sheet, 9, "Approval Date:", metaCycle2DateStr, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 6, "Project Name:", oppName, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 7, "Project Manager Name:", pmName, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 8, "Reviewer:", FIXED_REVIEWER_NAME, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 9, "Prepared by:", preparedBy, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 10, "Review Date:", metaCycle1DateStr, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 11, "Approver:", FIXED_REVIEWER_NAME, metaLabelStyle, metaValStyle);
+            addMetaRow(sheet, 12, "Approval Date:", metaCycle2DateStr, metaLabelStyle, metaValStyle);
 
             // Findings Table Header (Row 12)
-            int tableStartRow = 12;
+            int tableStartRow = 15;
             Row headerRow = sheet.createRow(tableStartRow);
             headerRow.setHeightInPoints(24);
             String[] headers = {
@@ -271,5 +277,37 @@ public class ReviewDataSheetGenerator {
         Cell valCell = row.createCell(2);
         valCell.setCellValue(value != null ? value : "");
         valCell.setCellStyle(valStyle);
+    }
+    
+    private void addBeasLogoToSheet(
+            XSSFWorkbook workbook,
+            Sheet sheet) throws IOException {
+
+        try (InputStream logoStream = getClass()
+                .getClassLoader()
+                .getResourceAsStream("psr/beas-logo.png")) {
+
+            if (logoStream == null) {
+                throw new IOException(
+                        "BEAS logo not found: src/main/resources/psr/beas-logo.png");
+            }
+
+            byte[] logoBytes = logoStream.readAllBytes();
+
+            int pictureIndex = workbook.addPicture(
+                    logoBytes,
+                    Workbook.PICTURE_TYPE_PNG);
+
+            CreationHelper helper = workbook.getCreationHelper();
+            Drawing<?> drawing = sheet.createDrawingPatriarch();
+            ClientAnchor anchor = helper.createClientAnchor();
+
+            anchor.setCol1(0);
+            anchor.setRow1(0);
+            anchor.setCol2(3);
+            anchor.setRow2(3);
+
+            drawing.createPicture(anchor, pictureIndex);
+        }
     }
 }
