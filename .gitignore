@@ -6,5 +6,7 @@
 /target
 /.vscode
 /logs
+/uploads/
 src/main/java/com/projectestimation/backend/estimation/config/GeminiProperties.java
 src/main/java/com/projectestimation/backend/estimation/config/GeminiProperties.java
+uploads/reviews/Opportunity 23_sdd_review1.docx
