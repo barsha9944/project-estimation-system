@@ -76,38 +76,66 @@ public class GeminiDarOrchestrator {
                    architecture, design alternatives, interfaces,
                    technical risks and design decisions.
 
-                7. Create a meaningful meeting name, phase justification,
-                   agenda, and discussion notes.
+                7. Create a meaningful meeting name and phase justification.
 
-                8. Generate decision alternatives and project-specific
-                   evaluation criteria supported by the provided evidence.
+                8. Generate exactly ONE agenda item covering the main decision
+                   to be evaluated. Include a clear topic and a detailed,
+                   project-specific description. Do not generate additional
+                   agenda items.
 
-                9. Every evaluation criterion weight must be an integer
-                   between 1 and 5 inclusive.
+                9. Generate at least FOUR distinct discussion notes. Prefer
+                   4 to 6 notes when supported by the SRS and SDD.
+                   Each note must contain a meaningful topic, detailed
+                   discussion, and clear outcome. Cover different relevant
+                   aspects such as architecture, scalability, security,
+                   maintainability, integration, implementation complexity,
+                   performance, cost, or risks as supported by the evidence.
+                   Avoid duplicate or repetitive points. Do not fabricate
+                   requirements, facts, or decisions.
 
-                10. Every alternative's score for each criterion must be an
+                10. Generate at least FOUR distinct, project-specific
+                    evaluation criteria. Prefer 5 to 6 criteria when supported
+                    by the SRS and SDD. Criteria must be relevant to the
+                    selected phase and decision being evaluated.
+
+                11. Generate at least FOUR distinct decision alternatives.
+                    Prefer 4 to 6 alternatives when supported by the SRS and
+                    SDD. The alternatives must represent meaningfully different,
+                    feasible approaches to the decision, not renamed duplicates.
+                    Give every alternative a unique alternativeId such as A1,
+                    A2, A3, and A4. The alternatives array must contain at least
+                    four objects. Do not return only two alternatives.
+
+                12. Every evaluation criterion weight must be an integer
+                    between 1 and 5 inclusive.
+
+                13. Every alternative's score for each criterion must be an
                     integer between 1 and 5 inclusive.
 
-                11. Calculate weightedTotal for each alternative as:
+                14. Calculate weightedTotal for each alternative as:
                     sum(weight * score) / sum(weight).
                     Round to two decimal places.
 
-                12. The same criterion must use the same weight across all
-                    alternatives. Each alternative must score every criterion.
+                15. The same criterion must use the same weight across all
+                    alternatives. Each alternative must score every criterion,
+                    using the same criteria in the same order.
 
-                13. Recommend an alternative using the calculated totals.
-                    Explain the reasoning and any relevant uncertainty.
+                16. Recommend one of the generated alternatives using the
+                    calculated totals. Explain the reasoning and uncertainty.
 
-                14. Do not claim the recommendation has already been approved.
+                17. Do not claim the recommendation has already been approved.
                     It requires human review.
 
-                15. Use only the invitees provided above. Do not invent names.
+                18. Use only the invitees provided above. Do not invent names.
 
-                16. Do not invent dates, schedule status, project facts,
+                19. Do not invent dates, schedule status, project facts,
                     decisions, evidence, or implementation details.
 
-                17. If evidence is insufficient, explain the uncertainty
-                    instead of fabricating facts.
+                20. If evidence is insufficient, explain the uncertainty
+                    instead of fabricating facts. If fewer than four genuinely
+                    distinct alternatives can be supported, still provide four
+                    reasonable options and clearly state assumptions or
+                    uncertainties rather than inventing project facts.
 
                 RETURN VALID JSON ONLY with this structure:
 
@@ -117,19 +145,40 @@ public class GeminiDarOrchestrator {
                   "meetingName": "...",
                   "agenda": [
                     {
-                      "topic": "...",
-                      "description": "...",
+                      "topic": "Main Decision Evaluation",
+                      "description": "Evaluate the project-specific alternatives against the identified evaluation criteria.",
                       "durationMinutes": 15
                     }
                   ],
                   "discussionNotes": [
                     {
-                      "topic": "...",
+                      "topic": "Architecture and Scalability",
+                      "discussion": "...",
+                      "outcome": "..."
+                    },
+                    {
+                      "topic": "Security and Compliance",
+                      "discussion": "...",
+                      "outcome": "..."
+                    },
+                    {
+                      "topic": "Maintainability and Complexity",
+                      "discussion": "...",
+                      "outcome": "..."
+                    },
+                    {
+                      "topic": "Integration and Implementation Risks",
                       "discussion": "...",
                       "outcome": "..."
                     }
                   ],
-                  "evaluationCriteria": ["..."],
+                  "evaluationCriteria": [
+                    "Scalability",
+                    "Security Compliance",
+                    "Maintainability",
+                    "Integration Complexity",
+                    "Performance"
+                  ],
                   "alternatives": [
                     {
                       "alternativeId": "A1",
@@ -212,23 +261,44 @@ public class GeminiDarOrchestrator {
             );
         }
 
-        if (result.agenda() == null || result.agenda().isEmpty()) {
+        if (result.agenda() == null || result.agenda().size() != 1) {
             throw new IllegalArgumentException(
-                    "Gemini returned an empty agenda."
+                    "DAR must contain exactly one agenda item."
+            );
+        }
+
+        if (result.discussionNotes() == null
+                || result.discussionNotes().size() < 4) {
+            throw new IllegalArgumentException(
+                    "DAR must contain at least four discussion notes."
             );
         }
 
         if (result.evaluationCriteria() == null
-                || result.evaluationCriteria().isEmpty()) {
+                || result.evaluationCriteria().size() < 4) {
             throw new IllegalArgumentException(
-                    "Gemini returned no evaluation criteria."
+                    "DAR must contain at least four evaluation criteria."
+            );
+        }
+
+        int discussionCount = result.discussionNotes().size();
+        int criteriaCount = result.evaluationCriteria().size();
+        int requiredCriteria = Math.min(discussionCount, 6);
+
+        if (criteriaCount < requiredCriteria) {
+            throw new IllegalArgumentException(
+                    "Decision Matrix must contain at least "
+                            + requiredCriteria
+                            + " criteria for "
+                            + discussionCount
+                            + " discussion notes."
             );
         }
 
         if (result.alternatives() == null
-                || result.alternatives().size() < 2) {
+                || result.alternatives().size() < 4) {
             throw new IllegalArgumentException(
-                    "DAR must contain at least two decision alternatives."
+                    "DAR must contain at least four decision alternatives."
             );
         }
 
