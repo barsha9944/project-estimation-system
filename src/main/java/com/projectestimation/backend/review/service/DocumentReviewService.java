@@ -11,6 +11,7 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,8 +44,8 @@ import lombok.RequiredArgsConstructor;
 public class DocumentReviewService {
 
     private static final Logger log = LogManager.getLogger(DocumentReviewService.class);
-    private static final String STORAGE_DIR = "uploads/reviews";
-
+    @Value("${review.storage-dir}")
+    private String reviewStorageDir;
     private final DocumentReviewRepository documentReviewRepository;
     private final OpportunityRepository opportunityRepository;
     private final ProjectTeamRepository projectTeamRepository;
@@ -179,8 +180,8 @@ public class DocumentReviewService {
                     "1.0",
                     findings
             );
-            Path dataSheetPath = saveFile(dataSheetFileName, dataSheetBytes);
-
+            Path dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, dataSheetBytes);
+            
             // 3. Generate and save Review Note 1 DOCX
             byte[] note1Bytes = reviewNoteGenerator.generateReviewNote(
                     docType,
@@ -195,7 +196,7 @@ public class DocumentReviewService {
                     "1.0",
                     false
             );
-            Path note1Path = saveFile(review1FileName, note1Bytes);
+            Path note1Path = saveFile(opportunity.getId(), review1FileName, note1Bytes);
 
             // Persist status and serialized findings for Cycle 2
             review.setFindingsData(objectMapper.writeValueAsString(findings));
@@ -298,7 +299,7 @@ public class DocumentReviewService {
                     "1.0",
                     updatedFindings
             );
-            Path dataSheetPath = saveFile(dataSheetFileName, updatedDataSheetBytes);
+            Path dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, updatedDataSheetBytes);
 
             // 4. Generate and save Review Note 2 DOCX
             byte[] note2Bytes = reviewNoteGenerator.generateReviewNote(
@@ -314,7 +315,7 @@ public class DocumentReviewService {
                     "1.0",
                     isApproved
             );
-            Path note2Path = saveFile(review2FileName, note2Bytes);
+            Path note2Path = saveFile(opportunity.getId(), review2FileName, note2Bytes);
 
             review.setFindingsData(objectMapper.writeValueAsString(updatedFindings));
             review.setDataSheetFilePath(dataSheetPath.toAbsolutePath().toString());
@@ -426,15 +427,19 @@ public class DocumentReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException(docType + " review schedule not found for opportunity ID: " + opportunityId));
     }
 
-    private Path saveFile(String fileName, byte[] content) throws IOException {
-        Path dirPath = Paths.get(STORAGE_DIR);
-        if (!Files.exists(dirPath)) {
-            Files.createDirectories(dirPath);
-        }
-        Path filePath = dirPath.resolve(fileName);
-        Files.write(filePath, content);
-        return filePath;
-    }
+
+private Path saveFile(Long opportunityId, String fileName, byte[] content) throws IOException {
+    Path dirPath = Paths.get(reviewStorageDir)
+            .resolve(String.valueOf(opportunityId));
+
+    Files.createDirectories(dirPath);
+
+    Path filePath = dirPath.resolve(fileName);
+    Files.write(filePath, content);
+
+    return filePath;
+}
+
 
     private byte[] readFileBytes(String filePathStr) throws IOException {
         Path path = Paths.get(filePathStr);

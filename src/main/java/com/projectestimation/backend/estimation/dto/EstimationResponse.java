@@ -1,5 +1,6 @@
 package com.projectestimation.backend.estimation.dto;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -32,6 +33,12 @@ public class EstimationResponse {
     private Double benchmarkProductivityRatio;
 
     private Double hoursOfEffort;
+    
+    private String currency;
+
+    private BigDecimal hourlyRate;
+    
+    private BigDecimal projectPrice;
     
     private Boolean estimationCompleted;
 
