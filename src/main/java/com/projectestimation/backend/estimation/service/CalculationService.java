@@ -1559,6 +1559,12 @@ public class CalculationService {
 	    response.setHoursOfEffort(
 	            analysis.getHoursOfEffort());
 	    
+	    response.setCurrency(analysis.getCurrency());
+
+	    response.setHourlyRate(analysis.getHourlyRate());
+
+	    response.setProjectPrice(analysis.getProjectPrice());
+	    
 	    response.setEstimationCompleted(
 	            estimationAnalysisRepository
 	                    .findByOpportunityId(opportunityId)
