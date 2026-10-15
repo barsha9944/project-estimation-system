@@ -83,9 +83,9 @@ public class DarReviewService {
                 opportunityId,
                 generated.issueTitle(),
                 generated.meetingDateTime(),
-                generated.place(),
+                "Beas Office",
                 generated.darEventTrigger(),
-                generated.decisionOwner(),
+                team.getProjectManager(),
                 evaluationParticipants,
                 decisionParticipants,
                 safeList(generated.evaluationCriteria()),
@@ -154,14 +154,20 @@ public class DarReviewService {
 
         DarReviewDto existing = readJson(saved.getReviewData());
 
-        // Participant names are controlled by project-team data, not the request.
+        ProjectTeam team = projectTeamRepository
+                .findByOpportunityId(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Project Team not found for opportunity " + opportunityId
+                ));
+
+        // Participant names and Decision Owner come from project-team data.
         DarReviewDto updated = new DarReviewDto(
                 opportunityId,
                 request.issueTitle(),
                 request.meetingDateTime(),
-                request.place(),
+                "Beas Office",
                 request.darEventTrigger(),
-                request.decisionOwner(),
+                team.getProjectManager(),
                 existing.evaluationParticipants(),
                 existing.decisionParticipants(),
                 safeList(request.evaluationCriteria()),
@@ -212,7 +218,7 @@ public class DarReviewService {
             setCell(worksheet, 1, 0, "Date/Time");
             setCell(worksheet, 1, 1, safeText(review.meetingDateTime()));
             setCell(worksheet, 2, 0, "Place");
-            setCell(worksheet, 2, 1, safeText(review.place()));
+            setCell(worksheet, 2, 1, "Beas Office");
             setCell(worksheet, 3, 0, "DAR Event Trigger");
             setCell(worksheet, 3, 1, safeText(review.darEventTrigger()));
             setCell(worksheet, 4, 0, "Decision Owner");
@@ -304,18 +310,18 @@ public class DarReviewService {
             addHeading(document, "7. Justification for Solution");
             addParagraph(document, safeText(review.justification()));
 
-            document.createParagraph().setPageBreak(true);
-
-            addTitle(document, "Review Approval");
-            addHeading(document, "8. Prepared By and Date");
-
-            XWPFTable prepared = document.createTable(2, 2);
-            setCell(prepared, 0, 0, "Prepared By");
-            setCell(prepared, 0, 1, safeText(review.preparedBy()));
-            setCell(prepared, 1, 0, "Date");
-            setCell(prepared, 1, 1, safeText(review.preparedDate()));
-            setTableBorders(prepared);
-            styleTable(prepared, false);
+//            document.createParagraph().setPageBreak(true);
+//
+//            addTitle(document, "Review Approval");
+//            addHeading(document, "8. Prepared By and Date");
+//
+//            XWPFTable prepared = document.createTable(2, 2);
+//            setCell(prepared, 0, 0, "Prepared By");
+//            setCell(prepared, 0, 1, safeText(review.preparedBy()));
+//            setCell(prepared, 1, 0, "Date");
+//            setCell(prepared, 1, 1, safeText(review.preparedDate()));
+//            setTableBorders(prepared);
+//            styleTable(prepared, false);
 
             document.write(output);
             return output.toByteArray();
@@ -357,7 +363,7 @@ public class DarReviewService {
 
         List<DarReviewDto.ParticipantDto> participants = new ArrayList<>();
         for (String name : names) {
-            participants.add(new DarReviewDto.ParticipantDto(name, "N"));
+            participants.add(new DarReviewDto.ParticipantDto(name, "P"));
         }
         return participants;
     }
@@ -371,7 +377,7 @@ public class DarReviewService {
 
         List<DarReviewDto.ParticipantDto> participants = new ArrayList<>();
         for (String name : names) {
-            participants.add(new DarReviewDto.ParticipantDto(name, "N"));
+            participants.add(new DarReviewDto.ParticipantDto(name, "P"));
         }
         return participants;
     }
@@ -425,7 +431,7 @@ public class DarReviewService {
         XWPFRun run = paragraph.createRun();
         run.setBold(true);
         run.setFontFamily("Arial");
-        run.setFontSize(16);
+        run.setFontSize(20);
         run.setText(text);
     }
 
@@ -437,7 +443,7 @@ public class DarReviewService {
         XWPFRun run = paragraph.createRun();
         run.setBold(true);
         run.setFontFamily("Times New Roman");
-        run.setFontSize(12);
+        run.setFontSize(15);
         run.setColor("C00000");
         run.setText(text);
     }
@@ -448,7 +454,7 @@ public class DarReviewService {
 
         XWPFRun run = paragraph.createRun();
         run.setFontFamily("Times New Roman");
-        run.setFontSize(10);
+        run.setFontSize(12);
         run.setText(text == null ? "" : text);
     }
 
@@ -456,17 +462,43 @@ public class DarReviewService {
             XWPFDocument document,
             List<DarReviewDto.ParticipantDto> participants
     ) {
-        XWPFTable table = document.createTable(1, 3);
+        // Place the status explanation above the table, as requested.
+        addParagraph(
+                document,
+                "(Status: P = Active Participant, N = No Active Participation)"
+        );
 
-        setCell(table, 0, 0, "Participant");
-        setCell(table, 0, 1, "Role/Name");
-        setCell(table, 0, 2, "Status (P/N)");
+        XWPFTable table = document.createTable(1, 4);
+        table.setWidth("100%");
 
-        for (DarReviewDto.ParticipantDto participant : safeList(participants)) {
+        // Four-column layout: Name | Status | Name | Status.
+        setCell(table, 0, 0, "Name");
+        setCell(table, 0, 1, "Status");
+        setCell(table, 0, 2, "Name");
+        setCell(table, 0, 3, "Status");
+
+        List<DarReviewDto.ParticipantDto> values = safeList(participants);
+
+        // Display two participants in each row.
+        for (int i = 0; i < values.size(); i += 2) {
             XWPFTableRow row = table.createRow();
-            setCell(row.getCell(0), "Participant");
-            setCell(row.getCell(1), safeText(participant.name()));
-            setCell(row.getCell(2), safeText(participant.status()));
+
+            while (row.getTableCells().size() < 4) {
+                row.addNewTableCell();
+            }
+
+            DarReviewDto.ParticipantDto first = values.get(i);
+            setCell(row.getCell(0), safeText(first.name()));
+            setCell(row.getCell(1), "P");
+
+            if (i + 1 < values.size()) {
+                DarReviewDto.ParticipantDto second = values.get(i + 1);
+                setCell(row.getCell(2), safeText(second.name()));
+                setCell(row.getCell(3), "P");
+            } else {
+                setCell(row.getCell(2), "");
+                setCell(row.getCell(3), "");
+            }
         }
 
         setTableBorders(table);
@@ -487,7 +519,7 @@ public class DarReviewService {
         XWPFParagraph paragraph = cell.getParagraphs().get(0);
         XWPFRun run = paragraph.createRun();
         run.setFontFamily("Times New Roman");
-        run.setFontSize(9);
+        run.setFontSize(11);
         run.setText(text == null ? "" : text);
     }
 
@@ -519,11 +551,37 @@ public class DarReviewService {
             for (XWPFTableCell cell : row.getTableCells()) {
                 cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
 
+                // Add padding so the larger table text is easier to read.
+                var tcPr = cell.getCTTc().getTcPr();
+                if (tcPr == null) {
+                    tcPr = cell.getCTTc().addNewTcPr();
+                }
+
+                var margins = tcPr.isSetTcMar()
+                        ? tcPr.getTcMar()
+                        : tcPr.addNewTcMar();
+
+                var top = margins.isSetTop()
+                        ? margins.getTop()
+                        : margins.addNewTop();
+                top.setW(java.math.BigInteger.valueOf(140));
+
+                var bottom = margins.isSetBottom()
+                        ? margins.getBottom()
+                        : margins.addNewBottom();
+                bottom.setW(java.math.BigInteger.valueOf(140));
+
+                var left = margins.isSetStart()
+                        ? margins.getStart()
+                        : margins.addNewStart();
+                left.setW(java.math.BigInteger.valueOf(160));
+
+                var right = margins.isSetEnd()
+                        ? margins.getEnd()
+                        : margins.addNewEnd();
+                right.setW(java.math.BigInteger.valueOf(160));
+
                 if (headerRow && i == 0) {
-                    var tcPr = cell.getCTTc().getTcPr();
-                    if (tcPr == null) {
-                        tcPr = cell.getCTTc().addNewTcPr();
-                    }
                     var shading = tcPr.isSetShd()
                             ? tcPr.getShd()
                             : tcPr.addNewShd();
