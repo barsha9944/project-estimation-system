@@ -75,26 +75,55 @@ public class PmpReviewPromptBuilder {
 			    """;
 
 
-            case "DEFECT_TRACKING" -> """
-                Generate a PMP Defect Tracking Sheet.
+			case "DEFECT_TRACKING" -> """
+		    Generate a PMP Defect Tracking Sheet.
 
-                Include a structured table with:
-                - Defect ID
-                - PMP section or location
-                - Defect description
-                - Category
-                - Severity
-                - Recommended corrective action
-                - Responsible owner
-                - Status
-                - Closure evidence
+		    Return the defects as a JSON array named "defects".
 
-                Distinguish confirmed defects from potential findings
-                that require human reviewer validation.
+		    Each defect must contain these exact fields:
+		    - defectId
+		    - pmpSection
+		    - defectDescription
+		    - category
+		    - severity
+		    - correctiveAction
+		    - responsibleOwner
+		    - status
+		    - closureEvidence
 
-                Do not invent owners or closure evidence.
-                Do not mark defects as closed without verified evidence.
-                """;
+		    Use this JSON structure:
+
+		    {
+		      "opportunityId": 123,
+		      "documentType": "DEFECT_TRACKING",
+		      "defects": [
+		        {
+		          "defectId": "D-001",
+		          "pmpSection": "Project Scope",
+		          "defectDescription": "Specific evidence-based finding",
+		          "category": "Scope",
+		          "severity": "Medium",
+		          "correctiveAction": "Recommended corrective action",
+		          "responsibleOwner": "Not provided",
+		          "status": "Open",
+		          "closureEvidence": "Not provided"
+		        }
+		      ]
+		    }
+
+		    The example values above illustrate the format only.
+		    Replace them with information supported by the supplied PMP.
+
+		    Rules:
+		    - Include only evidence-based findings.
+		    - Distinguish confirmed defects from potential findings requiring
+		      human reviewer validation.
+		    - Do not invent owners or closure evidence.
+		    - Do not mark defects as closed without verified evidence.
+		    - Use "Not provided" for unavailable information.
+		    - If no defects can be verified, return an empty defects array.
+		    - Return valid JSON only, without Markdown fences.
+		    """;
 
             case "FOLLOW_UP" -> """
                 Generate a PMP Review Follow-up Note.

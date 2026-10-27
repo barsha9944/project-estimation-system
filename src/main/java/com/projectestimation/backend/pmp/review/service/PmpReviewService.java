@@ -26,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.ProjectTeam;
+import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.opportunity.repository.ProjectTeamRepository;
 import com.projectestimation.backend.pmp.service.PmpService;
 import com.projectestimation.backend.pmp.review.dto.PmpReviewResponseDto;
@@ -47,6 +49,7 @@ public class PmpReviewService {
     private final PmpReviewDocumentRepository documentRepository;
     private final PmpService pmpService;
     private final ProjectTeamRepository projectTeamRepository;
+    private final OpportunityRepository opportunityRepository;
     private final ObjectMapper objectMapper;
     private final PmpReviewNoteGenerator reviewNoteGenerator;
     private final PmpDefectTrackingGenerator defectTrackingGenerator;
@@ -57,6 +60,7 @@ public class PmpReviewService {
             PmpReviewDocumentRepository documentRepository,
             PmpService pmpService,
             ProjectTeamRepository projectTeamRepository,
+            OpportunityRepository opportunityRepository,
             ObjectMapper objectMapper,
             PmpReviewNoteGenerator reviewNoteGenerator,
             PmpDefectTrackingGenerator defectTrackingGenerator,
@@ -66,6 +70,7 @@ public class PmpReviewService {
         this.documentRepository = documentRepository;
         this.pmpService = pmpService;
         this.projectTeamRepository = projectTeamRepository;
+        this.opportunityRepository = opportunityRepository;
         this.objectMapper = objectMapper;
         this.reviewNoteGenerator = reviewNoteGenerator;
         this.defectTrackingGenerator = defectTrackingGenerator;
@@ -412,7 +417,7 @@ public class PmpReviewService {
         }
 
         if (DEFECT_TRACKING.equals(documentType)) {
-            return generateXls(content);
+        	return generateXls(opportunityId, content);
         }
 
         if (REVIEW_NOTE.equals(documentType)
@@ -579,7 +584,7 @@ public class PmpReviewService {
             findingsCell.setVerticalAlignment(
                     XWPFTableCell.XWPFVertAlign.TOP);
 
-            setCellText(findingsCell, "Comments:\n" + comments, false);
+            setFindingsCellText(findingsCell, comments);
 
             findingsTable.createRow();
 
@@ -658,9 +663,10 @@ public class PmpReviewService {
             String value) {
 
         XWPFParagraph paragraph = document.createParagraph();
-        paragraph.setSpacingBefore(50);
-        paragraph.setSpacingAfter(50);
-
+        paragraph.setSpacingBefore(100);
+        paragraph.setSpacingAfter(100);
+    
+        
         XWPFRun labelRun = paragraph.createRun();
         labelRun.setText(label + " ");
         labelRun.setBold(true);
@@ -724,8 +730,12 @@ public class PmpReviewService {
         }
 
 
+
+
 if (value.isArray()) {
     List<String> formattedFindings = new java.util.ArrayList<>();
+
+    int index = 1;
 
     for (JsonNode item : value) {
         String category = item.path("category").asText("");
@@ -740,20 +750,17 @@ if (value.isArray()) {
         }
 
         if (!category.isBlank() || !finding.isBlank()) {
-            String formatted = category.isBlank()
-                    ? finding
-                    : category + ": " + finding;
-
-            formattedFindings.add(formatted);
-        } else if (item.isValueNode()) {
-            formattedFindings.add(item.asText());
-        } else {
-            formattedFindings.add(item.toPrettyString());
+            formattedFindings.add(
+                    index++ + ". "
+                    + (category.isBlank() ? "" : category + ": ")
+                    + finding);
         }
     }
 
-    return String.join("\n\n", formattedFindings);
+    return String.join("\n", formattedFindings);
 }
+
+
 
 
         if (value.isObject()) {
@@ -834,8 +841,8 @@ if (value.isArray()) {
             String text) {
 
         XWPFParagraph paragraph = document.createParagraph();
-        paragraph.setSpacingBefore(240);
-        paragraph.setSpacingAfter(100);
+        paragraph.setSpacingBefore(320);
+        paragraph.setSpacingAfter(180);
         paragraph.setKeepNext(true);
 
         XWPFRun run = paragraph.createRun();
@@ -850,7 +857,7 @@ if (value.isArray()) {
             String text) {
 
         XWPFParagraph paragraph = document.createParagraph();
-        paragraph.setSpacingAfter(120);
+        paragraph.setSpacingAfter(160);
 
         XWPFRun run = paragraph.createRun();
         run.setText(text == null ? "" : text);
@@ -879,6 +886,49 @@ if (value.isArray()) {
         }
     }
 
+		private void setFindingsCellText(
+		        XWPFTableCell cell,
+		        String comments) {
+		
+		    while (!cell.getParagraphs().isEmpty()) {
+		        cell.removeParagraph(0);
+		    }
+		
+		    XWPFParagraph heading = cell.addParagraph();
+		    heading.setSpacingBefore(120);
+		    heading.setSpacingAfter(120);
+		    
+		
+		    XWPFRun headingRun = heading.createRun();
+		    headingRun.setText("Comments:");
+		    headingRun.setFontFamily("Arial");
+		    headingRun.setFontSize(12);
+		    headingRun.setBold(true);
+		
+		    if (comments == null || comments.isBlank()) {
+		        return;
+		    }
+		
+		    String[] findings = comments.split("\\R");
+		
+		    for (String finding : findings) {
+		        if (finding.isBlank()) {
+		            continue;
+		        }
+		
+		        XWPFParagraph paragraph = cell.addParagraph();
+		        paragraph.setSpacingBefore(100);
+		        paragraph.setSpacingAfter(100);
+		      
+		        
+		        XWPFRun run = paragraph.createRun();
+		        run.setText(finding.trim());
+		        run.setFontFamily("Arial");
+		        run.setFontSize(12);
+		    }
+		}
+
+
     private void setCellText(
             XWPFTableCell cell,
             String text,
@@ -894,8 +944,8 @@ if (value.isArray()) {
         }
 
         XWPFParagraph paragraph = cell.addParagraph();
-        paragraph.setSpacingBefore(80);
-        paragraph.setSpacingAfter(80);
+        paragraph.setSpacingBefore(140);
+        paragraph.setSpacingAfter(140);
 
         XWPFRun run = paragraph.createRun();
         run.setText(text == null ? "" : text);
@@ -908,28 +958,256 @@ if (value.isArray()) {
     // Create Excel file for the Defect Tracking Sheet
     // ---------------------------------------------------------
 
-    private byte[] generateXls(String content) throws IOException {
 
-        try (Workbook workbook = new HSSFWorkbook();
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
 
-            Sheet sheet = workbook.createSheet("Defect Tracking");
-            String[] lines = content.split("\\R", -1);
+    private byte[] generateXls(Long opportunityId, String content)
+            throws IOException {
 
-            for (int i = 0; i < lines.length; i++) {
-                Row row = sheet.createRow(i);
-                row.createCell(0).setCellValue(lines[i]);
+    String json = content.trim();
+
+    // Remove Markdown fences if Gemini returned them.
+    if (json.startsWith("```")) {
+        int firstNewLine = json.indexOf('\n');
+        if (firstNewLine >= 0) {
+            json = json.substring(firstNewLine + 1);
+        }
+
+        int lastFence = json.lastIndexOf("```");
+        if (lastFence >= 0) {
+            json = json.substring(0, lastFence);
+        }
+
+        json = json.trim();
+    }
+
+    // Accept either a direct JSON array or an object containing "defects".
+    JsonNode root;
+    try {
+        root = objectMapper.readTree(json);
+    } catch (Exception ex) {
+        throw new IOException(
+                "Gemini returned invalid defect tracking JSON.", ex);
+    }
+
+    JsonNode defects;
+
+    if (root != null && root.isArray()) {
+        defects = root;
+    } else if (root != null && root.isObject()) {
+        defects = root.path("defects");
+    } else {
+        throw new IOException(
+                "Defect tracking JSON must be an array or an object "
+                + "containing a defects array.");
+    }
+
+    if (!defects.isArray()) {
+        throw new IOException(
+                "Defect tracking JSON does not contain a defects array.");
+    }
+
+    String documentName = root.isObject()
+            ? root.path("documentName").asText("Project Management Plan")
+            : "Project Management Plan";
+
+    String version = root.isObject()
+            ? root.path("versionNumber").asText("Not provided")
+            : "Not provided";
+
+    // Always use the real project name from this opportunity, not Gemini
+    // output or the sample project name stored in the Excel template.
+    Opportunity opportunity = opportunityRepository.findById(opportunityId)
+            .orElseThrow(() -> new IOException(
+                    "Opportunity not found: " + opportunityId));
+    String projectName = opportunity.getOpportunityName();
+    if (projectName == null || projectName.isBlank()) {
+        projectName = "";
+    }
+
+    try (InputStream templateStream = getClass().getClassLoader()
+                .getResourceAsStream(
+                        "pmp/ET_PMP_DefectTrackingSheet.xls");
+         ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+
+        if (templateStream == null) {
+            throw new IOException(
+                    "PMP Defect Tracking template not found at "
+                    + "src/main/resources/pmp/"
+                    + "ET_PMP_DefectTrackingSheet.xls");
+        }
+
+        try (HSSFWorkbook workbook = new HSSFWorkbook(templateStream)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+            Row headerRow = sheet.getRow(12);
+         // Fetch the current opportunity's Project Team.
+            ProjectTeam team = projectTeamRepository
+                    .findByOpportunityId(opportunityId)
+                    .orElseThrow(() -> new IOException(
+                            "Project Team not found for opportunity "
+                                    + opportunityId));
+
+            String projectManagerName = team.getProjectManager();
+
+            if (projectManagerName == null || projectManagerName.isBlank()) {
+                projectManagerName = "";
             }
 
-            sheet.setColumnWidth(0, 15000);
+            if (headerRow == null) {
+                throw new IOException(
+                        "Defect Tracking template header row is missing.");
+            }
+
+            // Update metadata in the template's original merged cells.
+            // Apache POI row and column indexes are zero-based.
+
+            // Excel B5: Project Name
+            setCellValueIfPresent(
+                    sheet.getRow(4), 1,
+                    "Project Name: " + projectName);
+
+            // Excel B6: Project Manager Name
+            setCellValueIfPresent(
+                    sheet.getRow(5), 1,
+                    "Project Manager Name: " + projectManagerName);
+
+            // Excel B7: Reviewer
+            setCellValueIfPresent(
+                    sheet.getRow(6), 1,
+                    "Reviewer: " + projectManagerName);
+
+            // Excel B8: Review Date — preserve the existing value.
+
+            // Excel B9: Approver — remove the sample name.
+            setCellValueIfPresent(
+                    sheet.getRow(8), 1,
+                    "Approver:");
+
+            // Excel B10: Approval Date — preserve the existing value.
+
+            // Update status headers only when those cells exist.
+            if (headerRow.getCell(8) != null) {
+                headerRow.getCell(8).setCellValue("Status at Review");
+            }
+            if (headerRow.getCell(9) != null) {
+                headerRow.getCell(9).setCellValue("Status at Follow-up");
+            }
+
+            // Excel row 14 is index 13 in Apache POI.
+            int firstDataRow = 13;
+            int lastExistingRow = sheet.getLastRowNum();
+
+            // Remove the template's sample defect values, keeping styles.
+            for (int rowIndex = firstDataRow;
+                    rowIndex <= lastExistingRow;
+                    rowIndex++) {
+
+                Row row = sheet.getRow(rowIndex);
+                if (row == null) {
+                    continue;
+                }
+
+                for (int column = 0; column < 10; column++) {
+                    org.apache.poi.ss.usermodel.Cell cell =
+                            row.getCell(column);
+                    if (cell != null) {
+                        cell.setCellValue("");
+                    }
+                }
+            }
+
+            Row styleSource = sheet.getRow(firstDataRow);
+
+            for (int i = 0; i < defects.size(); i++) {
+                JsonNode defect = defects.get(i);
+                int rowIndex = firstDataRow + i;
+
+                Row row = sheet.getRow(rowIndex);
+
+                if (row == null) {
+                    row = sheet.createRow(rowIndex);
+
+                    if (styleSource != null) {
+                        row.setHeight(styleSource.getHeight());
+                    }
+
+                    for (int column = 0; column < 10; column++) {
+                        org.apache.poi.ss.usermodel.Cell cell =
+                                row.createCell(column);
+
+                        if (styleSource != null
+                                && styleSource.getCell(column) != null) {
+                            cell.setCellStyle(
+                                    styleSource.getCell(column).getCellStyle());
+                        }
+                    }
+                }
+
+             // Generate sequential IDs: 1, 2, 3, 4, ...
+                String defectId = String.valueOf(i + 1);
+
+                String section = defect.path("pmpSection")
+                        .asText("Not provided");
+
+                String description = defect.path("defectDescription")
+                        .asText("Not provided");
+
+                // The generator uses "recommendedCorrectiveAction".
+                // Keep "correctiveAction" as a fallback for older results.
+                String recommendation = defect
+                        .path("recommendedCorrectiveAction")
+                        .asText("");
+
+                if (recommendation.isBlank()) {
+                    recommendation = defect.path("correctiveAction")
+                            .asText("Not provided");
+                }
+
+                String severity = defect.path("severity")
+                        .asText("Not provided");
+
+                String status = defect.path("status").asText("Open");
+
+                row.getCell(0).setCellValue(defectId);
+                row.getCell(1).setCellValue("PMP");
+                row.getCell(2).setCellValue(documentName);
+                row.getCell(3).setCellValue(version);
+                row.getCell(4).setCellValue(section);
+                row.getCell(5).setCellValue(description);
+                row.getCell(6).setCellValue(recommendation);
+                row.getCell(7).setCellValue(severity);
+                row.getCell(8).setCellValue(status);
+                row.getCell(9).setCellValue("Not provided");
+            }
+
             workbook.write(output);
             return output.toByteArray();
         }
     }
+}
+
 
     // ---------------------------------------------------------
     // Utility methods
     // ---------------------------------------------------------
+
+    /**
+     * Updates an existing template cell while preserving its formatting.
+     */
+    private void setCellValueIfPresent(
+            Row row,
+            int columnIndex,
+            String value) {
+
+        if (row == null) {
+            return;
+        }
+
+        org.apache.poi.ss.usermodel.Cell cell = row.getCell(columnIndex);
+        if (cell != null) {
+            cell.setCellValue(value == null ? "" : value);
+        }
+    }
 
     private String truncate(String message) {
         if (message == null || message.isBlank()) {
