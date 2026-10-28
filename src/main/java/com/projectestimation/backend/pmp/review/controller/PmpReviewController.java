@@ -12,6 +12,7 @@ import com.projectestimation.backend.pmp.review.dto.PmpReviewResponseDto;
 import com.projectestimation.backend.pmp.review.dto.PmpReviewStatusDto;
 import com.projectestimation.backend.pmp.review.entity.PmpReviewDocument;
 import com.projectestimation.backend.pmp.review.service.PmpReviewService;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/opportunities/{opportunityId}/pmp/review")
@@ -103,6 +104,39 @@ public class PmpReviewController {
                 .contentLength(content.length)
                 .body(content);
     }
+    
+
+    /**
+     * Upload the updated defect tracking sheet after review.
+     */
+    @PostMapping(
+            value = "/defects/upload",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<String> uploadUpdatedDefectTracking(
+            @PathVariable Long opportunityId,
+            @RequestParam("file") MultipartFile file)
+            throws IOException {
+
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body("Please upload the updated defect tracking sheet.");
+        }
+
+        String filename = file.getOriginalFilename();
+
+        if (filename == null
+                || !filename.toLowerCase().endsWith(".xls")) {
+            return ResponseEntity.badRequest()
+                    .body("Please upload an Excel file with .xls format.");
+        }
+
+        reviewService.uploadUpdatedDefectTracking(opportunityId, file);
+
+        return ResponseEntity.ok(
+                "Updated defect tracking sheet uploaded successfully.");
+    }
+
 
     private String validateDocumentType(String documentType) {
         if (documentType == null) {

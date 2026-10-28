@@ -37,6 +37,8 @@ import com.projectestimation.backend.pmp.review.entity.PmpReview;
 import com.projectestimation.backend.pmp.review.entity.PmpReviewDocument;
 import com.projectestimation.backend.pmp.review.repository.PmpReviewRepository;
 import com.projectestimation.backend.pmp.review.repository.PmpReviewDocumentRepository;
+import org.springframework.web.multipart.MultipartFile;
+
 
 @Service
 public class PmpReviewService {
@@ -166,11 +168,25 @@ public class PmpReviewService {
 
         PmpReview review = findReview(opportunityId);
 
+        if (FOLLOW_UP.equals(documentType)) {
+            return documentRepository
+                    .findByReviewAndDocumentTypeOrderByGeneratedAtAsc(
+                            review, FOLLOW_UP)
+                    .stream()
+                    .filter(d -> "GENERATED".equals(d.getStatus()))
+                    .max(java.util.Comparator.comparing(
+                            PmpReviewDocument::getGeneratedAt,
+                            java.util.Comparator.nullsFirst(
+                                    java.util.Comparator.naturalOrder())))
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "PMP follow-up document not found for opportunity "
+                                    + opportunityId));
+        }
+
         return documentRepository
                 .findByReviewAndDocumentType(review, documentType)
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "PMP review document not found: "
-                                + documentType));
+                        "PMP review document not found: " + documentType));
     }
 
     // ---------------------------------------------------------
@@ -218,49 +234,155 @@ public class PmpReviewService {
         PmpReview review = findReview(opportunityId);
 
         if (review.getFollowUpDueAt() == null
-                || LocalDateTime.now().isBefore(
-                        review.getFollowUpDueAt())) {
+                || LocalDateTime.now().isBefore(review.getFollowUpDueAt())) {
             return;
         }
 
-        PmpReviewDocument note;
-        PmpReviewDocument defects;
+        List<PmpReviewDocument> documents =
+                documentRepository.findByReview(review);
 
-        try {
-            note = getDocument(opportunityId, REVIEW_NOTE);
-            defects = getDocument(opportunityId, DEFECT_TRACKING);
-        } catch (IllegalArgumentException ex) {
-            return;
-        }
+        PmpReviewDocument note = findDocument(documents, REVIEW_NOTE);
 
-        if (!"GENERATED".equals(note.getStatus())
-                || !"GENERATED".equals(defects.getStatus())) {
-            return;
-        }
-
-        PmpReviewDocument existingFollowUp = documentRepository
-                .findByReviewAndDocumentType(review, FOLLOW_UP)
+        PmpReviewDocument latestDefects = documents.stream()
+                .filter(d -> DEFECT_TRACKING.equals(d.getDocumentType()))
+                .filter(d -> "GENERATED".equals(d.getStatus()))
+                .max(java.util.Comparator.comparing(
+                        PmpReviewDocument::getGeneratedAt,
+                        java.util.Comparator.nullsFirst(
+                                java.util.Comparator.naturalOrder())))
                 .orElse(null);
 
-        if (existingFollowUp != null
-                && "GENERATED".equals(existingFollowUp.getStatus())) {
-            updateReviewStatus(opportunityId);
+        if (note == null || latestDefects == null
+                || !"GENERATED".equals(note.getStatus())) {
+            return;
+        }
+
+        // Avoid creating a duplicate follow-up for the same uploaded sheet.
+        boolean followUpAlreadyGeneratedAfterLatestDefects =
+                documents.stream()
+                        .filter(d -> FOLLOW_UP.equals(d.getDocumentType()))
+                        .filter(d -> "GENERATED".equals(d.getStatus()))
+                        .anyMatch(f -> f.getGeneratedAt() != null
+                                && latestDefects.getGeneratedAt() != null
+                                && !f.getGeneratedAt().isBefore(
+                                        latestDefects.getGeneratedAt()));
+
+        if (followUpAlreadyGeneratedAfterLatestDefects) {
             return;
         }
 
         String pmpContent = getPmpContent(opportunityId);
 
-        generateDocument(
-                review,
-                FOLLOW_UP,
-                () -> followUpGenerator.generate(
-                        opportunityId,
-                        pmpContent,
-                        note.getDocumentContent(),
-                        defects.getDocumentContent()));
+        // Save each cycle as a separate document record.
+        PmpReviewDocument followUp = new PmpReviewDocument();
+        followUp.setReview(review);
+        followUp.setDocumentType(FOLLOW_UP);
+        followUp.setStatus("GENERATING");
+        followUp.setAttempts(1);
+        documentRepository.saveAndFlush(followUp);
 
+        try {
+            String content = followUpGenerator.generate(
+                    opportunityId,
+                    pmpContent,
+                    note.getDocumentContent(),
+                    latestDefects.getDocumentContent());
+
+            if (content == null || content.isBlank()) {
+                throw new IllegalStateException(
+                        "Gemini returned empty follow-up content.");
+            }
+
+            followUp.setDocumentContent(content);
+            followUp.setGeneratedAt(LocalDateTime.now());
+            followUp.setStatus("GENERATED");
+            followUp.setLastError(null);
+
+        } catch (Exception ex) {
+            followUp.setStatus("FAILED");
+            followUp.setLastError(truncate(ex.getMessage()));
+        }
+
+        documentRepository.saveAndFlush(followUp);
         updateReviewStatus(opportunityId);
     }
+
+@Transactional
+public void uploadUpdatedDefectTracking(
+        Long opportunityId,
+        MultipartFile file) throws IOException {
+
+    if (file == null || file.isEmpty()) {
+        throw new IllegalArgumentException(
+                "Please upload a non-empty defect tracking file.");
+    }
+
+    String filename = file.getOriginalFilename();
+
+    if (filename == null
+            || !filename.toLowerCase().endsWith(".xls")) {
+        throw new IllegalArgumentException(
+                "Only .xls defect tracking files are supported.");
+    }
+
+    PmpReview review = findReview(opportunityId);
+
+    PmpReviewDocument originalDefects =
+            documentRepository
+                    .findByReviewAndDocumentType(
+                            review, DEFECT_TRACKING)
+                    .orElseThrow(() ->
+                            new IllegalStateException(
+                                    "Generate the initial defect tracking sheet first."));
+
+    if (!"GENERATED".equals(originalDefects.getStatus())) {
+        throw new IllegalStateException(
+                "The initial defect tracking sheet is not ready.");
+    }
+
+    try (InputStream inputStream = file.getInputStream();
+         HSSFWorkbook workbook = new HSSFWorkbook(inputStream)) {
+
+        if (workbook.getNumberOfSheets() == 0) {
+            throw new IllegalArgumentException(
+                    "The uploaded Excel file has no worksheets.");
+        }
+
+        Sheet sheet = workbook.getSheetAt(0);
+
+        if (sheet.getLastRowNum() < 13) {
+            throw new IllegalArgumentException(
+                    "The uploaded defect tracking sheet has no data rows.");
+        }
+
+        boolean hasDefectData = false;
+
+        for (int rowIndex = 13;
+             rowIndex <= sheet.getLastRowNum();
+             rowIndex++) {
+
+            Row row = sheet.getRow(rowIndex);
+
+            if (row != null
+                    && row.getCell(0) != null
+                    && !row.getCell(0)
+                            .toString().trim().isEmpty()) {
+                hasDefectData = true;
+                break;
+            }
+        }
+
+        if (!hasDefectData) {
+            throw new IllegalArgumentException(
+                    "No defect records were found in the uploaded sheet.");
+        }
+
+        // Upload validation passed.
+        // Persist the uploaded revision and schedule the next
+        // review follow-up here.
+    }
+}
+
 
     // ---------------------------------------------------------
     // Retrieve saved PMP
@@ -341,56 +463,49 @@ public class PmpReviewService {
                 documentRepository.findByReview(review);
 
         PmpReviewDocument note = findDocument(documents, REVIEW_NOTE);
-        PmpReviewDocument defects = findDocument(documents, DEFECT_TRACKING);
-        PmpReviewDocument followUp = findDocument(documents, FOLLOW_UP);
 
-        if (followUp != null
-                && "GENERATED".equals(followUp.getStatus())) {
+        boolean initialDefectsGenerated = documents.stream()
+                .anyMatch(d -> DEFECT_TRACKING.equals(d.getDocumentType())
+                        && "GENERATED".equals(d.getStatus()));
 
-            review.setStatus("COMPLETED");
-            review.setLastError(null);
+        boolean anyFailed = documents.stream()
+                .anyMatch(d -> "FAILED".equals(d.getStatus()));
 
-        } else if (note != null && defects != null
-                && "GENERATED".equals(note.getStatus())
-                && "GENERATED".equals(defects.getStatus())) {
-
-            if (review.getFollowUpDueAt() == null) {
-                LocalDateTime latest =
-                        note.getGeneratedAt().isAfter(
-                                defects.getGeneratedAt())
-                                ? note.getGeneratedAt()
-                                : defects.getGeneratedAt();
-
-                // Temporary test delay. Restore plusHours(24) after testing.
-                review.setFollowUpDueAt(latest.plusMinutes(2));
-            }
-
-            review.setStatus("WAITING_FOR_FOLLOW_UP");
-            review.setLastError(null);
-
-        } else if (documents.stream().anyMatch(
-                document -> "FAILED".equals(document.getStatus()))) {
-
+        if (anyFailed) {
             review.setStatus("RETRY_PENDING");
             review.setLastError(
-                    "One or more review documents failed. "
-                            + "A retry is required.");
+                    "One or more PMP review documents failed. Retry required.");
+            reviewRepository.save(review);
+            return;
+        }
 
-        } else {
+        if (note == null || !"GENERATED".equals(note.getStatus())
+                || !initialDefectsGenerated) {
             review.setStatus("SCHEDULED");
+            reviewRepository.save(review);
+            return;
+        }
+
+        // Do not complete merely because a follow-up document exists.
+        // Completion must be decided from verified defect statuses.
+        review.setStatus("WAITING_FOR_FOLLOW_UP");
+        review.setLastError(null);
+
+        if (review.getFollowUpDueAt() == null) {
+            LocalDateTime latest = documents.stream()
+                    .filter(d -> (REVIEW_NOTE.equals(d.getDocumentType())
+                            || DEFECT_TRACKING.equals(d.getDocumentType()))
+                            && "GENERATED".equals(d.getStatus())
+                            && d.getGeneratedAt() != null)
+                    .map(PmpReviewDocument::getGeneratedAt)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(LocalDateTime.now());
+
+            // Temporary testing interval. Change to plusHours(24) for production.
+            review.setFollowUpDueAt(latest.plusMinutes(2));
         }
 
         reviewRepository.save(review);
-    }
-
-    private PmpReviewDocument findDocument(
-            List<PmpReviewDocument> documents,
-            String type) {
-
-        return documents.stream()
-                .filter(document -> type.equals(document.getDocumentType()))
-                .findFirst()
-                .orElse(null);
     }
 
     // ---------------------------------------------------------
@@ -501,7 +616,11 @@ public class PmpReviewService {
             String ciNumber = root.path("ciIdentificationNumber")
                     .asText("ETI/ET/P/PMP/001");
             String version = root.path("versionNumber").asText("1.0");
-            String cycle = root.path("cycleNumber").asText("1");
+            String cycle = root.path("cycleNumber").asText("");
+
+            if (cycle.isBlank()) {
+                cycle = "1";
+            }
 
             String references = root.path("referenceDocuments").isArray()
                     ? joinJsonArray(root.path("referenceDocuments"))
@@ -535,7 +654,9 @@ public class PmpReviewService {
             title.setSpacingAfter(40);
 
             XWPFRun titleRun = title.createRun();
-            titleRun.setText("Document Review Note");
+            titleRun.setText(
+                    root.path("documentTitle")
+                            .asText("Document Review Note"));
             titleRun.setBold(true);
             titleRun.setFontFamily("Arial");
             titleRun.setFontSize(18);
@@ -701,16 +822,16 @@ public class PmpReviewService {
 
     private String extractReviewComments(JsonNode root) {
 
-        String[] findingKeys = {
-                "reviewerFindings",
-                "findings",
-                "reviewFindings",
-                "reviewComments",
-                "comments",
-                "observations",
-                "defects"
-        };
-
+    	String[] findingKeys = {
+    	        "reviewerFindings",
+    	        "findings",
+    	        "reviewFindings",
+    	        "reviewerComments",
+    	        "reviewComments",
+    	        "comments",
+    	        "observations",
+    	        "defects"
+    	};
         for (String key : findingKeys) {
             JsonNode value = root.path(key);
             String extracted = extractFindingValue(value);
@@ -1172,7 +1293,7 @@ if (value.isArray()) {
                 row.getCell(1).setCellValue("PMP");
                 row.getCell(2).setCellValue(documentName);
                 row.getCell(3).setCellValue(version);
-                row.getCell(4).setCellValue(section);
+                row.getCell(4).setCellValue(formatReferenceSection(section));
                 row.getCell(5).setCellValue(description);
                 row.getCell(6).setCellValue(recommendation);
                 row.getCell(7).setCellValue(severity);
@@ -1208,6 +1329,29 @@ if (value.isArray()) {
             cell.setCellValue(value == null ? "" : value);
         }
     }
+    private String formatReferenceSection(String section) {
+        if (section == null || section.isBlank()) {
+            return section;
+        }
+
+        String formatted = section.trim()
+                .replaceAll("([a-z])([A-Z])", "$1 $2")
+                .replaceAll("([A-Z])([A-Z][a-z])", "$1 $2");
+
+        String[] words = formatted.split("\\s+");
+        StringBuilder result = new StringBuilder();
+
+        for (String word : words) {
+            if (result.length() > 0) {
+                result.append(" ");
+            }
+
+            result.append(word.substring(0, 1).toUpperCase(java.util.Locale.ROOT));
+            result.append(word.substring(1));
+        }
+
+        return result.toString();
+    }
 
     private String truncate(String message) {
         if (message == null || message.isBlank()) {
@@ -1228,4 +1372,19 @@ if (value.isArray()) {
                 review.getFollowUpDueAt(),
                 review.getLastError());
     }
+
+private PmpReviewDocument findDocument(
+        List<PmpReviewDocument> documents,
+        String documentType) {
+
+    return documents.stream()
+            .filter(d -> documentType.equals(d.getDocumentType()))
+            .filter(d -> "GENERATED".equals(d.getStatus()))
+            .max(java.util.Comparator.comparing(
+                    PmpReviewDocument::getGeneratedAt,
+                    java.util.Comparator.nullsFirst(
+                            java.util.Comparator.naturalOrder())))
+            .orElse(null);
+}
+
 }

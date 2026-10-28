@@ -19,4 +19,9 @@ public interface PmpReviewDocumentRepository
     );
 
     List<PmpReviewDocument> findByStatusIn(List<String> statuses);
+    
+    List<PmpReviewDocument> findByReviewAndDocumentTypeOrderByGeneratedAtAsc(
+            PmpReview review,
+            String documentType
+    );
 }

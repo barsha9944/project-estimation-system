@@ -4,13 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-    name = "pmp_review_documents",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_pmp_review_document_type",
-        columnNames = {"review_id", "document_type"}
-    )
-)
+@Table(name = "pmp_review_documents")
 public class PmpReviewDocument {
 
     @Id
