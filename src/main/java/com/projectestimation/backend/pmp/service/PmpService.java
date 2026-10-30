@@ -56,6 +56,7 @@ import com.projectestimation.backend.opportunity.repository.OpportunityRepositor
 
 import com.projectestimation.backend.pmp.ai.GeminiPmpOrchestrator;
 
+import com.projectestimation.backend.pmp.dto.EstimatedSizeEffortDto;
 import com.projectestimation.backend.pmp.dto.PmpDto;
 
 import com.projectestimation.backend.pmp.dto.PmpGenerationResponse;
@@ -167,15 +168,19 @@ public class PmpService {
 
                     response, PmpGenerationResponse.class);
 
+            // Section 9 is populated from the saved estimation analysis, never from Gemini.
+            PmpDto pmpDto = withOriginalEstimation(generated.pmp(), analysis);
+            PmpGenerationResponse finalResponse = new PmpGenerationResponse(pmpDto);
+
             Pmp pmp = pmpRepository.findByOpportunityId(opportunityId).orElseGet(Pmp::new);
 
             pmp.setOpportunity(opportunity);
 
-            pmp.setPmpData(objectMapper.writeValueAsString(generated.pmp()));
+            pmp.setPmpData(objectMapper.writeValueAsString(pmpDto));
 
             pmpRepository.save(pmp);
 
-            return generated;
+            return finalResponse;
 
         } catch (Exception e) {
 
@@ -215,6 +220,52 @@ public class PmpService {
 
         }
 
+    }
+
+    private PmpDto withOriginalEstimation(PmpDto dto, EstimationAnalysis analysis) {
+        List<PmpItemDto> sizeDetails = new ArrayList<>();
+        addEstimationItem(sizeDetails, "Actor Weight (AW)", analysis.getActorWeight());
+        addEstimationItem(sizeDetails, "Unadjusted Use Case Points (UUCP)", analysis.getUucp());
+        addEstimationItem(sizeDetails, "Technical Complexity Factor (TCF)", analysis.getTcf());
+        addEstimationItem(sizeDetails, "Environmental Factor (EF)", analysis.getEf());
+        addEstimationItem(sizeDetails, "Adjusted Use Case Points (UCP)", analysis.getUcp());
+
+        List<PmpItemDto> effortDetails = new ArrayList<>();
+        addEstimationItem(effortDetails, "Benchmark Productivity Ratio", analysis.getBenchmarkProductivityRatio());
+        addEstimationItem(effortDetails, "Estimated Effort (Hours)", analysis.getHoursOfEffort());
+        addEstimationItem(effortDetails, "Hourly Rate", analysis.getHourlyRate());
+        addEstimationItem(effortDetails, "Estimated Project Price", analysis.getProjectPrice());
+        addEstimationItem(effortDetails, "Currency", analysis.getCurrency());
+
+        EstimatedSizeEffortDto estimated = new EstimatedSizeEffortDto(sizeDetails, effortDetails);
+
+        return new PmpDto(
+                dto.projectOverview(),
+                dto.projectManagement(),
+                dto.qualityManagement(),
+                dto.riskManagement(),
+                dto.validationPlan(),
+                dto.documentControl(),
+                dto.environment(),
+                dto.organizationResources(),
+                dto.monitoringControl(),
+                dto.interGroupSupport(),
+                estimated,
+                dto.schedule(),
+                dto.metricationPlan(),
+                dto.qualityControlPlan(),
+                dto.qualityAuditPlan(),
+                dto.configurationManagementPlan()
+        );
+    }
+
+    private void addEstimationItem(List<PmpItemDto> items, String name, Object value) {
+        if (value == null) {
+            return;
+        }
+        items.add(new PmpItemDto(
+                name, String.valueOf(value), "", "", "", ""
+        ));
     }
 
     @Transactional
@@ -1228,21 +1279,33 @@ public class PmpService {
     // =========================== 9.0 =============================
 
     private void addEstimatedSizeEffort(XWPFDocument document, PmpDto dto) {
-
         if (dto == null || dto.estimatedSizeEffort() == null) return;
 
         addSubHeading(document, "9.1 Estimated Size Details of the Project");
-
-        addPmpItemsTable(document, "Estimated Size",
-
+        addOriginalEstimationTable(document, "Original Estimation - Size",
                 dto.estimatedSizeEffort().sizeDetails());
 
         addSubHeading(document, "9.2 Estimated Effort Details of the Project");
-
-        addPmpItemsTable(document, "Estimated Effort",
-
+        addOriginalEstimationTable(document, "Original Estimation - Effort",
                 dto.estimatedSizeEffort().effortDetails());
+    }
 
+    private void addOriginalEstimationTable(
+            XWPFDocument document, String title, List<PmpItemDto> items) {
+        if (items == null || items.isEmpty()) return;
+
+        addTableTitle(document, title);
+        XWPFTable table = document.createTable(items.size() + 1, 2);
+        formatTable(table);
+        setCellText(table.getRow(0).getCell(0), "Estimation Parameter", true);
+        setCellText(table.getRow(0).getCell(1), "Original Value", true);
+
+        for (int i = 0; i < items.size(); i++) {
+            PmpItemDto item = items.get(i);
+            setCellText(table.getRow(i + 1).getCell(0), item.name(), false);
+            setCellText(table.getRow(i + 1).getCell(1), item.description(), false);
+        }
+        addSpacer(document);
     }
 
     // =========================== 10.0 ============================
