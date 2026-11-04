@@ -30,7 +30,7 @@ import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.ProjectTeam;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.opportunity.repository.ProjectTeamRepository;
-import com.projectestimation.backend.pmp.service.PmpService;
+import com.projectestimation.backend.pmp.service.PmpDocumentStorageService;
 import com.projectestimation.backend.pmp.review.dto.PmpReviewResponseDto;
 import com.projectestimation.backend.pmp.review.dto.PmpReviewStatusDto;
 import com.projectestimation.backend.pmp.review.entity.PmpReview;
@@ -49,7 +49,7 @@ public class PmpReviewService {
 
     private final PmpReviewRepository reviewRepository;
     private final PmpReviewDocumentRepository documentRepository;
-    private final PmpService pmpService;
+    private final PmpDocumentStorageService pmpDocumentStorageService;
     private final ProjectTeamRepository projectTeamRepository;
     private final OpportunityRepository opportunityRepository;
     private final ObjectMapper objectMapper;
@@ -60,7 +60,7 @@ public class PmpReviewService {
     public PmpReviewService(
             PmpReviewRepository reviewRepository,
             PmpReviewDocumentRepository documentRepository,
-            PmpService pmpService,
+            PmpDocumentStorageService pmpDocumentStorageService,
             ProjectTeamRepository projectTeamRepository,
             OpportunityRepository opportunityRepository,
             ObjectMapper objectMapper,
@@ -70,7 +70,7 @@ public class PmpReviewService {
 
         this.reviewRepository = reviewRepository;
         this.documentRepository = documentRepository;
-        this.pmpService = pmpService;
+        this.pmpDocumentStorageService = pmpDocumentStorageService;
         this.projectTeamRepository = projectTeamRepository;
         this.opportunityRepository = opportunityRepository;
         this.objectMapper = objectMapper;
@@ -388,17 +388,27 @@ public void uploadUpdatedDefectTracking(
     // Retrieve saved PMP
     // ---------------------------------------------------------
 
-    private String getPmpContent(Long opportunityId) {
-        try {
-            return objectMapper.writeValueAsString(
-                    pmpService.getPmp(opportunityId).pmp());
-        } catch (Exception ex) {
+private String getPmpContent(Long opportunityId) {
+
+    try {
+        String pmpContent =
+                pmpDocumentStorageService.readLatestPmpText(opportunityId);
+
+        if (pmpContent == null || pmpContent.isBlank()) {
             throw new IllegalStateException(
-                    "Could not retrieve saved PMP for opportunity "
-                            + opportunityId,
-                    ex);
+                    "PMP document contains no readable content for opportunity "
+                            + opportunityId);
         }
+
+        return pmpContent;
+
+    } catch (IOException ex) {
+        throw new IllegalStateException(
+                "Could not read PMP DOCX for opportunity "
+                        + opportunityId,
+                ex);
     }
+}
 
     // ---------------------------------------------------------
     // Generate and save a Gemini document
