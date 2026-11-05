@@ -173,43 +173,82 @@ public class OpportunityService {
 	// PROJECT TEAM - ADDED ONLY FOR ASSIGN PROJECT TEAM
 	// ============================================================
 
-	@Transactional
-	public ProjectTeamResponse saveProjectTeam(
-			Long opportunityId,
-			ProjectTeamRequest request) {
 
-		Opportunity opportunity = findOpportunityOrThrow(opportunityId);
+@Transactional
+public ProjectTeamResponse saveProjectTeam(
+        Long opportunityId,
+        ProjectTeamRequest request) {
 
-		ProjectTeam projectTeam = projectTeamRepository
-		        .findByOpportunityId(opportunityId)
-		        .orElseGet(() -> {
-		            ProjectTeam newTeam = new ProjectTeam();
-		            newTeam.setOpportunity(opportunity);
-		            return newTeam;
-		        });
+    Opportunity opportunity = findOpportunityOrThrow(opportunityId);
 
-		projectTeam.setProjectManager(request.projectManager());
-		projectTeam.setTeamLead(request.teamLead());
-		projectTeam.setDevelopers(request.developers());
-		projectTeam.setTester(request.tester());
-		projectTeam.setDatabaseDevelopers(request.databaseDevelopers());
-		projectTeam.setAdmin(request.admin());
-		projectTeam.setHr(request.hr());
+    ProjectTeam projectTeam = projectTeamRepository
+            .findByOpportunityId(opportunityId)
+            .orElseGet(() -> {
+                ProjectTeam newTeam = new ProjectTeam();
+                newTeam.setOpportunity(opportunity);
+                return newTeam;
+            });
 
-		ProjectTeam saved = projectTeamRepository.save(projectTeam);
+    projectTeam.setProjectManager(request.projectManager());
+    projectTeam.setTeamLead(request.teamLead());
+    projectTeam.setDevelopers(request.developers());
+    projectTeam.setTester(request.tester());
+    projectTeam.setDatabaseDevelopers(request.databaseDevelopers());
+    projectTeam.setAdmin(request.admin());
+    projectTeam.setHr(request.hr());
 
-		return new ProjectTeamResponse(
-				saved.getId(),
-				opportunityId,
-				saved.getProjectManager(),
-				saved.getTeamLead(),
-				saved.getDevelopers(),
-				saved.getTester(),
-				saved.getDatabaseDevelopers(),
-				saved.getAdmin(),
-				saved.getHr()
-		);
-	}
+    ProjectTeam saved = projectTeamRepository.save(projectTeam);
+
+    // Copy developers into a normal Java list before the transaction ends.
+    List<String> developers = saved.getDevelopers() == null
+            ? List.of()
+            : new ArrayList<>(saved.getDevelopers());
+
+    return new ProjectTeamResponse(
+            saved.getId(),
+            opportunityId,
+            saved.getProjectManager(),
+            saved.getTeamLead(),
+            developers,
+            saved.getTester(),
+            saved.getDatabaseDevelopers(),
+            saved.getAdmin(),
+            saved.getHr()
+    );
+}
+
+	
+
+@Transactional(readOnly = true)
+public ProjectTeamResponse getProjectTeam(Long opportunityId) {
+
+    findOpportunityOrThrow(opportunityId);
+
+    ProjectTeam projectTeam = projectTeamRepository
+            .findByOpportunityId(opportunityId)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Project team not found for opportunity: "
+                                    + opportunityId));
+
+    // Initialize and copy the lazy-loaded collection inside the transaction.
+    List<String> developers = projectTeam.getDevelopers() == null
+            ? List.of()
+            : new ArrayList<>(projectTeam.getDevelopers());
+
+    return new ProjectTeamResponse(
+            projectTeam.getId(),
+            opportunityId,
+            projectTeam.getProjectManager(),
+            projectTeam.getTeamLead(),
+            developers,
+            projectTeam.getTester(),
+            projectTeam.getDatabaseDevelopers(),
+            projectTeam.getAdmin(),
+            projectTeam.getHr()
+    );
+}
+
 
 	private Opportunity findOpportunityOrThrow(Long id) {
 		return opportunityRepository.findById(id)

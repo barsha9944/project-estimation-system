@@ -100,6 +100,19 @@ public class OpportunityController {
 						"Project team saved successfully",
 						response));
 	}
+	@GetMapping("/{id}/team")
+	public ResponseEntity<ApiResponse<ProjectTeamResponse>> getProjectTeam(
+	        @PathVariable Long id) {
+
+	    ProjectTeamResponse response =
+	            opportunityService.getProjectTeam(id);
+
+	    return ResponseEntity.ok(
+	            ApiResponse.success(
+	                    "Project team fetched successfully",
+	                    response));
+	}
+	
 
 	@GetMapping("/requirmentdocument/{id}")
 	public ResponseEntity<FileStorageDto> getFileById(@PathVariable String id) {
