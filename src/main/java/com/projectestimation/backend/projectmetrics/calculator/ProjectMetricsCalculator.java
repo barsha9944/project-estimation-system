@@ -1,7 +1,9 @@
 package com.projectestimation.backend.projectmetrics.calculator;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,10 @@ import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
 import com.projectestimation.backend.projectschedule.repository.ProjectScheduleRepository;
 import com.projectestimation.backend.proposal.repository.ProposalRepository;
+import com.projectestimation.backend.testcase.model.TestCase;
+import com.projectestimation.backend.testcase.model.TestCaseScenario;
+import com.projectestimation.backend.testcase.model.TestCaseStep;
+import com.projectestimation.backend.testcase.repository.TestCaseRepository;
 
 @Component
 public class ProjectMetricsCalculator {
@@ -36,6 +42,8 @@ public class ProjectMetricsCalculator {
     private final ProposalRepository proposalRepository;
 
     private final ProjectScheduleRepository projectScheduleRepository;
+    
+    private final TestCaseRepository testCaseRepository;
 
     public ProjectMetricsCalculator(
 
@@ -45,12 +53,15 @@ public class ProjectMetricsCalculator {
 
             ProposalRepository proposalRepository,
 
-            ProjectScheduleRepository projectScheduleRepository) {
+            ProjectScheduleRepository projectScheduleRepository,
+            
+    		TestCaseRepository testCaseRepository) {
 
         this.opportunityRepository = opportunityRepository;
         this.estimationAnalysisRepository = estimationAnalysisRepository;
         this.proposalRepository = proposalRepository;
         this.projectScheduleRepository = projectScheduleRepository;
+        this.testCaseRepository = testCaseRepository;
     }
 
     @Transactional(readOnly = true)
@@ -141,9 +152,9 @@ public class ProjectMetricsCalculator {
     	);
     	
     	summary.setTotalActualEffortWithoutPm(
-    	        summary.getTotalPlannedEffortWithoutPm()
+    	        calculateActualTotalEffort(schedule)
     	);
-    	
+
     	summary.setTotalActualEffort(
     	        summary.getTotalActualEffortWithoutPm()
     	);
@@ -161,7 +172,7 @@ public class ProjectMetricsCalculator {
     	);
     	
     	summary.setActualDuration(
-    	        schedule.getDurationDays()
+    	        calculateActualDuration(schedule)
     	);
     	
     	summary.setScheduleVariance(
@@ -221,8 +232,11 @@ public class ProjectMetricsCalculator {
     	        analysisTask.getDuration()
     	);
     	
+    	Integer actualAnalysisDuration =
+    	        getActualTaskDuration(analysisTask);
+
     	analysisResponse.setActualDuration(
-    	        analysisTask.getDuration()
+    	        actualAnalysisDuration
     	);
     	
     	analysisResponse.setScheduleVariance(
@@ -250,15 +264,10 @@ public class ProjectMetricsCalculator {
     	);
     	
     	analysisResponse.setActualEffort(
-
     	        calculateTaskEffort(
-
-    	                analysisTask.getDuration(),
-
+    	                actualAnalysisDuration,
     	                schedule
-
     	        )
-
     	);
     	
     	analysisResponse.setProductivity(
@@ -304,8 +313,11 @@ public class ProjectMetricsCalculator {
     	        designTask.getDuration()
     	);
 
+    	Integer actualDesignDuration =
+    	        getActualTaskDuration(designTask);
+
     	designResponse.setActualDuration(
-    	        designTask.getDuration()
+    	        actualDesignDuration
     	);
 
     	designResponse.setScheduleVariance(
@@ -324,7 +336,7 @@ public class ProjectMetricsCalculator {
 
     	designResponse.setActualEffort(
     	        calculateTaskEffort(
-    	                designTask.getDuration(),
+    	                actualDesignDuration,
     	                schedule
     	        )
     	);
@@ -359,8 +371,14 @@ public class ProjectMetricsCalculator {
     	        getCodingTaskDuration(schedule)
     	);
     	
+    	Integer actualCodingDuration =
+    	        getCodingTasks(schedule)
+    	                .stream()
+    	                .mapToInt(this::getActualTaskDuration)
+    	                .sum();
+
     	codingResponse.setActualDuration(
-    	        getCodingTaskDuration(schedule)
+    	        actualCodingDuration
     	);
     	
     	codingResponse.setScheduleVariance(
@@ -375,7 +393,10 @@ public class ProjectMetricsCalculator {
     	);
     	
     	codingResponse.setActualEffort(
-    	        calculateCodingPlannedEffort(schedule)
+    	        calculateTaskEffort(
+    	                actualCodingDuration,
+    	                schedule
+    	        )
     	);
     	
     	codingResponse.setCodingEffort(
@@ -423,12 +444,15 @@ public class ProjectMetricsCalculator {
     	ProjectScheduleTask sitTask =
     	        getSitTask(schedule);
     	
+    	Integer actualSitDuration =
+    	        getActualTaskDuration(sitTask);
+    	
     	sitResponse.setPlannedDuration(
     	        sitTask.getDuration()
     	);
     	
     	sitResponse.setActualDuration(
-    	        sitTask.getDuration()
+    	        actualSitDuration
     	);
     	
     	sitResponse.setScheduleVariance(
@@ -456,15 +480,10 @@ public class ProjectMetricsCalculator {
     	);
     	
     	sitResponse.setActualEffort(
-
     	        calculateTaskEffort(
-
-    	                sitTask.getDuration(),
-
+    	                actualSitDuration,
     	                schedule
-
     	        )
-
     	);
     	
     	sitResponse.setEffortVariance(
@@ -485,6 +504,8 @@ public class ProjectMetricsCalculator {
     	                "Testing"
     	        )
     	);
+    	
+    	populateTestCaseMetrics(opportunityId, sitResponse);
     	
     	sitResponse.setSitEffort(
     	        calculateSitEffort(schedule)
@@ -533,10 +554,29 @@ public class ProjectMetricsCalculator {
 
         return schedule.getTasks()
                 .stream()
-                .map(ProjectScheduleTask::getDuration)
-                .reduce(0, Integer::sum);
+                .mapToInt(this::getActualTaskDuration)
+                .sum();
     }
     
+    private Double calculateActualTotalEffort(
+            ProjectSchedule schedule) {
+
+        return schedule.getTasks()
+                .stream()
+                .filter(task -> {
+                    String taskName =
+                            normalizeTaskName(task.getTaskName());
+
+                    return !taskName.contains("project management")
+                            && !taskName.equals("pm");
+                })
+                .mapToDouble(task ->
+                        calculateTaskEffort(
+                                getActualTaskDuration(task),
+                                schedule
+                        ))
+                .sum();
+    }
     private int calculatePlannedDuration(
             ProjectSchedule schedule) {
 
@@ -592,19 +632,30 @@ public class ProjectMetricsCalculator {
         return actualSize / actualEffort;
     }
     
-    private ProjectScheduleTask getAnalysisTask(
-            ProjectSchedule schedule) {
-
-        return schedule.getTasks()
-                .stream()
-                .filter(task ->
-                        task.getTaskName()
-                                .equalsIgnoreCase("Requirement Analysis"))
-                .findFirst()
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Requirement Analysis task not found"));
+    private String normalizeTaskName(String taskName) {
+        return taskName == null
+                ? ""
+                : taskName.trim().toLowerCase();
     }
+    
+    private ProjectScheduleTask getAnalysisTask(
+        ProjectSchedule schedule) {
+
+    return schedule.getTasks()
+            .stream()
+            .filter(task -> {
+                String taskName =
+                        normalizeTaskName(task.getTaskName());
+
+                return taskName.equals("requirement analysis")
+                        || taskName.contains("requirement gathering")
+                        || taskName.contains("analysis");
+            })
+            .findFirst()
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Requirement Analysis task not found"));
+}
     
     private Double calculateTaskEffort(
             Integer duration,
@@ -617,18 +668,25 @@ public class ProjectMetricsCalculator {
     }
     
     private ProjectScheduleTask getDesignTask(
-            ProjectSchedule schedule) {
+        ProjectSchedule schedule) {
 
-        return schedule.getTasks()
-                .stream()
-                .filter(task ->
-                        task.getTaskName()
-                                .equalsIgnoreCase("Solution Design"))
-                .findFirst()
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Solution Design task not found"));
-    }
+    return schedule.getTasks()
+            .stream()
+            .filter(task ->
+                    normalizeTaskName(task.getTaskName())
+                            .equals("solution design"))
+            .findFirst()
+            .orElseGet(() ->
+                    schedule.getTasks()
+                            .stream()
+                            .filter(task ->
+                                    normalizeTaskName(task.getTaskName())
+                                            .contains("design"))
+                            .findFirst()
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Design task not found")));
+}
     
     private Integer getBreakdownDuration(
             ProjectSchedule schedule,
@@ -805,12 +863,15 @@ public class ProjectMetricsCalculator {
 
         sprint.setPlannedDuration(duration);
 
-        sprint.setActualDuration(duration);
+        Integer actualDuration =
+                getActualTaskDuration(codingTask);
+
+        sprint.setActualDuration(actualDuration);
 
         sprint.setScheduleVariance(
                 calculateScheduleVariance(
                         duration,
-                        duration
+                        actualDuration
                 )
         );
 
@@ -822,7 +883,12 @@ public class ProjectMetricsCalculator {
 
         sprint.setPlannedEffort(plannedEffort);
 
-        sprint.setActualEffort(plannedEffort);
+        sprint.setActualEffort(
+                calculateTaskEffort(
+                        actualDuration,
+                        schedule
+                )
+        );
 
         sprint.setCodingEffort(
                 calculateTaskBreakdownEffort(
@@ -1509,18 +1575,22 @@ public class ProjectMetricsCalculator {
     }
     
     private ProjectScheduleTask getSitTask(
-            ProjectSchedule schedule) {
+        ProjectSchedule schedule) {
 
-        return schedule.getTasks()
-                .stream()
-                .filter(task ->
-                        task.getTaskName()
-                                .equalsIgnoreCase("System Integration Testing"))
-                .findFirst()
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "System Integration Testing task not found"));
-    }
+    return schedule.getTasks()
+            .stream()
+            .filter(task -> {
+                String taskName =
+                        normalizeTaskName(task.getTaskName());
+
+                return taskName.contains("system integration testing")
+                        || taskName.equals("sit");
+            })
+            .findFirst()
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "System Integration Testing task not found"));
+}
     
     private Double calculateSitEffort(
             ProjectSchedule schedule) {
@@ -1571,17 +1641,19 @@ public class ProjectMetricsCalculator {
     }
     private boolean isPrimaryActivity(String taskName) {
 
-        return taskName.contains("requirement analysis")
-                || taskName.contains("analysis")
-                || taskName.contains("solution design")
-                || taskName.contains("design")
-                || taskName.contains("coding")
-                || taskName.contains("development")
-                || taskName.contains("system integration testing")
-                || taskName.equals("sit")
-                || taskName.contains("user acceptance testing")
-                || taskName.equals("uat");
-    }
+    String normalizedName = normalizeTaskName(taskName);
+
+    return normalizedName.contains("requirement analysis")
+            || normalizedName.contains("requirement gathering")
+            || normalizedName.contains("analysis")
+            || normalizedName.contains("design")
+            || normalizedName.contains("coding")
+            || normalizedName.contains("development")
+            || normalizedName.contains("system integration testing")
+            || normalizedName.equals("sit")
+            || normalizedName.contains("user acceptance testing")
+            || normalizedName.equals("uat");
+}
     
     private OtherActivityMetricsResponse calculateOtherActivity(
             ProjectSchedule schedule) {
@@ -1615,7 +1687,11 @@ public class ProjectMetricsCalculator {
                             schedule
                     );
 
-            double actualEffort = plannedEffort;
+            double actualEffort =
+                    calculateTaskEffort(
+                            getActualTaskDuration(task),
+                            schedule
+                    );
 
             if (taskName.contains("project management")
                     || taskName.equals("pm")) {
@@ -1677,4 +1753,52 @@ public class ProjectMetricsCalculator {
 
         return response;
     }
+    
+    private void populateTestCaseMetrics(
+            Long opportunityId,
+            SitMetricsResponse sitResponse) {
+
+        List<TestCase> testCases =
+                testCaseRepository.findByOpportunityId(opportunityId);
+
+        int totalTestConditions = 0;
+
+        Set<String> defectIds = new HashSet<>();
+
+        for (TestCase testCase : testCases) {
+
+            if (testCase.getTestCaseScenario() == null) {
+                continue;
+            }
+
+            for (TestCaseScenario scenario :
+                    testCase.getTestCaseScenario()) {
+
+                if (scenario.getTestCondition() != null
+                        && !scenario.getTestCondition().isBlank()) {
+
+                    totalTestConditions++;
+                }
+            }
+
+            if (testCase.getSteps() == null) {
+                continue;
+            }
+
+            for (TestCaseStep step : testCase.getSteps()) {
+
+                if (step.getDefectId() != null
+                        && !step.getDefectId().isBlank()) {
+
+                    defectIds.add(step.getDefectId().trim());
+                }
+            }
+        }
+
+        sitResponse.setTotalTestConditions(totalTestConditions);
+
+        sitResponse.setSitDefects(defectIds.size());
+    }
+    
+    
 }
