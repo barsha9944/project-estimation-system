@@ -64,6 +64,22 @@ public class PmpReviewFollowUpGenerator {
             4. Do not mark a defect as closed without verified evidence.
             5. Do not invent reviewer comments, signatures, or approvals.
             6. Use "Not provided" for missing information.
+            7. Read the latest uploaded defect tracking sheet as the
+			   authoritative record of defect status.
+			
+			8. Compare every defect against its previous status.
+			
+			9. Clearly identify defects that remain OPEN, IN PROGRESS,
+			   RESOLVED, or CLOSED.
+			
+			10. Do not treat RESOLVED as CLOSED.
+			
+			11. Do not declare the review completed if any defect is
+			    still open, in progress, resolved but unverified,
+			    or missing closure evidence.
+			
+			12. Identify the corrective action and closure evidence
+			    for each defect.
             """.formatted(
                 pmpContent,
                 reviewNote,

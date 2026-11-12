@@ -39,7 +39,7 @@ public class PmpDocumentStorageService {
      * Saves the initial PMP document.
      * Does not overwrite an existing PMP.docx file.
      */
-    public void saveInitialIfAbsent(
+    public void saveLatestPmp(
             Long opportunityId,
             byte[] documentBytes) throws IOException {
 
@@ -48,6 +48,22 @@ public class PmpDocumentStorageService {
         }
 
         Path directory = getOpportunityDirectory(opportunityId);
+        Path latestFile = directory.resolve("PMP.docx");
+
+        Files.write(
+                latestFile,
+                documentBytes,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+                java.nio.file.StandardOpenOption.WRITE
+        );
+    
+
+        if (documentBytes == null || documentBytes.length == 0) {
+            throw new IOException("PMP document is empty.");
+        }
+
+//        Path directory = getOpportunityDirectory(opportunityId);
 
         Path initialFile = directory.resolve("PMP.docx");
 

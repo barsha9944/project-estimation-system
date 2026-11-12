@@ -46,6 +46,9 @@ public class PmpReviewService {
     public static final String REVIEW_NOTE = "REVIEW_NOTE";
     public static final String DEFECT_TRACKING = "DEFECT_TRACKING";
     public static final String FOLLOW_UP = "FOLLOW_UP";
+    
+    private static final String DEFECT_TRACKING_UPLOAD =
+            "DEFECT_TRACKING_UPLOAD";
 
     private final PmpReviewRepository reviewRepository;
     private final PmpReviewDocumentRepository documentRepository;
@@ -97,23 +100,37 @@ public class PmpReviewService {
             throw new IllegalArgumentException(
                     "PMP generation time cannot be null.");
         }
+        // For Test//
+        System.out.println("========== PMP REVIEW SCHEDULING ==========");
+        System.out.println("Opportunity ID: " + opportunityId);
+        System.out.println("PMP Generated At: " + pmpGeneratedAt);
+        System.out.println("Review Due At: " + pmpGeneratedAt.plusHours(24));
+        System.out.println("============================================");
 
         PmpReview existing = reviewRepository
                 .findByOpportunityId(opportunityId)
                 .orElse(null);
 
-        // Do not reset an existing schedule when called again.
         if (existing != null) {
-            return toResponse(existing);
+            existing.setPmpGeneratedAt(pmpGeneratedAt);
+
+            existing.setReviewDocumentsDueAt(
+                    pmpGeneratedAt.plusHours(24));
+
+            existing.setFollowUpDueAt(null);
+            existing.setStatus("SCHEDULED");
+            existing.setLastError(null);
+
+            return toResponse(reviewRepository.save(existing));
         }
 
         PmpReview review = new PmpReview();
         review.setOpportunityId(opportunityId);
         review.setPmpGeneratedAt(pmpGeneratedAt);
 
-        // Temporary test delay. Restore plusHours(24) after testing.
+     // Generate initial review documents 24 hours after PMP generation.
         review.setReviewDocumentsDueAt(
-                pmpGeneratedAt.plusMinutes(2));
+                pmpGeneratedAt.plusHours(24));
 
         review.setFollowUpDueAt(null);
         review.setStatus("SCHEDULED");
@@ -142,6 +159,14 @@ public class PmpReviewService {
                                         document.getGeneratedAt(),
                                         document.getLastError()))
                         .toList();
+        // For Test//
+        
+        System.out.println("========== PMP REVIEW STATUS ==========");
+        System.out.println("Opportunity ID: " + opportunityId);
+        System.out.println("PMP Generated At: " + review.getPmpGeneratedAt());
+        System.out.println("Review Due At: " + review.getReviewDocumentsDueAt());
+        System.out.println("Current Status: " + review.getStatus());
+        System.out.println("=======================================");
 
         return new PmpReviewStatusDto(
                 review.getId(),
@@ -244,13 +269,21 @@ public class PmpReviewService {
         PmpReviewDocument note = findDocument(documents, REVIEW_NOTE);
 
         PmpReviewDocument latestDefects = documents.stream()
-                .filter(d -> DEFECT_TRACKING.equals(d.getDocumentType()))
-                .filter(d -> "GENERATED".equals(d.getStatus()))
+                .filter(d ->
+                        DEFECT_TRACKING_UPLOAD.equals(d.getDocumentType())
+                        && "GENERATED".equals(d.getStatus()))
                 .max(java.util.Comparator.comparing(
                         PmpReviewDocument::getGeneratedAt,
                         java.util.Comparator.nullsFirst(
                                 java.util.Comparator.naturalOrder())))
-                .orElse(null);
+                .orElseGet(() -> documents.stream()
+                        .filter(d -> DEFECT_TRACKING.equals(d.getDocumentType()))
+                        .filter(d -> "GENERATED".equals(d.getStatus()))
+                        .max(java.util.Comparator.comparing(
+                                PmpReviewDocument::getGeneratedAt,
+                                java.util.Comparator.nullsFirst(
+                                        java.util.Comparator.naturalOrder())))
+                        .orElse(null));
 
         if (note == null || latestDefects == null
                 || !"GENERATED".equals(note.getStatus())) {
@@ -304,7 +337,22 @@ public class PmpReviewService {
         }
 
         documentRepository.saveAndFlush(followUp);
-        updateReviewStatus(opportunityId);
+
+        if (areAllDefectsClosed(latestDefects.getDocumentContent())) {
+
+            review.setStatus("COMPLETED");
+            review.setFollowUpDueAt(null);
+            review.setLastError(null);
+
+        } else {
+
+            review.setStatus("WAITING_FOR_FOLLOW_UP");
+
+            // Wait for the next updated defect sheet upload.
+            review.setFollowUpDueAt(null);
+        }
+
+        reviewRepository.save(review);
     }
 
 @Transactional
@@ -377,9 +425,72 @@ public void uploadUpdatedDefectTracking(
                     "No defect records were found in the uploaded sheet.");
         }
 
-        // Upload validation passed.
-        // Persist the uploaded revision and schedule the next
-        // review follow-up here.
+        StringBuilder uploadedDefects = new StringBuilder();
+
+        for (int rowIndex = 13;
+                rowIndex <= sheet.getLastRowNum();
+                rowIndex++) {
+
+            Row row = sheet.getRow(rowIndex);
+
+            if (row == null || row.getCell(0) == null
+                    || row.getCell(0).toString().isBlank()) {
+                continue;
+            }
+
+            uploadedDefects.append(
+                    "Defect ID: ").append(row.getCell(0).toString())
+                    .append("\n");
+
+            uploadedDefects.append(
+                    "Section: ").append(
+                            row.getCell(4) == null ? "" : row.getCell(4))
+                    .append("\n");
+
+            uploadedDefects.append(
+                    "Description: ").append(
+                            row.getCell(5) == null ? "" : row.getCell(5))
+                    .append("\n");
+
+            uploadedDefects.append(
+                    "Corrective Action: ").append(
+                            row.getCell(6) == null ? "" : row.getCell(6))
+                    .append("\n");
+
+            uploadedDefects.append(
+                    "Severity: ").append(
+                            row.getCell(7) == null ? "" : row.getCell(7))
+                    .append("\n");
+
+            uploadedDefects.append(
+                    "Status at Review: ").append(
+                            row.getCell(8) == null ? "" : row.getCell(8))
+                    .append("\n");
+
+            uploadedDefects.append(
+                    "Status at Follow-up: ").append(
+                            row.getCell(9) == null ? "" : row.getCell(9))
+                    .append("\n\n");
+        }
+
+        PmpReviewDocument uploadedRevision = new PmpReviewDocument();
+
+        uploadedRevision.setReview(review);
+        uploadedRevision.setDocumentType(DEFECT_TRACKING_UPLOAD);
+        uploadedRevision.setStatus("GENERATED");
+        uploadedRevision.setDocumentContent(uploadedDefects.toString());
+        uploadedRevision.setGeneratedAt(LocalDateTime.now());
+        uploadedRevision.setAttempts(1);
+
+        documentRepository.saveAndFlush(uploadedRevision);
+
+        review.setFollowUpDueAt(
+                LocalDateTime.now().plusHours(24));
+
+        review.setStatus("WAITING_FOR_FOLLOW_UP");
+        review.setLastError(null);
+
+        reviewRepository.save(review);
     }
 }
 
@@ -511,8 +622,7 @@ private String getPmpContent(Long opportunityId) {
                     .max(LocalDateTime::compareTo)
                     .orElse(LocalDateTime.now());
 
-            // Temporary testing interval. Change to plusHours(24) for production.
-            review.setFollowUpDueAt(latest.plusMinutes(2));
+            review.setFollowUpDueAt(latest.plusHours(24));
         }
 
         reviewRepository.save(review);
@@ -1370,6 +1480,44 @@ if (value.isArray()) {
 
         return message.substring(
                 0, Math.min(message.length(), 1900));
+    }
+    
+    private boolean areAllDefectsClosed(String defectContent) {
+
+        if (defectContent == null || defectContent.isBlank()) {
+            return false;
+        }
+
+        String[] records = defectContent.split(
+                "(?=Defect ID:)");
+
+        boolean foundDefect = false;
+
+        for (String record : records) {
+
+            if (!record.contains("Defect ID:")) {
+                continue;
+            }
+
+            foundDefect = true;
+
+            java.util.regex.Matcher matcher =
+                    java.util.regex.Pattern.compile(
+                            "(?im)^Status at Follow-up:\\s*(.+)$")
+                            .matcher(record);
+
+            if (!matcher.find()) {
+                return false;
+            }
+
+            String status = matcher.group(1).trim();
+
+            if (!"CLOSED".equalsIgnoreCase(status)) {
+                return false;
+            }
+        }
+
+        return foundDefect;
     }
 
     private PmpReviewResponseDto toResponse(PmpReview review) {

@@ -11,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
+import com.projectestimation.backend.projectmetrics.service.ProjectMetricsService;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
@@ -25,12 +28,45 @@ public class CarRootCauseAnalysisService {
     private final CarActionPlanService actionPlanService;
     private final GeminiCarOrchestrator orchestrator;
     private final ObjectMapper objectMapper;
+    
+    private final ProjectMetricsService projectMetricsService;
 
     public CarAnalysis generateAnalysis(Long carId) {
+
         CarAnalysis car = carService.getCarEntity(carId);
 
+        Long opportunityId = car.getOpportunity().getId();
+
         try {
-            String response = orchestrator.generateRootCauseAnalysis(car);
+
+            // Retrieve saved Project Metrics for this opportunity.
+            ProjectMetricsResponse projectMetrics =
+                    projectMetricsService.getMetrics(opportunityId);
+
+            // Validate sprint-wise metrics.
+            if (projectMetrics == null
+                    || projectMetrics.getSprints() == null
+                    || projectMetrics.getSprints().isEmpty()) {
+
+                throw new IllegalStateException(
+                        "Sprint-wise Project Metrics are not available. "
+                        + "Please calculate Project Metrics before generating CAR.");
+            }
+
+            boolean hasSprintSummary =
+                    projectMetrics.getSprints().stream()
+                            .anyMatch(sprint -> sprint.getSummary() != null);
+
+            if (!hasSprintSummary) {
+                throw new IllegalStateException(
+                        "Sprint-wise Summary Metrics are not available.");
+            }
+
+            // Generate CAR using CAR details and sprint-wise metrics.
+            String response =
+                    orchestrator.generateRootCauseAnalysis(
+                            car,
+                            projectMetrics);
             JsonNode json = objectMapper.readTree(normalizeJson(response));
 
             if (json == null || !json.isObject()) {
