@@ -5,6 +5,8 @@ import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.car.model.CarAnalysis;
 import com.projectestimation.backend.common.ai.gateway.AiGateway;
+import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
+import com.projectestimation.backend.opportunity.model.Opportunity;
 
 import lombok.RequiredArgsConstructor;
 
@@ -15,10 +17,24 @@ public class GeminiCarOrchestrator {
     private final AiGateway aiGateway;
     private final CarPromptBuilder promptBuilder;
 
-    public String generateRootCauseAnalysis(CarAnalysis car) {
+    public String generateRootCauseAnalysis(
+            CarAnalysis car,
+            ProjectMetricsResponse projectMetrics) {
 
-        String prompt = promptBuilder.buildRootCausePrompt(car);
+        String prompt = promptBuilder.buildRootCausePrompt(
+                car,
+                projectMetrics);
 
-        return aiGateway.generateJsonContent(prompt, 4096);
+        return aiGateway.generateJsonContent(prompt, 8192);
+    }
+    public String generateAutomatedCar(
+            Opportunity opportunity,
+            ProjectMetricsResponse projectMetrics) {
+
+        String prompt = promptBuilder.buildAutomatedCarPrompt(
+                opportunity,
+                projectMetrics);
+
+        return aiGateway.generateJsonContent(prompt, 8192);
     }
 }

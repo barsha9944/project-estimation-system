@@ -26,27 +26,40 @@ public class CarController {
     private final CarRootCauseAnalysisService rootCauseAnalysisService;
     private final CarExcelService excelService;
 
+//    /**
+//     * API 1: Create CAR and generate AI analysis.
+//     */
+//    @PostMapping
+//    public ResponseEntity<CarResponseDto> createCar(
+//            @PathVariable Long opportunityId,
+//            @Valid @RequestBody CarCreateRequest request) {
+//
+//        request.setOpportunityId(opportunityId);
+//
+//        CarResponseDto createdCar = carService.createCar(request);
+//
+//        rootCauseAnalysisService.generateAnalysis(createdCar.getId());
+//
+//        return ResponseEntity.ok(
+//                carService.getCar(createdCar.getId())
+//        );
+//    }
+
     /**
-     * API 1: Create CAR and generate AI analysis.
+     * API 2: Generate a complete CAR automatically using Gemini.
      */
-    @PostMapping
-    public ResponseEntity<CarResponseDto> createCar(
-            @PathVariable Long opportunityId,
-            @Valid @RequestBody CarCreateRequest request) {
+    @PostMapping("/generate")
+    public ResponseEntity<CarResponseDto> generateAutomatedCar(
+            @PathVariable Long opportunityId) {
 
-        request.setOpportunityId(opportunityId);
+        CarResponseDto car =
+                rootCauseAnalysisService.generateAutomatedCar(opportunityId);
 
-        CarResponseDto createdCar = carService.createCar(request);
-
-        rootCauseAnalysisService.generateAnalysis(createdCar.getId());
-
-        return ResponseEntity.ok(
-                carService.getCar(createdCar.getId())
-        );
+        return ResponseEntity.ok(car);
     }
 
     /**
-     * API 2: Retrieve all CAR records for an opportunity.
+     * API 3: Retrieve all CAR records for an opportunity.
      */
     @GetMapping
     public ResponseEntity<List<CarResponseDto>> getAllCars(
@@ -58,7 +71,7 @@ public class CarController {
     }
 
     /**
-     * API 3: Download CAR Excel report.
+     * API 4: Download CAR Excel report.
      */
     @GetMapping("/{carId}/download")
     public ResponseEntity<byte[]> downloadCarReport(

@@ -46,12 +46,10 @@ public class PmpController {
 
         byte[] documentBytes =
                 pmpService.downloadPmp(opportunityId);
-
-        pmpDocumentStorageService.saveInitialIfAbsent(
+        pmpDocumentStorageService.saveLatestPmp(
                 opportunityId,
                 documentBytes
         );
-
         pmpReviewService.schedule(
                 opportunityId,
                 LocalDateTime.now()
@@ -86,16 +84,24 @@ public class PmpController {
     /**
      * Save / update PMP
      */
-    @PutMapping("/update")
-    public ResponseEntity<ApiResponse<PmpGenerationResponse>> savePmp(
+    @PutMapping("/save")
+    public ResponseEntity<?> savePmp(
             @PathVariable Long opportunityId,
-            @RequestBody PmpDto request) {
+            @RequestBody PmpDto request) throws IOException {
 
         PmpGenerationResponse response =
                 pmpService.savePmp(
                         opportunityId,
                         request
                 );
+
+        byte[] documentBytes =
+                pmpService.downloadPmp(opportunityId);
+
+        pmpDocumentStorageService.saveLatestPmp(
+                opportunityId,
+                documentBytes
+        );
 
         return ResponseEntity.ok(
                 ApiResponse.success(
