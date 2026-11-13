@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
@@ -55,6 +56,7 @@ public class SrsService {
     private final ObjectMapper objectMapper;
     private final EstimationAnalysisRepository estimationAnalysisRepository;
     private final EstimationUseCaseRepository estimationUseCaseRepository;
+    private final OpportunityDocumentStorageService documentStorageService;
     private final com.projectestimation.backend.review.service.DocumentReviewService documentReviewService;
 
     public Srs getByOpportunityId(Long opportunityId) {
@@ -104,6 +106,23 @@ public class SrsService {
 	        srs.setSrsData(objectMapper.writeValueAsString(generatedSrs));
 
 	        srsRepository.save(srs);
+	        
+	        byte[] documentBytes = buildSrsDocumentBytes(generatedSrs);
+
+	        String fileName = opportunity.getOpportunityName()
+	                .replaceAll("[\\\\/:*?\"<>|]", "_")
+	                .trim();
+
+	        if (fileName.isBlank()) {
+	            fileName = "SRS";
+	        }
+
+	        documentStorageService.saveFile(
+	                opportunityId,
+	                "Baseline/SRS",
+	                fileName + "_SRS.docx",
+	                documentBytes
+	        );
 
 	        try {
 	            documentReviewService.initializeOrUpdateSchedule(
@@ -122,6 +141,20 @@ public class SrsService {
 	                "Failed while generating SRS from Gemini: " + e.getMessage(), e);
 	    }
     }
+    
+    private byte[] buildSrsDocumentBytes(SrsDto srsDto)
+            throws IOException {
+
+        try (
+                XWPFDocument document = new XWPFDocument();
+                ByteArrayOutputStream out = new ByteArrayOutputStream()
+        ) {
+            generateSrsDocument(document, srsDto);
+            document.write(out);
+            return out.toByteArray();
+        }
+    }
+    
     
     public SrsDto getGeneratedSrs(Long opportunityId) {
         Srs srs = srsRepository.findByOpportunityId(opportunityId)
@@ -151,17 +184,8 @@ public class SrsService {
                     "SRS not found for this opportunity");
         }
 
-        try (
-                XWPFDocument document = new XWPFDocument();
-                ByteArrayOutputStream out = new ByteArrayOutputStream()
-        ) {
-
-        	generateSrsDocument(document, srsDto);
-        	
-        	document.write(out);
-
-            return out.toByteArray();
-
+        try {
+            return buildSrsDocumentBytes(srsDto);
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Failed to generate SRS document", e);

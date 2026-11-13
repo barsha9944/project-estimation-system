@@ -5,13 +5,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.TableRowAlign;
@@ -23,21 +23,22 @@ import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.ProjectTeam;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.opportunity.repository.ProjectTeamRepository;
-import com.projectestimation.backend.pmp.service.PmpDocumentStorageService;
 import com.projectestimation.backend.pmp.review.dto.PmpReviewResponseDto;
 import com.projectestimation.backend.pmp.review.dto.PmpReviewStatusDto;
 import com.projectestimation.backend.pmp.review.entity.PmpReview;
 import com.projectestimation.backend.pmp.review.entity.PmpReviewDocument;
-import com.projectestimation.backend.pmp.review.repository.PmpReviewRepository;
 import com.projectestimation.backend.pmp.review.repository.PmpReviewDocumentRepository;
-import org.springframework.web.multipart.MultipartFile;
+import com.projectestimation.backend.pmp.review.repository.PmpReviewRepository;
+import com.projectestimation.backend.pmp.service.PmpDocumentStorageService;
 
 
 @Service
@@ -56,6 +57,7 @@ public class PmpReviewService {
     private final PmpReviewNoteGenerator reviewNoteGenerator;
     private final PmpDefectTrackingGenerator defectTrackingGenerator;
     private final PmpReviewFollowUpGenerator followUpGenerator;
+    private final OpportunityDocumentStorageService documentStorageService;
 
     public PmpReviewService(
             PmpReviewRepository reviewRepository,
@@ -66,7 +68,8 @@ public class PmpReviewService {
             ObjectMapper objectMapper,
             PmpReviewNoteGenerator reviewNoteGenerator,
             PmpDefectTrackingGenerator defectTrackingGenerator,
-            PmpReviewFollowUpGenerator followUpGenerator) {
+            PmpReviewFollowUpGenerator followUpGenerator,
+            OpportunityDocumentStorageService documentStorageService) {
 
         this.reviewRepository = reviewRepository;
         this.documentRepository = documentRepository;
@@ -77,6 +80,7 @@ public class PmpReviewService {
         this.reviewNoteGenerator = reviewNoteGenerator;
         this.defectTrackingGenerator = defectTrackingGenerator;
         this.followUpGenerator = followUpGenerator;
+        this.documentStorageService = documentStorageService;
     }
 
     // ---------------------------------------------------------
@@ -293,10 +297,19 @@ public class PmpReviewService {
                         "Gemini returned empty follow-up content.");
             }
 
+            LocalDateTime generatedAt = LocalDateTime.now();
+
             followUp.setDocumentContent(content);
-            followUp.setGeneratedAt(LocalDateTime.now());
+            followUp.setGeneratedAt(generatedAt);
             followUp.setStatus("GENERATED");
             followUp.setLastError(null);
+
+            saveGeneratedReviewFile(
+                    opportunityId,
+                    FOLLOW_UP,
+                    content,
+                    generatedAt
+            );
 
         } catch (Exception ex) {
             followUp.setStatus("FAILED");
@@ -447,10 +460,19 @@ private String getPmpContent(Long opportunityId) {
                         "Gemini returned empty content.");
             }
 
+            LocalDateTime generatedAt = LocalDateTime.now();
+
             document.setDocumentContent(generatedContent);
-            document.setGeneratedAt(LocalDateTime.now());
+            document.setGeneratedAt(generatedAt);
             document.setStatus("GENERATED");
             document.setLastError(null);
+
+            saveGeneratedReviewFile(
+                    review.getOpportunityId(),
+                    documentType,
+                    generatedContent,
+                    generatedAt
+            );
 
         } catch (Exception ex) {
             document.setStatus("FAILED");
@@ -1395,6 +1417,56 @@ private PmpReviewDocument findDocument(
                     java.util.Comparator.nullsFirst(
                             java.util.Comparator.naturalOrder())))
             .orElse(null);
+}
+
+private void saveGeneratedReviewFile(
+        Long opportunityId,
+        String documentType,
+        String content,
+        LocalDateTime generatedAt
+) throws IOException {
+
+    byte[] fileBytes;
+    String fileName;
+
+    if (DEFECT_TRACKING.equals(documentType)) {
+
+        fileBytes = generateXls(opportunityId, content);
+
+        fileName = "PMP_DEFECT_TRACKING_"
+                + opportunityId
+                + ".xls";
+
+    } else {
+
+        fileBytes = generateDocx(content);
+
+        if (FOLLOW_UP.equals(documentType)) {
+
+            String timestamp = generatedAt.format(
+                    DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+            );
+
+            fileName = "PMP_FOLLOW_UP_"
+                    + opportunityId
+                    + "_"
+                    + timestamp
+                    + ".docx";
+
+        } else {
+
+            fileName = "PMP_REVIEW_NOTE_"
+                    + opportunityId
+                    + ".docx";
+        }
+    }
+
+    documentStorageService.saveFile(
+            opportunityId,
+            "Quality/Review",
+            fileName,
+            fileBytes
+    );
 }
 
 }

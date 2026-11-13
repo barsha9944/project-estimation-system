@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.rtm.ai.GeminiRtmOrchestrator;
@@ -38,6 +39,7 @@ public class RtmService {
     private final SddService sddService;
     private final SrsSddDocumentParser documentParser;
     private final GeminiRtmOrchestrator geminiRtmOrchestrator;
+    private final OpportunityDocumentStorageService documentStorageService;
     private final RtmExcelService rtmExcelService;
     private final RtmRepository rtmRepository;
     private final ObjectMapper objectMapper;
@@ -51,7 +53,8 @@ public class RtmService {
             GeminiRtmOrchestrator geminiRtmOrchestrator,
             RtmExcelService rtmExcelService,
             RtmRepository rtmRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            OpportunityDocumentStorageService documentStorageService
     ) {
         this.opportunityRepository = opportunityRepository;
         this.testCaseRepository = testCaseRepository;
@@ -62,6 +65,7 @@ public class RtmService {
         this.rtmExcelService = rtmExcelService;
         this.rtmRepository = rtmRepository;
         this.objectMapper = objectMapper;
+        this.documentStorageService = documentStorageService;
     }
 
     public boolean existsByOpportunityId(Long opportunityId) {
@@ -156,21 +160,60 @@ public class RtmService {
             throw new IllegalStateException("Failed to save RTM data: " + e.getMessage(), e);
         }
 
+        try {
+            byte[] excelBytes = rtmExcelService.generateExcel(
+                    opportunity,
+                    responseDto.rows()
+            );
+
+            String fileName = opportunity.getOpportunityName()
+                    .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
+                    .trim();
+
+            if (fileName.isBlank()) {
+                fileName = "Requirement_Traceability_Matrix";
+            }
+
+            documentStorageService.saveFile(
+                    opportunityId,
+                    "Quality/RTM",
+                    fileName + "_RTM.xls",
+                    excelBytes
+            );
+
+        } catch (IOException e) {
+            log.error(
+                    "Failed to save generated RTM Excel for opportunity id {}",
+                    opportunityId,
+                    e
+            );
+            throw new IllegalStateException(
+                    "Failed to save generated RTM Excel",
+                    e
+            );
+        }
         return responseDto;
     }
 
     @Transactional
-    public byte[] downloadRtm(Long opportunityId) throws IOException {
-        Opportunity opportunity = opportunityRepository.findById(opportunityId)
-                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found with id: " + opportunityId));
+public byte[] downloadRtm(Long opportunityId) throws IOException {
 
-        RtmResponseDto response = getRtmData(opportunityId);
-        if (response == null) {
-            response = generateRtm(opportunityId);
-        }
+    Opportunity opportunity = opportunityRepository.findById(opportunityId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "Opportunity not found with id: " + opportunityId
+            ));
 
-        return rtmExcelService.generateExcel(opportunity, response.rows());
+    RtmResponseDto response = getRtmData(opportunityId);
+
+    if (response == null) {
+        response = generateRtm(opportunityId);
     }
+
+    return rtmExcelService.generateExcel(
+            opportunity,
+            response.rows()
+    );
+}
 
     private String findTestCaseReferences(RtmRowDto row, List<TestCase> testCases) {
         if (testCases == null || testCases.isEmpty()) {

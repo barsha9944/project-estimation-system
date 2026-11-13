@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.sdd.ai.GeminiSddOrchestrator;
 import com.projectestimation.backend.sdd.dto.AmendmentDto;
 import com.projectestimation.backend.sdd.dto.ApplicationComponentDetailsDto;
@@ -58,6 +59,7 @@ public class SddService {
     private final ObjectMapper objectMapper;
     private final SrsService srsService;
     private final GeminiSddOrchestrator geminiSddOrchestrator;
+    private final OpportunityDocumentStorageService documentStorageService;
     private final com.projectestimation.backend.review.service.DocumentReviewService documentReviewService;
     private final List<String> tocHeadings = new ArrayList<>();
     private XWPFParagraph tocParagraph;
@@ -138,6 +140,25 @@ public class SddService {
         	);
 
             sddRepository.save(sdd);
+            
+            byte[] documentBytes =
+                    buildSddDocumentBytes(generatedSdd, srsDto);
+
+            String fileName = srsService.getOpportunity(opportunityId)
+                    .getOpportunityName()
+                    .replaceAll("[\\\\/:*?\"<>|]", "_")
+                    .trim();
+
+            if (fileName.isBlank()) {
+                fileName = "SDD";
+            }
+
+            documentStorageService.saveFile(
+                    opportunityId,
+                    "Baseline/SDD",
+                    fileName + "_sdd.docx",
+                    documentBytes
+            );
 
             try {
                 documentReviewService.initializeOrUpdateSchedule(
@@ -161,6 +182,27 @@ public class SddService {
         }
     }
 
+    private byte[] buildSddDocumentBytes(
+            SddDto sddDto,
+            SrsDto srsDto
+    ) throws IOException {
+
+        try (
+                XWPFDocument document = new XWPFDocument();
+                ByteArrayOutputStream out = new ByteArrayOutputStream()
+        ) {
+            generateSddDocument(
+                    document,
+                    sddDto,
+                    srsDto
+            );
+
+            document.write(out);
+
+            return out.toByteArray();
+        }
+    }
+    
     public byte[] downloadSdd(Long opportunityId) throws IOException {
 
         SddDto sddDto = getGeneratedSdd(opportunityId);
@@ -174,23 +216,9 @@ public class SddService {
 
         SrsDto srsDto = getSrsInput(opportunityId);
 
-        try (
-                XWPFDocument document = new XWPFDocument();
-                ByteArrayOutputStream out = new ByteArrayOutputStream()
-        ) {
-
-            generateSddDocument(
-                    document,
-                    sddDto,
-                    srsDto
-            );
-
-            document.write(out);
-
-            return out.toByteArray();
-
+        try {
+            return buildSddDocumentBytes(sddDto, srsDto);
         } catch (Exception e) {
-
             throw new IllegalStateException(
                     "Failed to generate SDD document",
                     e

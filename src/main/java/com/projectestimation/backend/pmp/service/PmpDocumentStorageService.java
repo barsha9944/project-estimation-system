@@ -5,34 +5,36 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 
 @Service
 public class PmpDocumentStorageService {
 
-    @Value("${pmp.storage-dir}")
-    private String storageDirectory;
+    private final OpportunityDocumentStorageService documentStorageService;
+
+    public PmpDocumentStorageService(
+            OpportunityDocumentStorageService documentStorageService) {
+        this.documentStorageService = documentStorageService;
+    }
 
     /**
-     * Creates and returns the directory for a particular opportunity.
+     * Returns the PMP directory for an opportunity.
      */
     private Path getOpportunityDirectory(Long opportunityId)
             throws IOException {
 
-        Path directory = Paths.get(storageDirectory)
-                .resolve("opportunity-" + opportunityId);
-
-        Files.createDirectories(directory);
-
-        return directory;
+        return documentStorageService.getDocumentFolder(
+                opportunityId,
+                "Baseline/PMP"
+        );
     }
 
     /**
@@ -48,7 +50,6 @@ public class PmpDocumentStorageService {
         }
 
         Path directory = getOpportunityDirectory(opportunityId);
-
         Path initialFile = directory.resolve("PMP.docx");
 
         if (!Files.exists(initialFile)) {
@@ -101,7 +102,6 @@ public class PmpDocumentStorageService {
              XWPFDocument document =
                      new XWPFDocument(inputStream)) {
 
-            // Extract paragraphs
             for (XWPFParagraph paragraph :
                     document.getParagraphs()) {
 
@@ -112,7 +112,6 @@ public class PmpDocumentStorageService {
                 }
             }
 
-            // Extract tables
             for (XWPFTable table : document.getTables()) {
 
                 for (var row : table.getRows()) {

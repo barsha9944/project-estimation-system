@@ -10,18 +10,18 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.common.exception.ProposalFailedException;
-import com.projectestimation.backend.config.PsrProperties;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 
 @Component
 public class PsrDocxConverter {
 
-    private final PsrProperties psrProperties;
+	private final OpportunityDocumentStorageService documentStorageService;
 
-    public PsrDocxConverter(
-            PsrProperties psrProperties
-    ) {
-        this.psrProperties = psrProperties;
-    }
+	public PsrDocxConverter(
+	        OpportunityDocumentStorageService documentStorageService
+	) {
+	    this.documentStorageService = documentStorageService;
+	}
 
     public ConversionResult convertMarkdownToDocx(
             String markdown,
@@ -35,16 +35,10 @@ public class PsrDocxConverter {
             // PSR STORAGE DIRECTORY
             // ============================================
 
-        	Path baseStorageDir =
-        	        Path.of(
-        	                psrProperties.getStorageDir()
-        	        );
-
         	Path storageDir =
-        	        Files.createDirectories(
-        	                baseStorageDir.resolve(
-        	                        String.valueOf(opportunityId)
-        	                )
+        	        documentStorageService.getDocumentFolder(
+        	                opportunityId,
+        	                "Quality/PSR"
         	        );
 
             // ============================================

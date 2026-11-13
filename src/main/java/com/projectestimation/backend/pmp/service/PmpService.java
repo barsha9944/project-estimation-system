@@ -1,76 +1,45 @@
 package com.projectestimation.backend.pmp.service;
 
 import java.io.ByteArrayOutputStream;
-
 import java.io.IOException;
-
+import java.io.InputStream;
 import java.lang.reflect.Method;
-
 import java.lang.reflect.RecordComponent;
-
 import java.util.ArrayList;
-
 import java.util.Collections;
-
 import java.util.List;
 
+import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.BreakType;
-
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
-
 import org.apache.poi.xwpf.usermodel.TableRowHeightRule;
-
 import org.apache.poi.xwpf.usermodel.TableWidthType;
-
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
-
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-
 import org.apache.poi.xwpf.usermodel.XWPFRun;
-
 import org.apache.poi.xwpf.usermodel.XWPFTable;
-
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
-
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
-
 import org.springframework.stereotype.Service;
-
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
-
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
-
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
-
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
-
 import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepository;
-
 import com.projectestimation.backend.opportunity.model.Opportunity;
-
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
-
 import com.projectestimation.backend.pmp.ai.GeminiPmpOrchestrator;
-
 import com.projectestimation.backend.pmp.dto.EstimatedSizeEffortDto;
 import com.projectestimation.backend.pmp.dto.PmpDto;
-
 import com.projectestimation.backend.pmp.dto.PmpGenerationResponse;
-
 import com.projectestimation.backend.pmp.dto.PmpItemDto;
-
 import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
-
 import com.projectestimation.backend.pmp.model.Pmp;
-
 import com.projectestimation.backend.pmp.repository.PmpRepository;
-import java.io.InputStream;
-
-import org.apache.poi.util.Units;
 
 
 
@@ -91,6 +60,8 @@ public class PmpService {
     private final EstimationUseCaseRepository estimationUseCaseRepository;
 
     private final GeminiPmpOrchestrator geminiPmpOrchestrator;
+    
+    private final OpportunityDocumentStorageService documentStorageService;
 
     private final PmpRepository pmpRepository;
 
@@ -108,7 +79,9 @@ public class PmpService {
 
             PmpRepository pmpRepository,
 
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            
+    		OpportunityDocumentStorageService documentStorageService) {
 
         this.opportunityRepository = opportunityRepository;
 
@@ -121,6 +94,8 @@ public class PmpService {
         this.pmpRepository = pmpRepository;
 
         this.objectMapper = objectMapper;
+        
+        this.documentStorageService = documentStorageService;
 
     }
 
@@ -285,6 +260,23 @@ public class PmpService {
             pmp.setPmpData(objectMapper.writeValueAsString(pmpDto));
 
             pmpRepository.save(pmp);
+
+            try {
+                byte[] documentBytes = generatePmpDocument(pmpDto);
+
+                documentStorageService.saveFile(
+                        opportunityId,
+                        "Baseline/PMP",
+                        "PMP.docx",
+                        documentBytes
+                );
+
+            } catch (IOException e) {
+                throw new IllegalStateException(
+                        "Failed to save updated PMP document",
+                        e
+                );
+            }
 
             return new PmpGenerationResponse(pmpDto);
 

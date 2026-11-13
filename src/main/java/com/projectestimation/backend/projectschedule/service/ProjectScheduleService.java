@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.service;
 
+import java.io.IOException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.projectestimation.backend.auth.model.User;
 import com.projectestimation.backend.common.exception.ProjectScheduleFailedException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.estimation.model.EstimationActor;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
@@ -96,6 +98,8 @@ public class ProjectScheduleService {
 	private final PsrService psrService;
 
 	private final PsrPeriodCalculator psrPeriodCalculator;
+	
+	private final OpportunityDocumentStorageService documentStorageService;
 
 	public ProjectScheduleResponse generateProjectSchedule(
 
@@ -353,33 +357,64 @@ public class ProjectScheduleService {
 		System.out.println(
 				"PSR EVENT PUBLISHED -> opportunityId=" + opportunityId + ", affectedVersions=" + affectedPsrVersions);
 
+		try {
+		    byte[] excelBytes = projectScheduleExcelExporter.export(request);
+
+		    String fileName = opportunity.getOpportunityName()
+		            .replaceAll("[\\\\/:*?\"<>|]", "_")
+		            .replaceAll("\\s+", "_")
+		            .trim();
+
+		    if (fileName.isBlank()) {
+		        fileName = "Work_Schedule";
+		    }
+
+		    documentStorageService.saveFile(
+		            opportunityId,
+		            "Baseline/PMP",
+		            fileName + "_Project_Schedule.xlsx",
+		            excelBytes
+		    );
+
+		} catch (IOException e) {
+		    throw new ProjectScheduleFailedException(
+		            "Failed to save generated Work Schedule Excel.",
+		            e
+		    );
+		}
+		
 		applicationEventPublisher.publishEvent(new ProjectScheduleSavedEvent(opportunityId, affectedPsrVersions));
 
 	}
 
 	public ResponseEntity<byte[]> downloadProjectSchedule(
+        Long opportunityId,
+        SaveProjectScheduleRequest request
+) {
 
-			Long opportunityId,
+    Opportunity opportunity = opportunityRepository.findById(opportunityId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "Opportunity not found: " + opportunityId
+            ));
 
-			SaveProjectScheduleRequest request
+    String fileName = opportunity.getOpportunityName()
+            .replaceAll("[\\\\/:*?\"<>|]", "_")
+            .replaceAll("\\s+", "_")
+            + "_Project_Schedule.xlsx";
 
-	) {
+    byte[] excel = projectScheduleExcelExporter.export(request);
 
-		Opportunity opportunity = opportunityRepository.findById(opportunityId)
-				.orElseThrow(() -> new ResourceNotFoundException("Opportunity not found: " + opportunityId));
-
-		String opportunityName = opportunity.getOpportunityName();
-
-		String fileName = opportunityName.replaceAll("[\\\\/:*?\"<>|]", "_").replaceAll("\\s+", "_")
-				+ "_Project_Schedule.xlsx";
-
-		byte[] excel = projectScheduleExcelExporter.export(request);
-
-		return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
-				.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-				.body(excel);
-
-	}
+    return ResponseEntity.ok()
+            .header(
+                    "Content-Disposition",
+                    "attachment; filename=\"" + fileName + "\""
+            )
+            .header(
+                    "Content-Type",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            .body(excel);
+}
 
 	@Transactional(readOnly = true)
 	public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {

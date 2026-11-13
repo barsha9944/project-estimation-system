@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
@@ -42,6 +43,8 @@ public class TestCaseService {
     private final TestCaseRepository testCaseRepository;
 
     private final TestCaseExcelService testCaseExcelService;
+    
+    private final OpportunityDocumentStorageService documentStorageService;
 
     private final ObjectMapper objectMapper;
 
@@ -227,7 +230,8 @@ public class TestCaseService {
                 testCaseRepository.save(testCase);
             }
 
-
+            saveTestCaseExcel(opportunityId);
+            
             return generatedResponse;
 
         } catch (Exception e) {
@@ -512,6 +516,14 @@ public class TestCaseService {
             );
         }
 
+        try {
+            saveTestCaseExcel(opportunityId);
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Failed to save updated Test Case Excel",
+                    e
+            );
+        }
 
         // ========================================================
         // RETURN UPDATED DATA
@@ -527,35 +539,58 @@ public class TestCaseService {
     // DOWNLOAD EXCEL
     // ============================================================
 
-    @Transactional(readOnly = true)
     public byte[] downloadTestCases(
-            Long opportunityId
-    ) throws IOException {
+        Long opportunityId
+) throws IOException {
 
-        if (!opportunityRepository.existsById(opportunityId)) {
+    if (!opportunityRepository.existsById(opportunityId)) {
+        throw new ResourceNotFoundException(
+                "Opportunity not found"
+        );
+    }
 
-            throw new ResourceNotFoundException(
-                    "Opportunity not found"
-            );
-        }
+    List<TestCase> testCases =
+            testCaseRepository.findByOpportunityId(opportunityId);
 
+    if (testCases.isEmpty()) {
+        throw new ResourceNotFoundException(
+                "No test cases found for this opportunity"
+        );
+    }
+
+    return testCaseExcelService.generateExcel(testCases);
+}
+    
+    private void saveTestCaseExcel(Long opportunityId) throws IOException {
+
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Opportunity not found"
+                ));
 
         List<TestCase> testCases =
-                testCaseRepository.findByOpportunityId(
-                        opportunityId
-                );
-
+                testCaseRepository.findByOpportunityId(opportunityId);
 
         if (testCases.isEmpty()) {
-
-            throw new ResourceNotFoundException(
-                    "No test cases found for this opportunity"
-            );
+            return;
         }
 
+        byte[] excelBytes =
+                testCaseExcelService.generateExcel(testCases);
 
-        return testCaseExcelService.generateExcel(
-                testCases
+        String fileName = opportunity.getOpportunityName()
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .trim();
+
+        if (fileName.isBlank()) {
+            fileName = "TestCases";
+        }
+
+        documentStorageService.saveFile(
+                opportunityId,
+                "Quality/Test/Test Case",
+                fileName + ".xlsx",
+                excelBytes
         );
     }
 }

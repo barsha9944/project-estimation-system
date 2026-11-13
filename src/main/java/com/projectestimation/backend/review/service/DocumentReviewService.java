@@ -11,13 +11,13 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.model.ProjectTeam;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
@@ -44,14 +44,14 @@ import lombok.RequiredArgsConstructor;
 public class DocumentReviewService {
 
     private static final Logger log = LogManager.getLogger(DocumentReviewService.class);
-    @Value("${review.storage-dir}")
-    private String reviewStorageDir;
+    
     private final DocumentReviewRepository documentReviewRepository;
     private final OpportunityRepository opportunityRepository;
     private final ProjectTeamRepository projectTeamRepository;
     private final ReviewNoteGenerator reviewNoteGenerator;
     private final ReviewDataSheetGenerator reviewDataSheetGenerator;
     private final GeminiReviewOrchestrator geminiReviewOrchestrator;
+    private final OpportunityDocumentStorageService documentStorageService;
     private final SrsRepository srsRepository;
     private final SddRepository sddRepository;
     private final ObjectMapper objectMapper;
@@ -428,17 +428,18 @@ public class DocumentReviewService {
     }
 
 
-private Path saveFile(Long opportunityId, String fileName, byte[] content) throws IOException {
-    Path dirPath = Paths.get(reviewStorageDir)
-            .resolve(String.valueOf(opportunityId));
+    private Path saveFile(
+            Long opportunityId,
+            String fileName,
+            byte[] content) throws IOException {
 
-    Files.createDirectories(dirPath);
-
-    Path filePath = dirPath.resolve(fileName);
-    Files.write(filePath, content);
-
-    return filePath;
-}
+        return documentStorageService.saveFile(
+                opportunityId,
+                "Quality/Review",
+                fileName,
+                content
+        );
+    }
 
 
     private byte[] readFileBytes(String filePathStr) throws IOException {

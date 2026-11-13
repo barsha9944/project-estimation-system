@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.mom.dto.MomAgendaItemDto;
 import com.projectestimation.backend.mom.dto.MomDto;
 import com.projectestimation.backend.mom.dto.MomGenerateRequest;
@@ -56,6 +57,7 @@ public class MomService {
     private final MomRepository momRepository;
     private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
     private final GeminiMomOrchestrator geminiMomOrchestrator;
+    private final OpportunityDocumentStorageService documentStorageService;
     private final ObjectMapper objectMapper;
     public MomService(
             OpportunityRepository opportunityRepository,
@@ -63,7 +65,8 @@ public class MomService {
             MomRepository momRepository,
             ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository,
             GeminiMomOrchestrator geminiMomOrchestrator,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            OpportunityDocumentStorageService documentStorageService
     ) {
         this.opportunityRepository = opportunityRepository;
         this.projectTeamRepository = projectTeamRepository;
@@ -72,6 +75,7 @@ public class MomService {
                 projectScheduleTaskBreakdownRepository;
         this.geminiMomOrchestrator = geminiMomOrchestrator;
         this.objectMapper = objectMapper;
+        this.documentStorageService = documentStorageService;
     }
     // ============================================================
     // GENERATE ALL MOMS
@@ -197,6 +201,8 @@ public class MomService {
             Mom saved =
                     momRepository.save(mom);
 
+            saveMomDocument(saved);
+            
             generatedMoms.add(saved);
 
             previousMeetingInformation =
@@ -244,21 +250,17 @@ public class MomService {
     // DOWNLOAD MOM
     // ============================================================
 
-    public byte[] downloadMom(
-            Long momId
-    ) {
+    public byte[] downloadMom(Long momId) {
 
-        Mom mom =
-                momRepository.findById(momId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "MOM not found: "
-                                                + momId
-                                )
-                        );
+    Mom mom = momRepository.findById(momId)
+            .orElseThrow(() ->
+                    new RuntimeException(
+                            "MOM not found: " + momId
+                    )
+            );
 
-        return generateDocx(mom);
-    }
+    return generateDocx(mom);
+}
 
     public String getMomDocumentName(Long momId) {
 
@@ -2209,5 +2211,25 @@ public class MomService {
         return value == null
                 ? ""
                 : value;
+    }
+    
+    private void saveMomDocument(Mom mom) {
+
+        try {
+            byte[] documentBytes = generateDocx(mom);
+
+            documentStorageService.saveFile(
+                    mom.getOpportunityId(),
+                    "Quality/MOM",
+                    mom.getDocumentName(),
+                    documentBytes
+            );
+
+        } catch (IOException ex) {
+            throw new IllegalStateException(
+                    "Failed to save generated MOM document",
+                    ex
+            );
+        }
     }
 }

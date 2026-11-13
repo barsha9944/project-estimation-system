@@ -125,6 +125,9 @@ public class OpportunityService {
 			}
 			Opportunity saved = opportunityRepository.save(opportunity);
 
+			// Create the standard document folder structure for this opportunity
+			createOpportunityFolderStructure(saved);
+
 			return toResponse(saved);
 		} catch (Exception e) {
 			log.error("Error occured while creating opportunity :: ", e);
@@ -419,5 +422,55 @@ public ProjectTeamResponse getProjectTeam(Long opportunityId) {
 			throw new RuntimeException("Unable to delete file: " + fileStorage.getFileName(), ex);
 		}
 
+	}
+	
+	private void createOpportunityFolderStructure(Opportunity opportunity) throws IOException {
+
+	    String storageRoot = environment.getProperty("proposal.storage.path");
+
+	    if (storageRoot == null || storageRoot.isBlank()) {
+	        throw new IllegalStateException(
+	                "Property 'proposal.storage.path' is not configured"
+	        );
+	    }
+
+	    String opportunityName = opportunity.getOpportunityName()
+	            .trim()
+	            .replaceAll("[\\\\/:*?\"<>|]", "_");
+
+	    Path opportunityFolder = Paths.get(storageRoot)
+	            .resolve(opportunityName)
+	            .normalize();
+
+	    Path normalizedRoot = Paths.get(storageRoot).toAbsolutePath().normalize();
+	    opportunityFolder = opportunityFolder.toAbsolutePath().normalize();
+
+	    if (!opportunityFolder.startsWith(normalizedRoot)) {
+	        throw new IllegalArgumentException("Invalid opportunity folder name");
+	    }
+
+	    List<String> folders = List.of(
+	            "Quality/RTM",
+	            "Quality/MOM",
+	            "Quality/PSR",
+	            "Quality/Test/Test Case",
+	            "Quality/Review",
+	            "Quality/CAR",
+	            "Baseline/SRS",
+	            "Baseline/SDD",
+	            "Baseline/PMP",
+	            "Code"
+	    );
+
+	    Files.createDirectories(opportunityFolder);
+
+	    for (String folder : folders) {
+	        Files.createDirectories(opportunityFolder.resolve(folder));
+	    }
+
+	    log.info(
+	            "Created document folder structure for opportunity: {}",
+	            opportunity.getOpportunityName()
+	    );
 	}
 }
