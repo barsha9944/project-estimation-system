@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.car.ai.GeminiCarOrchestrator;
 import com.projectestimation.backend.car.dto.CarActionDto;
+import com.projectestimation.backend.car.dto.CarResponseDto;
 import com.projectestimation.backend.car.model.CarAnalysis;
 import com.projectestimation.backend.car.repository.CarAnalysisRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.projectestimation.backend.projectmetrics.dto.ProjectMetricsResponse;
 import com.projectestimation.backend.projectmetrics.service.ProjectMetricsService;
 
+import com.projectestimation.backend.opportunity.model.Opportunity;
+import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +34,108 @@ public class CarRootCauseAnalysisService {
     private final GeminiCarOrchestrator orchestrator;
     private final ObjectMapper objectMapper;
     
+    private final OpportunityRepository opportunityRepository;
+    
     private final ProjectMetricsService projectMetricsService;
+    
+    public CarResponseDto generateAutomatedCar(Long opportunityId) {
+
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Opportunity not found: " + opportunityId));
+
+        // Prevent accidental duplicate CAR records.
+        List<CarAnalysis> existingCars =
+                carAnalysisRepository
+                        .findByOpportunityIdOrderByCreatedAtDesc(opportunityId);
+
+        if (!existingCars.isEmpty()) {
+            throw new IllegalStateException(
+                    "A CAR already exists for this opportunity. "
+                    + "Use the existing CAR instead of generating a duplicate.");
+        }
+
+        try {
+            ProjectMetricsResponse projectMetrics =
+                    projectMetricsService.getMetrics(opportunityId);
+
+            if (projectMetrics == null
+                    || projectMetrics.getSprints() == null
+                    || projectMetrics.getSprints().isEmpty()) {
+
+                throw new IllegalStateException(
+                        "Sprint-wise Project Metrics are not available. "
+                        + "Please calculate Project Metrics before generating CAR.");
+            }
+
+            boolean hasSprintSummary = projectMetrics.getSprints()
+                    .stream()
+                    .anyMatch(sprint -> sprint.getSummary() != null);
+
+            if (!hasSprintSummary) {
+                throw new IllegalStateException(
+                        "Sprint-wise Summary Metrics are not available.");
+            }
+
+            // Ask Gemini to generate the complete CAR information.
+            String response = orchestrator.generateAutomatedCar(
+                    opportunity,
+                    projectMetrics);
+
+            JsonNode json = objectMapper.readTree(normalizeJson(response));
+
+            if (json == null || !json.isObject()) {
+                throw new IllegalStateException(
+                        "CAR AI response is not a JSON object.");
+            }
+
+            String carType = text(json, "carType");
+
+            if (carType == null
+                    || (!carType.equalsIgnoreCase("POSITIVE")
+                    && !carType.equalsIgnoreCase("NEGATIVE"))) {
+
+                throw new IllegalStateException(
+                        "Gemini returned an invalid CAR type.");
+            }
+
+            // Build the CAR only after Gemini has returned valid JSON.
+            CarAnalysis car = CarAnalysis.builder()
+                    .opportunity(opportunity)
+                    .carType(carType.trim().toUpperCase(Locale.ROOT))
+                    .triggerForCar(text(json, "triggerForCar"))
+                    .problemStatement(text(json, "problemStatement"))
+                    .originatorName(text(json, "originatorName"))
+                    .performanceMonitoringDetails(
+                            text(json, "performanceMonitoringDetails"))
+                    .causalAnalysisTechnique(
+                            text(json, "causalAnalysisTechnique"))
+                    .rootCauseSummary(text(json, "rootCauseSummary"))
+                    .fiveWhysDetails(text(json, "fiveWhysDetails"))
+                    .fishboneAnalysis(text(json, "fishboneAnalysis"))
+                    .paretoAnalysis(text(json, "paretoAnalysis"))
+                    .histogramAnalysis(text(json, "histogramAnalysis"))
+                    .actionProposedSummary(
+                            text(json, "actionProposedSummary"))
+                    .lessonsLearned(text(json, "lessonsLearned"))
+                    .status("OPEN")
+                    .build();
+
+            CarAnalysis savedCar = carAnalysisRepository.save(car);
+
+            // Save the actions generated by Gemini.
+            saveSuggestedActions(savedCar, json.path("actions"));
+
+            savedCar = carAnalysisRepository.save(savedCar);
+
+            return carService.toDto(savedCar);
+
+        } catch (Exception ex) {
+            throw new IllegalStateException(
+                    "Failed to generate automated CAR: "
+                            + safeMessage(ex), ex);
+        }
+    }
 
     public CarAnalysis generateAnalysis(Long carId) {
 
