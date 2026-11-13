@@ -90,9 +90,33 @@ public class CarPromptBuilder {
             4. Provide a detailed, logically connected 5 Whys analysis.
                Number each why and answer in fiveWhysDetails.
 
-            5. Provide a Fishbone analysis using People, Process, Technology,
-               Measurement, Environment, and Management categories.
-               Do not force a category when there is no supporting information.
+           5. Generate a detailed Fishbone (Ishikawa) analysis using these
+			   six categories:
+			
+			   - People
+			   - Process
+			   - Technology
+			   - Measurement
+			   - Environment
+			   - Management
+			
+			   For each category:
+			   - Identify possible causes using only the supplied project
+			     metrics and evidence.
+			   - Explain the causes briefly and clearly.
+			   - Do not invent causes or assumptions.
+			   - If evidence is unavailable, return "Insufficient data".
+			
+			   Return fishboneAnalysis as a single string using this exact format:
+			
+			   People: [causes]
+			   Process: [causes]
+			   Technology: [causes]
+			   Measurement: [causes]
+			   Environment: [causes]
+			   Management: [causes]
+			
+			   Keep each category on a separate line.
 
             6. Provide Pareto analysis only when numerical frequency or impact
                data exists. Otherwise state that sufficient numerical data
@@ -294,10 +318,33 @@ public class CarPromptBuilder {
 
             5. Use FIVE WHYS for root cause analysis.
 
-            6. Generate a Fishbone analysis using these categories:
-               People, Process, Technology, Measurement,
-               Environment, and Management.
-
+        6. Generate a detailed Fishbone (Ishikawa) analysis using these
+		   six categories:
+		
+		   - People
+		   - Process
+		   - Technology
+		   - Measurement
+		   - Environment
+		   - Management
+		
+		   For each category:
+		   - Identify possible causes using the supplied project metrics.
+		   - Explain each cause briefly.
+		   - Use only available project evidence.
+		   - Do not invent causes or assumptions.
+		   - If evidence is unavailable, return "Insufficient data".
+		
+		   Return fishboneAnalysis as a single string using this exact format:
+		
+		   People: [causes]
+		   Process: [causes]
+		   Technology: [causes]
+		   Measurement: [causes]
+		   Environment: [causes]
+		   Management: [causes]
+		
+		   Keep each category on a separate line.
             7. Do not force a fishbone category when evidence is
                unavailable.
 
