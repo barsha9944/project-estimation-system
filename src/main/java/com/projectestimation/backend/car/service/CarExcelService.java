@@ -418,68 +418,51 @@ public class CarExcelService {
    // FISHBONE / CAUSE-AND-EFFECT DIAGRAM
    // ---------------------------------------------------------------------
 
-   /** Adds a diagram based on this CAR's own fishboneAnalysis and root cause. */
+   /** Adds a CAR-specific Fishbone diagram using the saved Five-Why answers first. */
    private void addFishboneDiagram(Workbook workbook, Sheet sheet, CarAnalysis car)
            throws IOException {
-       String analysis = safe(car.getFishboneAnalysis());
 
        String effect = safe(car.getRootCauseSummary());
        if (effect.isBlank()) effect = safe(car.getProblemStatement());
        if (effect.isBlank()) effect = safe(car.getTriggerForCar());
        if (effect.isBlank()) effect = "CAR outcome / problem";
 
-       // Prefer the CAR-specific Fishbone analysis saved for this record.
-       List<FishboneCause> causes = parseFishboneCauses(analysis);
+       // The saved Five-Why answers are the primary source. This prevents a
+       // generic AI response such as "Insufficient data" from becoming a branch.
+       List<FishboneCause> causes = deriveFishboneCausesFromWhyAnswers(
+               parseWhyAnswers(car.getFiveWhysDetails()));
 
-       // If no structured Fishbone text exists, derive branches from the
-       // saved Five-Why answers. No unrelated or hardcoded causes are added.
+       // Use the dedicated Fishbone field only when it contains meaningful causes.
        if (causes.isEmpty()) {
-           List<WhyAnswer> whyAnswers = parseWhyAnswers(car.getFiveWhysDetails());
-           for (int i = 0; i < whyAnswers.size() && causes.size() < 6; i++) {
-               WhyAnswer pair = whyAnswers.get(i);
-               String detail = safe(pair.answer());
-               if (detail.isBlank()) detail = safe(pair.question());
-               if (!detail.isBlank()) {
-                   causes.add(new FishboneCause("Why " + (i + 1), detail));
-               }
-           }
+           causes = parseFishboneCauses(safe(car.getFishboneAnalysis()));
        }
 
+       // Do not draw generic placeholder causes. If the record has no cause
+       // information, omit the optional diagram rather than inventing data.
        if (causes.isEmpty()) {
-           String problem = safe(car.getProblemStatement());
-           if (!problem.isBlank()) {
-               causes.add(new FishboneCause("Problem", problem));
-           } else {
-               // Do not fail the entire Excel download just because optional
-               // Fishbone source data is absent.
-               return;
-           }
+           return;
        }
 
-       // Remove an older generated Fishbone picture, including one previously
-       // anchored on the far-right side. Keep the original template logo.
        removeExistingFishbonePictures(sheet);
 
        byte[] png = createFishboneImage(effect, causes);
        int pictureIndex = workbook.addPicture(png, Workbook.PICTURE_TYPE_PNG);
 
-       // Do not add a separate "FISHBONE" text heading. The diagram itself
-       // is the visual section and is placed directly below the report table.
-
        Drawing<?> drawing = sheet.getDrawingPatriarch();
-       if (drawing == null) drawing = sheet.createDrawingPatriarch();
+       if (drawing == null) {
+           drawing = sheet.createDrawingPatriarch();
+       }
 
-       // Place one smaller diagram centrally below the report table.
-       // It no longer occupies the full A:R width or the far-right margin.
+       // Keep the diagram below the action table and inside the report width.
        ClientAnchor anchor = workbook.getCreationHelper().createClientAnchor();
        anchor.setCol1(1);   // Column B
        anchor.setRow1(28);  // Excel row 29
        anchor.setCol2(17);  // Before column R
-       anchor.setRow2(48);  // Excel row 49
+       anchor.setRow2(49);  // Excel row 50
        anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
        drawing.createPicture(anchor, pictureIndex);
 
-       workbook.setPrintArea(workbook.getSheetIndex(sheet), "$A$1:$R$49");
+       workbook.setPrintArea(workbook.getSheetIndex(sheet), "$A$1:$R$50");
    }
 
    /**
@@ -514,46 +497,146 @@ public class CarExcelService {
                                && anchor.getFrom().getCol() >= 14)));
    }
 
-   /** Supports category-based lines such as "People: ..." or plain bullet lines. */
-   private List<FishboneCause> parseFishboneCauses(String value) {
+   /**
+    * Converts the saved Why answers into Fishbone categories. The category is
+    * inferred from words in the actual answer; the cause text itself is never
+    * fabricated or replaced with generic placeholder text.
+    */
+   private List<FishboneCause> deriveFishboneCausesFromWhyAnswers(List<WhyAnswer> whyAnswers) {
        List<FishboneCause> causes = new ArrayList<>();
-       if (value == null || value.isBlank()) return causes;
+       if (whyAnswers == null || whyAnswers.isEmpty()) {
+           return causes;
+       }
 
-       String normalized = value.replace("\\r", "");
-       String[] lines = normalized.split("\\n|;|\\|\\|");
-       for (String raw : lines) {
-           String line = raw.trim().replaceFirst("^[•*\\-]+\\s*", "")
-                   .replaceAll("^\\d+[.)]\\s*", "");
-           if (line.isBlank()) continue;
-
-           int separator = line.indexOf(':');
-           if (separator < 1 || separator > 50) separator = line.indexOf('—');
-           if (separator < 1 || separator > 50) separator = line.indexOf('-');
-
-           String category;
-           String detail;
-           if (separator > 0 && separator < 51) {
-               category = line.substring(0, separator).trim();
-               detail = line.substring(separator + 1).trim();
-           } else {
-               category = "Cause " + (causes.size() + 1);
-               detail = line;
+       for (WhyAnswer pair : whyAnswers) {
+           String detail = safe(pair.answer());
+           if (detail.isBlank()) {
+               detail = safe(pair.question());
            }
-           if (!detail.isBlank()) causes.add(new FishboneCause(category, detail));
-           if (causes.size() >= 6) break;
+           detail = detail.replaceFirst("(?i)^because\\s+", "").trim();
+           if (detail.isBlank() || isGenericFishboneText(detail)) {
+               continue;
+           }
+
+           String lower = detail.toLowerCase(Locale.ROOT);
+           String category;
+           if (lower.contains("complexity") && lower.contains("resource")) {
+               category = "COMPLEXITY & RESOURCES";
+           } else if (lower.contains("risk assessment")) {
+               category = "RISK ASSESSMENT";
+           } else if (lower.contains("planning phase") || lower.contains("planned completion")
+                   || lower.contains("schedule")) {
+               category = "PLANNING";
+           } else if (lower.contains("estimate") || lower.contains("estimation")
+                   || lower.contains("estimated") || lower.contains("complexity")) {
+               category = "ESTIMATION";
+           } else if (lower.contains("resource") || lower.contains("staff")
+                   || lower.contains("team") || lower.contains("skill")) {
+               category = "RESOURCES";
+           } else if (lower.contains("workflow") || lower.contains("process")
+                   || lower.contains("procedure") || lower.contains("delay")) {
+               category = "PROCESS";
+           } else if (lower.contains("tool") || lower.contains("system")
+                   || lower.contains("technology") || lower.contains("equipment")) {
+               category = "TECHNOLOGY";
+           } else {
+               category = "CAUSE " + (causes.size() + 1);
+           }
+
+           // Keep distinct answers, but avoid duplicate category/detail entries.
+           boolean duplicate = false;
+           for (FishboneCause existing : causes) {
+               if (existing.category().equalsIgnoreCase(category)
+                       && existing.detail().equalsIgnoreCase(detail)) {
+                   duplicate = true;
+                   break;
+               }
+           }
+           if (!duplicate) {
+               causes.add(new FishboneCause(category, detail));
+           }
+           if (causes.size() == 5) {
+               break;
+           }
        }
        return causes;
    }
 
+   /** Parses category-labelled Fishbone text, including multiple labels in one paragraph. */
+   private List<FishboneCause> parseFishboneCauses(String value) {
+       List<FishboneCause> causes = new ArrayList<>();
+       if (value == null || value.isBlank()) {
+           return causes;
+       }
+
+       String normalized = value.replace("\r", " ")
+               .replace("\n", " ")
+               .replaceAll("\\s+", " ")
+               .trim();
+
+       Pattern categoryPattern = Pattern.compile(
+               "(?i)\\b(People|Process|Technology|Measurement|Materials?|Environment|"
+               + "Management|Method|Machine|Equipment|Tools|Documentation|Communication|"
+               + "Planning|Estimation|Resources|Risk Assessment)\\s*:");
+       Matcher matcher = categoryPattern.matcher(normalized);
+       List<String> categories = new ArrayList<>();
+       List<Integer> starts = new ArrayList<>();
+       List<Integer> ends = new ArrayList<>();
+
+       while (matcher.find()) {
+           categories.add(matcher.group(1).toUpperCase(Locale.ROOT));
+           starts.add(matcher.start());
+           ends.add(matcher.end());
+       }
+
+       for (int i = 0; i < categories.size(); i++) {
+           int detailStart = ends.get(i);
+           int detailEnd = (i + 1 < starts.size()) ? starts.get(i + 1) : normalized.length();
+           String detail = normalized.substring(detailStart, detailEnd)
+                   .replaceAll("^[,;:.\\s-]+", "")
+                   .replaceAll("[,;:.\\s-]+$", "")
+                   .trim();
+
+           if (detail.isBlank() || isGenericFishboneText(detail)) {
+               continue;
+           }
+           causes.add(new FishboneCause(categories.get(i), detail));
+           if (causes.size() >= 5) {
+               break;
+           }
+       }
+
+       // Fallback for structured bullet/line responses without category labels.
+       if (causes.isEmpty()) {
+           String[] lines = normalized.split("[;|]");
+           for (String raw : lines) {
+               String detail = raw.trim().replaceFirst("^[•*\\-]+\\s*", "");
+               if (detail.isBlank() || isGenericFishboneText(detail)) {
+                   continue;
+               }
+               causes.add(new FishboneCause("CAUSE " + (causes.size() + 1), detail));
+               if (causes.size() >= 5) {
+                   break;
+               }
+           }
+       }
+       return causes;
+   }
+
+   private boolean isGenericFishboneText(String value) {
+       if (value == null || value.isBlank()) {
+           return true;
+       }
+       String normalized = value.trim().replaceAll("[.! ]+$", "");
+       return normalized.matches("(?i)(insufficient data|no data|not available|n/?a|none|unknown)");
+   }
+
    private byte[] createFishboneImage(String effect, List<FishboneCause> causes)
            throws IOException {
-       // Landscape diagram inspired by the supplied reference:
-       // a central cause/effect spine, diagonal category bones, cause boxes,
-       // and one effect box at the head. All labels come from this CAR record.
-       final int width = 1500;
-       final int height = 760;
-       final int spineY = 390;
-       final int headX = 1190;
+       final int width = 1800;
+       final int height = 820;
+       final int spineY = 410;
+       final int headX = 1420;
 
        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
        Graphics2D g = image.createGraphics();
@@ -567,83 +650,87 @@ public class CarExcelService {
            Color slate = new Color(71, 85, 105);
            Color orange = new Color(234, 88, 12);
            Color red = new Color(220, 38, 38);
-           Color pale = new Color(248, 250, 252);
+           Color pale = new Color(255, 247, 237);
+           Color light = new Color(248, 250, 252);
            Color text = new Color(45, 55, 72);
 
-           g.setFont(new Font("Arial", Font.BOLD, 30));
+           g.setFont(new Font("Arial", Font.BOLD, 32));
            g.setColor(new Color(36, 50, 71));
-           g.drawString("FISHBONE / CAUSE-AND-EFFECT ANALYSIS", 45, 55);
+           g.drawString("FISHBONE / CAUSE-AND-EFFECT ANALYSIS", 55, 48);
 
-           // Main horizontal spine and tail.
+           // Central spine and tail.
            g.setColor(slate);
-           g.setStroke(new BasicStroke(7, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-           g.drawLine(70, spineY, headX, spineY);
-           g.drawLine(70, spineY, 28, spineY - 25);
-           g.drawLine(70, spineY, 28, spineY + 25);
+           g.setStroke(new BasicStroke(8, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+           g.drawLine(75, spineY, headX, spineY);
+           g.drawLine(75, spineY, 25, spineY - 30);
+           g.drawLine(75, spineY, 25, spineY + 30);
+           g.fillPolygon(new int[]{headX, headX + 34, headX},
+                   new int[]{spineY - 17, spineY, spineY + 17}, 3);
 
-           // Category bones alternate above and below the spine.
-           int count = Math.min(causes.size(), 6);
-           int[] joints = {230, 405, 580, 755, 930, 1080};
+           int[] joints = {250, 480, 710, 940, 1170};
+           int count = Math.min(causes.size(), joints.length);
+
            for (int i = 0; i < count; i++) {
                FishboneCause cause = causes.get(i);
                boolean upper = (i % 2 == 0);
                int jointX = joints[i];
                int branchX = upper ? jointX - 95 : jointX + 95;
-               int branchY = upper ? spineY - 145 : spineY + 145;
+               int branchY = upper ? 235 : 610;
 
                g.setColor(navy);
-               g.setStroke(new BasicStroke(5, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+               g.setStroke(new BasicStroke(6, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                g.drawLine(jointX, spineY, branchX, branchY);
 
-               // Category label in a compact outlined header box.
-               String category = safe(cause.category());
-               if (category.isBlank()) category = "Cause " + (i + 1);
-               int boxW = 220;
-               int boxH = 42;
-               int boxX = upper ? Math.max(35, branchX - 95) : Math.min(900, branchX - 25);
-               int boxY = upper ? 95 + (i / 2) * 12 : 590 - (i / 2) * 8;
-
+               int categoryX = upper ? Math.max(35, jointX - 220) : Math.min(1190, jointX - 5);
+               int categoryY = upper ? 75 : 680;
+               int categoryW = 220;
+               int categoryH = 42;
                g.setColor(Color.WHITE);
-               g.fillRoundRect(boxX, boxY, boxW, boxH, 8, 8);
+               g.fillRoundRect(categoryX, categoryY, categoryW, categoryH, 8, 8);
                g.setColor(navy);
                g.setStroke(new BasicStroke(2));
-               g.drawRoundRect(boxX, boxY, boxW, boxH, 8, 8);
+               g.drawRoundRect(categoryX, categoryY, categoryW, categoryH, 8, 8);
                g.setFont(new Font("Arial", Font.BOLD, 19));
-               drawWrapped(g, category, boxX + 10, boxY + 27, boxW - 20, 21, 1, navy);
+               drawWrapped(g, safe(cause.category()), categoryX + 10, categoryY + 27,
+                       categoryW - 20, 20, 1, navy);
 
-               // Cause detail box sits between the category header and the bone.
-               String detail = safe(cause.detail());
-               int detailW = 250;
-               int detailH = 82;
-               int detailX = upper ? Math.max(30, branchX - 170) : Math.min(900, branchX - 65);
-               int detailY = upper ? boxY + 48 : boxY - detailH - 8;
-
-               g.setColor(pale);
-               g.fillRoundRect(detailX, detailY, detailW, detailH, 8, 8);
+               int detailW = 245;
+               int detailH = 105;
+               int detailX = upper ? Math.max(25, jointX - 235) : Math.min(1200, jointX - 5);
+               int detailY = upper ? 125 : 465;
+               g.setColor(light);
+               g.fillRoundRect(detailX, detailY, detailW, detailH, 9, 9);
                g.setColor(red);
                g.setStroke(new BasicStroke(2));
-               g.drawRoundRect(detailX, detailY, detailW, detailH, 8, 8);
+               g.drawRoundRect(detailX, detailY, detailW, detailH, 9, 9);
                g.setFont(new Font("Arial", Font.PLAIN, 17));
-               drawWrapped(g, detail, detailX + 10, detailY + 24, detailW - 20, 20, 3, text);
+               drawWrapped(g, safe(cause.detail()), detailX + 10, detailY + 22,
+                       detailW - 20, 20, 4, text);
 
-               // Short red connector from the cause box towards its category bone.
+               // Orange connector from the cause detail box to its diagonal bone.
                g.setColor(orange);
-               g.setStroke(new BasicStroke(2));
-               int connectorY = upper ? detailY + detailH : detailY;
-               int connectorX = detailX + detailW / 2;
-               int targetY = upper ? branchY - 10 : branchY + 10;
-               g.drawLine(connectorX, connectorY, branchX, targetY);
+               g.setStroke(new BasicStroke(3));
+               int sx = detailX + detailW / 2;
+               int sy = detailY + detailH;
+               int tx = branchX;
+               int ty = upper ? branchY - 18 : branchY - 18;
+               g.drawLine(sx, sy, tx, ty);
+               drawArrowHead(g, sx, sy, tx, ty, orange);
            }
 
-           // Effect box at the arrow head, matching the supplied example.
-           g.setColor(new Color(255, 247, 237));
-           g.fillRoundRect(headX, spineY - 78, 260, 156, 18, 18);
+           // Effect box at the arrow head.
+           int effectX = 1470;
+           int effectY = 300;
+           int effectW = 300;
+           int effectH = 220;
+           g.setColor(pale);
+           g.fillRoundRect(effectX, effectY, effectW, effectH, 18, 18);
            g.setColor(orange);
            g.setStroke(new BasicStroke(4));
-           g.drawRoundRect(headX, spineY - 78, 260, 156, 18, 18);
+           g.drawRoundRect(effectX, effectY, effectW, effectH, 18, 18);
            g.setFont(new Font("Arial", Font.BOLD, 20));
-           drawWrapped(g, effect, headX + 16, spineY - 42, 228, 25, 5,
-                   new Color(124, 45, 18));
+           drawWrapped(g, effect, effectX + 18, effectY + 34,
+                   effectW - 36, 27, 7, new Color(124, 45, 18));
 
        } finally {
            g.dispose();
@@ -653,6 +740,17 @@ public class CarExcelService {
            ImageIO.write(image, "png", out);
            return out.toByteArray();
        }
+   }
+
+   private void drawArrowHead(Graphics2D g, int x1, int y1, int x2, int y2, Color color) {
+       double angle = Math.atan2(y2 - y1, x2 - x1);
+       int length = 14;
+       int xA = (int) (x2 - length * Math.cos(angle - 0.45));
+       int yA = (int) (y2 - length * Math.sin(angle - 0.45));
+       int xB = (int) (x2 - length * Math.cos(angle + 0.45));
+       int yB = (int) (y2 - length * Math.sin(angle + 0.45));
+       g.setColor(color);
+       g.fillPolygon(new int[]{x2, xA, xB}, new int[]{y2, yA, yB}, 3);
    }
 
    private void drawWrapped(Graphics2D g, String value, int x, int y,
