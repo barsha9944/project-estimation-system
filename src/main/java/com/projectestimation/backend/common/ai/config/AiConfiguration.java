@@ -44,7 +44,7 @@ public class AiConfiguration {
         return new GeminiProvider(
                 client,
                 "Gemini Flash",
-                "gemini-2.5-flash-lite",
+                "gemini-3.5-flash-lite",
                 2
         );
     }
