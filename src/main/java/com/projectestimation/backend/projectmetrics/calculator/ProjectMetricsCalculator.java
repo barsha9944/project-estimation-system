@@ -32,6 +32,14 @@ import com.projectestimation.backend.testcase.model.TestCaseScenario;
 import com.projectestimation.backend.testcase.model.TestCaseStep;
 import com.projectestimation.backend.testcase.repository.TestCaseRepository;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.projectestimation.backend.review.dto.ReviewFindingDto;
+import com.projectestimation.backend.review.model.DocumentReview;
+import com.projectestimation.backend.review.model.DocumentReviewType;
+import com.projectestimation.backend.review.repository.DocumentReviewRepository;
+
 @Component
 public class ProjectMetricsCalculator {
 
@@ -44,24 +52,27 @@ public class ProjectMetricsCalculator {
     private final ProjectScheduleRepository projectScheduleRepository;
     
     private final TestCaseRepository testCaseRepository;
+    
+    private final DocumentReviewRepository documentReviewRepository;
+
+    private final ObjectMapper objectMapper;
 
     public ProjectMetricsCalculator(
-
             OpportunityRepository opportunityRepository,
-
             EstimationAnalysisRepository estimationAnalysisRepository,
-
             ProposalRepository proposalRepository,
-
             ProjectScheduleRepository projectScheduleRepository,
-            
-    		TestCaseRepository testCaseRepository) {
-
+            TestCaseRepository testCaseRepository,
+            DocumentReviewRepository documentReviewRepository,
+            ObjectMapper objectMapper) {
+    	
         this.opportunityRepository = opportunityRepository;
         this.estimationAnalysisRepository = estimationAnalysisRepository;
         this.proposalRepository = proposalRepository;
         this.projectScheduleRepository = projectScheduleRepository;
         this.testCaseRepository = testCaseRepository;
+        this.documentReviewRepository = documentReviewRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -296,10 +307,16 @@ public class ProjectMetricsCalculator {
     	
     	analysisResponse.setEffortInAnalysis(null);
 
-    	analysisResponse.setReviewDefects(null);
+    	// SRS Review Defects
+    	analysisResponse.setReviewDefects(
+    	        getReviewDefectCount(
+    	                opportunityId,
+    	                DocumentReviewType.SRS
+    	        )
+    	);
 
     	analysisResponse.setReviewEffort(null);
-    	
+
     	analysisResponse.setDefectDensity(null);
 
     	analysisResponse.setDefectDetectionRate(null);
@@ -357,7 +374,13 @@ public class ProjectMetricsCalculator {
     	
     	designResponse.setEffortInAnalysis(null);
 
-    	designResponse.setReviewDefects(null);
+    	// SDD Review Defects
+    	designResponse.setReviewDefects(
+    	        getReviewDefectCount(
+    	                opportunityId,
+    	                DocumentReviewType.SDD
+    	        )
+    	);
 
     	designResponse.setReviewEffort(null);
 
@@ -1798,6 +1821,51 @@ public class ProjectMetricsCalculator {
         sitResponse.setTotalTestConditions(totalTestConditions);
 
         sitResponse.setSitDefects(defectIds.size());
+    }
+    /**
+     * Returns the number of findings from the latest SRS or SDD review.
+     *
+     * Returns null when the review has not generated findings yet.
+     */
+    private Integer getReviewDefectCount(
+            Long opportunityId,
+            DocumentReviewType documentType) {
+
+        DocumentReview review = documentReviewRepository
+                .findByOpportunityIdAndDocumentType(
+                        opportunityId,
+                        documentType
+                )
+                .orElse(null);
+
+        // Review has not been created yet.
+        if (review == null) {
+            return null;
+        }
+
+        // Review findings have not been generated yet.
+        if (review.getFindingsData() == null
+                || review.getFindingsData().isBlank()) {
+            return null;
+        }
+
+        try {
+            List<ReviewFindingDto> findings =
+                    objectMapper.readValue(
+                            review.getFindingsData(),
+                            new TypeReference<List<ReviewFindingDto>>() {}
+                    );
+
+            return findings == null ? 0 : findings.size();
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Unable to read " + documentType
+                            + " review findings for opportunity "
+                            + opportunityId,
+                    e
+            );
+        }
     }
     
     
