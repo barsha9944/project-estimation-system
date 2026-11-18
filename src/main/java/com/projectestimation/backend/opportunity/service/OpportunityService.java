@@ -450,15 +450,19 @@ public ProjectTeamResponse getProjectTeam(Long opportunityId) {
 	    }
 
 	    List<String> folders = List.of(
+	            "Backup",
+
 	            "Quality/RTM",
 	            "Quality/MOM",
 	            "Quality/PSR",
 	            "Quality/Test/Test Case",
 	            "Quality/Review",
 	            "Quality/CAR",
+
 	            "Baseline/SRS",
 	            "Baseline/SDD",
 	            "Baseline/PMP",
+
 	            "Code"
 	    );
 

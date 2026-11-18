@@ -161,17 +161,60 @@ public class ProjectScheduleService {
 			throw new ProjectScheduleFailedException("Failed to generate project schedule", ex);
 		}
 
-		ProjectScheduleResponse response = result.schedule();
 
-		response.setDurationDays(durationDays);
-		
-		response.setProjectStartDate(projectStartDate);
+ProjectScheduleResponse response = result.schedule();
 
-		response.setProjectEndDate(projectEndDate);
+response.setDurationDays(durationDays);
+response.setProjectStartDate(projectStartDate);
+response.setProjectEndDate(projectEndDate);
+response.setEstimatedHours(request.getEstimatedHours());
 
-		response.setEstimatedHours(request.getEstimatedHours());
+// Set the generation parameters in the response.
+response.setBufferPercentage(request.getBufferPercentage());
+response.setTeamSize(request.getTeamSize());
+response.setWorkingDaysPerWeek(request.getWorkingDaysPerWeek());
+response.setWorkingHoursPerDays(request.getWorkingHoursPerDay());
 
-		return response;
+// Generate and save the Excel immediately.
+try {
+
+    SaveProjectScheduleRequest excelRequest =
+            convertToSaveProjectScheduleRequest(response);
+
+    byte[] excelBytes =
+            projectScheduleExcelExporter.export(excelRequest);
+
+    String fileName = opportunity.getOpportunityName()
+            .replaceAll("[\\\\/:*?\"<>|]", "_")
+            .replaceAll("\\s+", "_")
+            .trim();
+
+    if (fileName.isBlank()) {
+        fileName = "Work_Schedule";
+    }
+
+    documentStorageService.saveFile(
+            opportunityId,
+            "Baseline/PMP",
+            fileName + "_Project_Schedule.xlsx",
+            excelBytes
+    );
+
+    log.info(
+            "Generated Project Schedule saved for opportunity {}",
+            opportunityId
+    );
+
+} catch (Exception e) {
+
+    throw new ProjectScheduleFailedException(
+            "Failed to save generated Project Schedule Excel.",
+            e
+    );
+}
+
+return response;
+
 	}
 
 	@Transactional
@@ -357,31 +400,6 @@ public class ProjectScheduleService {
 		System.out.println(
 				"PSR EVENT PUBLISHED -> opportunityId=" + opportunityId + ", affectedVersions=" + affectedPsrVersions);
 
-		try {
-		    byte[] excelBytes = projectScheduleExcelExporter.export(request);
-
-		    String fileName = opportunity.getOpportunityName()
-		            .replaceAll("[\\\\/:*?\"<>|]", "_")
-		            .replaceAll("\\s+", "_")
-		            .trim();
-
-		    if (fileName.isBlank()) {
-		        fileName = "Work_Schedule";
-		    }
-
-		    documentStorageService.saveFile(
-		            opportunityId,
-		            "Baseline/PMP",
-		            fileName + "_Project_Schedule.xlsx",
-		            excelBytes
-		    );
-
-		} catch (IOException e) {
-		    throw new ProjectScheduleFailedException(
-		            "Failed to save generated Work Schedule Excel.",
-		            e
-		    );
-		}
 		
 		applicationEventPublisher.publishEvent(new ProjectScheduleSavedEvent(opportunityId, affectedPsrVersions));
 
@@ -863,5 +881,108 @@ public class ProjectScheduleService {
 		// THEN: delete parent project metrics row
 		projectMetricsRepository.deleteByOpportunityId(opportunityId);
 	}
+
+	
+
+private SaveProjectScheduleRequest convertToSaveProjectScheduleRequest(
+        ProjectScheduleResponse response) {
+
+    SaveProjectScheduleRequest request =
+            new SaveProjectScheduleRequest();
+
+    request.setProjectStartDate(response.getProjectStartDate());
+    request.setProjectEndDate(response.getProjectEndDate());
+
+    request.setTeamSize(response.getTeamSize());
+    request.setWorkingDaysPerWeek(response.getWorkingDaysPerWeek());
+    request.setWorkingHoursPerDay(response.getWorkingHoursPerDays());
+    request.setBufferPercentage(response.getBufferPercentage());
+
+    request.setDurationDays(response.getDurationDays());
+    request.setDuration(response.getDurationDays());
+
+    request.setTotalTasks(response.getTotalTasks());
+    request.setCompletedTasks(response.getCompletedTasks());
+    request.setCriticalTasks(response.getCriticalTasks());
+    request.setEstimatedHours(response.getEstimatedHours());
+
+    List<SaveProjectScheduleTaskRequest> taskRequests =
+            new ArrayList<>();
+
+    if (response.getTasks() != null) {
+
+        for (ProjectScheduleTaskResponse task : response.getTasks()) {
+
+            SaveProjectScheduleTaskRequest taskRequest =
+                    new SaveProjectScheduleTaskRequest();
+
+            taskRequest.setSequence(task.getSequence());
+            taskRequest.setTaskName(task.getTaskName());
+            taskRequest.setDuration(task.getDuration());
+
+            taskRequest.setPlannedStartDate(task.getPlannedStartDate());
+            taskRequest.setPlannedEndDate(task.getPlannedEndDate());
+
+            taskRequest.setActualStartDate(task.getActualStartDate());
+            taskRequest.setActualEndDate(task.getActualEndDate());
+
+            taskRequest.setPredecessor(task.getPredecessor());
+            taskRequest.setStatus(task.getStatus());
+
+            List<SaveTaskBreakdownRequest> breakdownRequests =
+                    new ArrayList<>();
+
+            if (task.getTaskBreakdowns() != null) {
+
+                for (TaskBreakdownResponse breakdown :
+                        task.getTaskBreakdowns()) {
+
+                    SaveTaskBreakdownRequest breakdownRequest =
+                            new SaveTaskBreakdownRequest();
+
+                    breakdownRequest.setActivityName(
+                            breakdown.getActivityName());
+
+                    breakdownRequest.setDuration(
+                            breakdown.getDuration());
+
+                    breakdownRequest.setPlannedStartDate(
+                            breakdown.getPlannedStartDate());
+
+                    breakdownRequest.setPlannedEndDate(
+                            breakdown.getPlannedEndDate());
+
+                    breakdownRequest.setActualStartDate(
+                            breakdown.getActualStartDate());
+
+                    breakdownRequest.setActualEndDate(
+                            breakdown.getActualEndDate());
+
+                    breakdownRequest.setStatus(
+                            breakdown.getStatus());
+
+                    breakdownRequest.setProgress(
+                            breakdown.getProgress());
+
+                    breakdownRequest.setSequence(
+                            breakdown.getSequence());
+
+                    breakdownRequest.setPredecessor(
+                            breakdown.getPredecessor());
+
+                    breakdownRequests.add(breakdownRequest);
+                }
+            }
+
+            taskRequest.setTaskBreakdowns(breakdownRequests);
+
+            taskRequests.add(taskRequest);
+        }
+    }
+
+    request.setTasks(taskRequests);
+
+    return request;
+}
 
 }

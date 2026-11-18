@@ -1,10 +1,12 @@
 package com.projectestimation.backend.projectmetrics.service;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.projectmetrics.calculator.ProjectMetricsCalculator;
 import com.projectestimation.backend.projectmetrics.dto.AnalysisMetricsResponse;
 import com.projectestimation.backend.projectmetrics.dto.CodingMetricsResponse;
@@ -29,45 +31,78 @@ public class ProjectMetricsService {
     private final ProjectMetricsRepository projectMetricsRepository;
     
     private final ProjectMetricsExcelService excelService;
+    
+    private final OpportunityDocumentStorageService documentStorageService;
 
     public ProjectMetricsService(
             ProjectMetricsCalculator calculator,
             ProjectMetricsPersistenceService persistenceService,
             ProjectMetricsRepository projectMetricsRepository,
-            ProjectMetricsExcelService excelService) {
+            ProjectMetricsExcelService excelService,
+            OpportunityDocumentStorageService documentStorageService) {
 
         this.calculator = calculator;
         this.persistenceService = persistenceService;
         this.projectMetricsRepository = projectMetricsRepository;
         this.excelService = excelService;
+        this.documentStorageService = documentStorageService;
     }
 
-    @Transactional
-    public ProjectMetricsResponse calculateMetrics(
-            Long opportunityId) {
-    	
-    	System.out.println(
-    	        "========== CALCULATE METRICS CALLED =========="
-    	    );
+    
+@Transactional
+public ProjectMetricsResponse calculateMetrics(Long opportunityId) {
 
-    	    System.out.println(
-    	        "Opportunity ID: " + opportunityId
-    	    );
+    System.out.println(
+            "========== CALCULATE METRICS CALLED =========="
+    );
 
+    System.out.println(
+            "Opportunity ID: " + opportunityId
+    );
 
-        ProjectMetricsResponse response =
-                calculator.calculate(opportunityId);
+    ProjectMetricsResponse response =
+            calculator.calculate(opportunityId);
 
-        persistenceService.saveMetrics(
+    // Save calculated metrics to the database.
+    persistenceService.saveMetrics(
+            opportunityId,
+            response
+    );
+
+    try {
+        // Generate the Summary Metrics Excel during calculation.
+        byte[] excelBytes =
+                excelService.generateExcel(opportunityId);
+
+        // Use the existing project-specific filename.
+        String fileName =
+                getProjectMetricsFileName(opportunityId);
+
+        // Save directly inside Quality.
+        // Existing versions will be moved to Backup
+        // by OpportunityDocumentStorageService.
+        documentStorageService.saveFile(
                 opportunityId,
-                response);
-        
-        System.out.println(
-                "========== CALCULATE METRICS FINISHED =========="
-            );
+                "Quality",
+                fileName,
+                excelBytes
+        );
 
-        return response;
+    } catch (IOException e) {
+
+        throw new RuntimeException(
+                "Failed to save generated Summary Metrics Excel.",
+                e
+        );
     }
+
+    System.out.println(
+            "========== CALCULATE METRICS FINISHED =========="
+    );
+
+    return response;
+}
+
     
     @Transactional(readOnly = true)
     public ProjectMetricsResponse getMetrics(Long opportunityId) {
@@ -884,18 +919,24 @@ public class ProjectMetricsService {
     }
     
     
-    @Transactional(readOnly = true)
-    public byte[] downloadMetrics(Long opportunityId) {
 
-        try {
-            return excelService.generateExcel(opportunityId);
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Failed to generate project metrics Excel.",
-                    e
-            );
-        }
+@Transactional(readOnly = true)
+public byte[] downloadMetrics(Long opportunityId) {
+
+    try {
+
+        // Generate the workbook bytes for download.
+        return excelService.generateExcel(opportunityId);
+
+    } catch (Exception e) {
+
+        throw new RuntimeException(
+                "Failed to generate project metrics Excel.",
+                e
+        );
     }
+}
+
     
     public String getProjectMetricsFileName(Long opportunityId) {
 
