@@ -7,6 +7,7 @@ import java.util.List;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -275,6 +276,15 @@ public class ProjectMetrics {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
 
     @PrePersist
     public void onCreate() {

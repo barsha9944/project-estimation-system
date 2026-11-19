@@ -24,6 +24,8 @@ import com.projectestimation.backend.projectmetrics.repository.ProjectMetricsRep
 @Service
 public class ProjectMetricsService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ProjectMetricsService.class);
+
     private final ProjectMetricsCalculator calculator;
 
     private final ProjectMetricsPersistenceService persistenceService;
@@ -34,18 +36,22 @@ public class ProjectMetricsService {
     
     private final OpportunityDocumentStorageService documentStorageService;
 
+    private final ProjectMetricsExcelParser excelParser;
+
     public ProjectMetricsService(
             ProjectMetricsCalculator calculator,
             ProjectMetricsPersistenceService persistenceService,
             ProjectMetricsRepository projectMetricsRepository,
             ProjectMetricsExcelService excelService,
-            OpportunityDocumentStorageService documentStorageService) {
+            OpportunityDocumentStorageService documentStorageService,
+            ProjectMetricsExcelParser excelParser) {
 
         this.calculator = calculator;
         this.persistenceService = persistenceService;
         this.projectMetricsRepository = projectMetricsRepository;
         this.excelService = excelService;
         this.documentStorageService = documentStorageService;
+        this.excelParser = excelParser;
     }
 
     
@@ -81,12 +87,14 @@ public ProjectMetricsResponse calculateMetrics(Long opportunityId) {
         // Save directly inside Quality.
         // Existing versions will be moved to Backup
         // by OpportunityDocumentStorageService.
-        documentStorageService.saveFile(
+        String relativePath = documentStorageService.replaceFile(
                 opportunityId,
                 "Quality",
                 fileName,
                 excelBytes
         );
+
+        updateMetricsFileMetadata(opportunityId, relativePath);
 
     } catch (IOException e) {
 
@@ -104,16 +112,40 @@ public ProjectMetricsResponse calculateMetrics(Long opportunityId) {
 }
 
     
-    @Transactional(readOnly = true)
+    @Transactional
     public ProjectMetricsResponse getMetrics(Long opportunityId) {
 
         ProjectMetrics metrics =
                 projectMetricsRepository
                         .findByOpportunityId(opportunityId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Project metrics not found for opportunity: "
-                                                + opportunityId));
+                        .orElse(null);
+
+        String fileName = getProjectMetricsFileName(opportunityId);
+        String relativePath = "Quality/" + fileName;
+
+        try {
+            if (documentStorageService.exists(opportunityId, relativePath)) {
+                String currentHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+                if (metrics == null || metrics.getFileHash() == null || !metrics.getFileHash().equals(currentHash)) {
+                    log.info("Detected physical Project Metrics Excel update for opportunityId: {}, syncing from file", opportunityId);
+                    byte[] bytes = documentStorageService.readFile(opportunityId, relativePath);
+                    ProjectMetricsResponse parsed = excelParser.parse(bytes);
+                    if (parsed != null && (parsed.getSummary() != null || !parsed.getSprints().isEmpty())) {
+                        persistenceService.saveMetrics(opportunityId, parsed);
+                        updateMetricsFileMetadata(opportunityId, relativePath);
+                        return parsed;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Failed to parse physical Project Metrics Excel file for opportunityId: {}", opportunityId, ex);
+        }
+
+        if (metrics == null) {
+            throw new RuntimeException(
+                    "Project metrics not found for opportunity: "
+                            + opportunityId);
+        }
 
         return mapEntityToResponse(metrics);
     }
@@ -920,13 +952,27 @@ public ProjectMetricsResponse calculateMetrics(Long opportunityId) {
     
     
 
-@Transactional(readOnly = true)
+@Transactional
 public byte[] downloadMetrics(Long opportunityId) {
 
     try {
+        String fileName = getProjectMetricsFileName(opportunityId);
+        String relativePath = "Quality/" + fileName;
 
-        // Generate the workbook bytes for download.
-        return excelService.generateExcel(opportunityId);
+        if (documentStorageService.exists(opportunityId, relativePath)) {
+            return documentStorageService.readFile(opportunityId, relativePath);
+        }
+
+        // Generate the workbook bytes for download and persist physical file.
+        byte[] excelBytes = excelService.generateExcel(opportunityId);
+        String savedPath = documentStorageService.replaceFile(
+                opportunityId,
+                "Quality",
+                fileName,
+                excelBytes
+        );
+        updateMetricsFileMetadata(opportunityId, savedPath);
+        return excelBytes;
 
     } catch (Exception e) {
 
@@ -937,6 +983,37 @@ public byte[] downloadMetrics(Long opportunityId) {
     }
 }
 
+    @Transactional
+    public ProjectMetricsResponse saveMetrics(Long opportunityId, ProjectMetricsResponse updatedResponse) throws IOException {
+        persistenceService.saveMetrics(opportunityId, updatedResponse);
+
+        byte[] excelBytes = excelService.generateExcel(opportunityId);
+        String fileName = getProjectMetricsFileName(opportunityId);
+
+        String relativePath = documentStorageService.replaceFile(
+                opportunityId,
+                "Quality",
+                fileName,
+                excelBytes
+        );
+
+        updateMetricsFileMetadata(opportunityId, relativePath);
+        return updatedResponse;
+    }
+
+    private void updateMetricsFileMetadata(Long opportunityId, String relativePath) {
+        try {
+            ProjectMetrics metrics = projectMetricsRepository.findByOpportunityId(opportunityId).orElse(null);
+            if (metrics != null) {
+                metrics.setFilePath(relativePath);
+                metrics.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+                metrics.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+                projectMetricsRepository.save(metrics);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to update project metrics file metadata for opportunityId: {}", opportunityId, ex);
+        }
+    }
     
     public String getProjectMetricsFileName(Long opportunityId) {
 

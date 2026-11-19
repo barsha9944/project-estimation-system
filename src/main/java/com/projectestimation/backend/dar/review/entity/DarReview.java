@@ -34,6 +34,15 @@ public class DarReview {
     @Column(name = "review_data", nullable = false)
     private String reviewData;
 
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -81,5 +90,29 @@ public class DarReview {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getFileHash() {
+        return fileHash;
+    }
+
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
+    }
+
+    public LocalDateTime getFileLastModified() {
+        return fileLastModified;
+    }
+
+    public void setFileLastModified(LocalDateTime fileLastModified) {
+        this.fileLastModified = fileLastModified;
     }
 }

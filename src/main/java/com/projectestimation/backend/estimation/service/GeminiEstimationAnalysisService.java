@@ -3,17 +3,21 @@ package com.projectestimation.backend.estimation.service;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.config.AiConfiguration;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
 @Service
 public class GeminiEstimationAnalysisService {
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    
+    private final AiGateway aiGateway;
 
     public GeminiEstimationAnalysisService(
-            GeminiClient geminiClient
+    		AiGateway aiGateway
     ) {
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
     }
 
     public String generateAnalysisHtml(
@@ -22,7 +26,7 @@ public class GeminiEstimationAnalysisService {
 
         String prompt = buildPrompt(opportunity);
 
-        return geminiClient.generateContent(
+        return aiGateway.generateContent(
                 prompt,
                 "text/plain",
                 8192

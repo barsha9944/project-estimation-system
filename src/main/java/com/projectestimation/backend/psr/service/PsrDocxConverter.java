@@ -94,6 +94,10 @@ public class PsrDocxConverter {
             // MARKDOWN → DOCX
             // ============================================
 
+            if (Files.exists(docxFile)) {
+                documentStorageService.backupExistingFile(opportunityId, docxFile);
+            }
+
             executePandoc(
                     markdownFile,
                     docxFile
@@ -108,9 +112,11 @@ public class PsrDocxConverter {
                             docxFile
                     );
 
+            String relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, docxFile);
+
             return new ConversionResult(
                     docxBytes,
-                    docxFile.toString()
+                    relativePath
             );
 
         } catch (Exception ex) {

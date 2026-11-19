@@ -41,10 +41,10 @@ import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
 import com.projectestimation.backend.pmp.model.Pmp;
 import com.projectestimation.backend.pmp.repository.PmpRepository;
 
+import lombok.extern.slf4j.Slf4j;
 
-
+@Slf4j
 @Service
-
 public class PmpService {
 
     private static final String BLUE =  "7DBFE3";
@@ -67,36 +67,26 @@ public class PmpService {
 
     private final ObjectMapper objectMapper;
 
+    private final PmpDocxParser pmpDocxParser;
+
     public PmpService(
-
             OpportunityRepository opportunityRepository,
-
             EstimationAnalysisRepository estimationAnalysisRepository,
-
             EstimationUseCaseRepository estimationUseCaseRepository,
-
             GeminiPmpOrchestrator geminiPmpOrchestrator,
-
             PmpRepository pmpRepository,
-
             ObjectMapper objectMapper,
-            
-    		OpportunityDocumentStorageService documentStorageService) {
+    		OpportunityDocumentStorageService documentStorageService,
+            PmpDocxParser pmpDocxParser) {
 
         this.opportunityRepository = opportunityRepository;
-
         this.estimationAnalysisRepository = estimationAnalysisRepository;
-
         this.estimationUseCaseRepository = estimationUseCaseRepository;
-
         this.geminiPmpOrchestrator = geminiPmpOrchestrator;
-
         this.pmpRepository = pmpRepository;
-
         this.objectMapper = objectMapper;
-        
         this.documentStorageService = documentStorageService;
-
+        this.pmpDocxParser = pmpDocxParser;
     }
 
     @Transactional
@@ -151,6 +141,21 @@ public class PmpService {
 
             pmp.setOpportunity(opportunity);
 
+            try {
+                byte[] documentBytes = generatePmpDocument(pmpDto);
+                String relativePath = documentStorageService.replaceFile(
+                        opportunityId,
+                        "Baseline/PMP",
+                        "PMP.docx",
+                        documentBytes
+                );
+                pmp.setFilePath(relativePath);
+                pmp.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+                pmp.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+            } catch (Exception ex) {
+                log.warn("Failed to save initial PMP document to storage: {}", ex.getMessage());
+            }
+
             pmp.setPmpData(objectMapper.writeValueAsString(pmpDto));
 
             pmpRepository.save(pmp);
@@ -167,8 +172,7 @@ public class PmpService {
 
     }
 
-    @Transactional(readOnly = true)
-
+    @Transactional
     public PmpGenerationResponse getPmp(Long opportunityId) {
 
         if (!opportunityRepository.existsById(opportunityId)) {
@@ -183,18 +187,56 @@ public class PmpService {
 
                         "PMP not found for this opportunity"));
 
-        try {
-
-            return new PmpGenerationResponse(objectMapper.readValue(
-
-                    pmp.getPmpData(), PmpDto.class));
-
-        } catch (Exception e) {
-
-            throw new IllegalStateException("Failed to read PMP data", e);
-
+        PmpDto cachedDto = null;
+        if (pmp.getPmpData() != null && !pmp.getPmpData().isBlank()) {
+            try {
+                cachedDto = objectMapper.readValue(pmp.getPmpData(), PmpDto.class);
+            } catch (Exception ignored) {}
         }
 
+        // 1. Check physical document first (Single Source of Truth)
+        try {
+            String relativePath = pmp.getFilePath();
+            if (relativePath == null || !documentStorageService.exists(opportunityId, relativePath)) {
+                if (documentStorageService.exists(opportunityId, "Baseline/PMP/PMP.docx")) {
+                    relativePath = "Baseline/PMP/PMP.docx";
+                }
+            }
+
+            if (relativePath != null && documentStorageService.exists(opportunityId, relativePath)) {
+                byte[] fileBytes = documentStorageService.readFile(opportunityId, relativePath);
+                PmpDto parsedDto = pmpDocxParser.parse(fileBytes, cachedDto);
+                if (parsedDto != null) {
+                    String currentHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+                    java.time.LocalDateTime lastMod = documentStorageService.getLastModified(opportunityId, relativePath);
+                    boolean metadataChanged = false;
+
+                    if (!relativePath.equals(pmp.getFilePath())) {
+                        pmp.setFilePath(relativePath);
+                        metadataChanged = true;
+                    }
+                    if (currentHash != null && !currentHash.equals(pmp.getFileHash())) {
+                        pmp.setFileHash(currentHash);
+                        pmp.setFileLastModified(lastMod);
+                        pmp.setPmpData(objectMapper.writeValueAsString(parsedDto));
+                        metadataChanged = true;
+                    }
+
+                    if (metadataChanged) {
+                        pmpRepository.save(pmp);
+                    }
+                    return new PmpGenerationResponse(parsedDto);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed reading/parsing physical PMP file for opportunity {}, falling back to database cache: {}", opportunityId, ex.getMessage());
+        }
+
+        if (cachedDto != null) {
+            return new PmpGenerationResponse(cachedDto);
+        }
+
+        throw new IllegalStateException("PMP data is empty or corrupted for opportunity " + opportunityId);
     }
 
     private PmpDto withOriginalEstimation(PmpDto dto, EstimationAnalysis analysis) {
@@ -244,78 +286,77 @@ public class PmpService {
     }
 
     @Transactional
-
     public PmpGenerationResponse savePmp(Long opportunityId, PmpDto pmpDto) {
 
         Opportunity opportunity = opportunityRepository.findById(opportunityId)
-
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
         try {
+            byte[] documentBytes = generatePmpDocument(pmpDto);
+
+            String relativePath = documentStorageService.replaceFile(
+                    opportunityId,
+                    "Baseline/PMP",
+                    "PMP.docx",
+                    documentBytes
+            );
 
             Pmp pmp = pmpRepository.findByOpportunityId(opportunityId).orElseGet(Pmp::new);
-
             pmp.setOpportunity(opportunity);
-
+            pmp.setFilePath(relativePath);
+            pmp.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+            pmp.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
             pmp.setPmpData(objectMapper.writeValueAsString(pmpDto));
 
             pmpRepository.save(pmp);
 
-            try {
-                byte[] documentBytes = generatePmpDocument(pmpDto);
-
-                documentStorageService.saveFile(
-                        opportunityId,
-                        "Baseline/PMP",
-                        "PMP.docx",
-                        documentBytes
-                );
-
-            } catch (IOException e) {
-                throw new IllegalStateException(
-                        "Failed to save updated PMP document",
-                        e
-                );
-            }
-
             return new PmpGenerationResponse(pmpDto);
 
         } catch (Exception e) {
-
             throw new IllegalStateException("Failed to save PMP", e);
-
         }
-
     }
 
     @Transactional(readOnly = true)
-
     public byte[] downloadPmp(Long opportunityId) throws IOException {
 
         if (!opportunityRepository.existsById(opportunityId)) {
-
             throw new ResourceNotFoundException("Opportunity not found");
-
         }
 
         Pmp pmp = pmpRepository.findByOpportunityId(opportunityId)
+                .orElse(null);
 
-                .orElseThrow(() -> new ResourceNotFoundException(
-
-                        "PMP not found for this opportunity"));
-
-        try {
-
-            PmpDto dto = objectMapper.readValue(pmp.getPmpData(), PmpDto.class);
-
-            return generatePmpDocument(dto);
-
-        } catch (Exception e) {
-
-            throw new IllegalStateException("Failed to generate PMP document", e);
-
+        // 1. Serve physical file directly from disk if it exists
+        if (pmp != null && pmp.getFilePath() != null && documentStorageService.exists(opportunityId, pmp.getFilePath())) {
+            return documentStorageService.readFile(opportunityId, pmp.getFilePath());
         }
 
+        if (documentStorageService.exists(opportunityId, "Baseline/PMP/PMP.docx")) {
+            if (pmp != null) {
+                pmp.setFilePath("Baseline/PMP/PMP.docx");
+                pmpRepository.save(pmp);
+            }
+            return documentStorageService.readFile(opportunityId, "Baseline/PMP/PMP.docx");
+        }
+
+        // 2. Fallback to generating from DTO and persist to disk
+        if (pmp == null || pmp.getPmpData() == null || pmp.getPmpData().isBlank()) {
+            throw new ResourceNotFoundException("PMP not found for this opportunity");
+        }
+
+        try {
+            PmpDto dto = objectMapper.readValue(pmp.getPmpData(), PmpDto.class);
+            byte[] bytes = generatePmpDocument(dto);
+            documentStorageService.saveFile(opportunityId, "Baseline/PMP", "PMP.docx", bytes);
+            pmp.setFilePath("Baseline/PMP/PMP.docx");
+            pmp.setFileHash(documentStorageService.getFileChecksum(opportunityId, "Baseline/PMP/PMP.docx"));
+            pmp.setFileLastModified(documentStorageService.getLastModified(opportunityId, "Baseline/PMP/PMP.docx"));
+            pmpRepository.save(pmp);
+            return bytes;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to generate PMP document", e);
+        }
     }
 
     private byte[] generatePmpDocument(PmpDto pmpDto) throws IOException {

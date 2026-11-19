@@ -35,4 +35,13 @@ public class Sdd {
 
     @Column(name = "sdd_data", columnDefinition = "TEXT")
     private String sddData;
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private java.time.LocalDateTime fileLastModified;
 }

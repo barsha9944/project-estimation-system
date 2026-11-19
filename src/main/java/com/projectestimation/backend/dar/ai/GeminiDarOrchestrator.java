@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.dar.dto.DarResponseDto;
 
 import java.util.List;
@@ -22,14 +23,15 @@ public class GeminiDarOrchestrator {
             "Selection of Best Alternative"
     );
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
     private final ObjectMapper objectMapper;
 
     public GeminiDarOrchestrator(
-            GeminiClient geminiClient,
+    		AiGateway aiGateway,
             ObjectMapper objectMapper
     ) {
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
         this.objectMapper = objectMapper;
     }
 
@@ -275,7 +277,7 @@ public class GeminiDarOrchestrator {
 
         try {
             String response =
-                    geminiClient.generateJsonContent(prompt, 4096);
+            		aiGateway.generateJsonContent(prompt, 4096);
 
             JsonNode root = objectMapper.readTree(stripMarkdown(response));
 

@@ -1,5 +1,6 @@
 package com.projectestimation.backend.testcase.model;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,4 +73,13 @@ public class TestCase {
     )
     @Builder.Default
     private List<TestCaseStep> steps = new ArrayList<>();
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
 }

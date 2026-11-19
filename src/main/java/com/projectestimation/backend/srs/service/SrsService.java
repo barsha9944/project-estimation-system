@@ -4,7 +4,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
@@ -46,6 +51,7 @@ import com.projectestimation.backend.srs.repository.SrsRepository;
 
 import lombok.RequiredArgsConstructor;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SrsService {
@@ -58,6 +64,7 @@ public class SrsService {
     private final EstimationUseCaseRepository estimationUseCaseRepository;
     private final OpportunityDocumentStorageService documentStorageService;
     private final com.projectestimation.backend.review.service.DocumentReviewService documentReviewService;
+    private final SrsDocxParser srsDocxParser;
 
     public Srs getByOpportunityId(Long opportunityId) {
         return srsRepository.findByOpportunityId(opportunityId)
@@ -103,10 +110,6 @@ public class SrsService {
 	                        .opportunity(opportunity)
 	                        .build());
 
-	        srs.setSrsData(objectMapper.writeValueAsString(generatedSrs));
-
-	        srsRepository.save(srs);
-	        
 	        byte[] documentBytes = buildSrsDocumentBytes(generatedSrs);
 
 	        String fileName = opportunity.getOpportunityName()
@@ -117,12 +120,19 @@ public class SrsService {
 	            fileName = "SRS";
 	        }
 
-	        documentStorageService.saveFile(
+	        String relativePath = documentStorageService.replaceFile(
 	                opportunityId,
 	                "Baseline/SRS",
 	                fileName + "_SRS.docx",
 	                documentBytes
 	        );
+
+	        srs.setFilePath(relativePath);
+	        srs.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+	        srs.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+	        srs.setSrsData(objectMapper.writeValueAsString(generatedSrs));
+
+	        srsRepository.save(srs);
 
 	        try {
 	            documentReviewService.initializeOrUpdateSchedule(
@@ -164,32 +174,143 @@ public class SrsService {
             return null;
         }
 
+        // 1. Check physical document first (Single Source of Truth)
         try {
-            return objectMapper.readValue(
-                    srs.getSrsData(),
-                    SrsDto.class
-            );
-        } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Failed to parse saved SRS data", e);
+            String relativePath = srs.getFilePath();
+            if (relativePath == null || !documentStorageService.exists(opportunityId, relativePath)) {
+                Optional<Path> latest = documentStorageService.findLatestFile(opportunityId, "Baseline/SRS", ".docx");
+                if (latest.isPresent()) {
+                    relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, latest.get());
+                }
+            }
+
+            if (relativePath != null && documentStorageService.exists(opportunityId, relativePath)) {
+                byte[] fileBytes = documentStorageService.readFile(opportunityId, relativePath);
+                SrsDto parsedDto = srsDocxParser.parse(fileBytes);
+                if (parsedDto != null) {
+                    String currentHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+                    LocalDateTime lastMod = documentStorageService.getLastModified(opportunityId, relativePath);
+                    boolean metadataChanged = false;
+
+                    if (!relativePath.equals(srs.getFilePath())) {
+                        srs.setFilePath(relativePath);
+                        metadataChanged = true;
+                    }
+                    if (currentHash != null && !currentHash.equals(srs.getFileHash())) {
+                        srs.setFileHash(currentHash);
+                        srs.setFileLastModified(lastMod);
+                        srs.setSrsData(objectMapper.writeValueAsString(parsedDto));
+                        metadataChanged = true;
+                    }
+
+                    if (metadataChanged) {
+                        srsRepository.save(srs);
+                    }
+                    return parsedDto;
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed reading/parsing physical SRS file for opportunity {}, falling back to database cache: {}", opportunityId, ex.getMessage());
         }
+
+        // 2. Fallback to database JSON cache if physical file is not available
+        if (srs.getSrsData() != null && !srs.getSrsData().isBlank()) {
+            try {
+                return objectMapper.readValue(
+                        srs.getSrsData(),
+                        SrsDto.class
+                );
+            } catch (Exception e) {
+                throw new IllegalStateException(
+                        "Failed to parse saved SRS data", e);
+            }
+        }
+
+        return null;
     }
 
     public byte[] downloadSrs(Long opportunityId) throws IOException {
+        Srs srs = srsRepository.findByOpportunityId(opportunityId)
+                .orElse(null);
 
+        // 1. Serve physical file directly from disk if it exists
+        if (srs != null && srs.getFilePath() != null && documentStorageService.exists(opportunityId, srs.getFilePath())) {
+            return documentStorageService.readFile(opportunityId, srs.getFilePath());
+        }
+
+        Optional<Path> latest = documentStorageService.findLatestFile(opportunityId, "Baseline/SRS", ".docx");
+        if (latest.isPresent()) {
+            String relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, latest.get());
+            if (documentStorageService.exists(opportunityId, relativePath)) {
+                if (srs != null) {
+                    srs.setFilePath(relativePath);
+                    srsRepository.save(srs);
+                }
+                return documentStorageService.readFile(opportunityId, relativePath);
+            }
+        }
+
+        // 2. If physical file is missing, reconstruct from DTO and persist to disk
         SrsDto srsDto = getGeneratedSrs(opportunityId);
-
         if (srsDto == null) {
             throw new ResourceNotFoundException(
                     "SRS not found for this opportunity");
         }
 
         try {
-            return buildSrsDocumentBytes(srsDto);
+            byte[] bytes = buildSrsDocumentBytes(srsDto);
+            Opportunity opportunity = getOpportunity(opportunityId);
+            String fileName = opportunity.getOpportunityName().replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+            if (fileName.isBlank()) {
+                fileName = "SRS";
+            }
+            Path saved = documentStorageService.saveFile(opportunityId, "Baseline/SRS", fileName + "_SRS.docx", bytes);
+            if (srs != null) {
+                String relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, saved);
+                srs.setFilePath(relativePath);
+                srs.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+                srs.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+                srsRepository.save(srs);
+            }
+            return bytes;
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Failed to generate SRS document", e);
         }
+    }
+
+    public SrsDto saveSrs(Long opportunityId, SrsDto updatedSrs) throws IOException {
+        Opportunity opportunity = getOpportunity(opportunityId);
+        byte[] documentBytes = buildSrsDocumentBytes(updatedSrs);
+
+        String fileName = opportunity.getOpportunityName()
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .trim();
+        if (fileName.isBlank()) {
+            fileName = "SRS";
+        }
+
+        // replaceFile moves any existing physical file to Backup/ with timestamp and writes new file
+        String relativePath = documentStorageService.replaceFile(
+                opportunityId,
+                "Baseline/SRS",
+                fileName + "_SRS.docx",
+                documentBytes
+        );
+
+        Srs srs = srsRepository.findByOpportunityId(opportunityId)
+                .orElseGet(() -> Srs.builder()
+                        .opportunity(opportunity)
+                        .build());
+
+        srs.setFilePath(relativePath);
+        srs.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+        srs.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+        srs.setSrsData(objectMapper.writeValueAsString(updatedSrs));
+
+        srsRepository.save(srs);
+
+        return updatedSrs;
     }
     
     private void generateSrsDocument(
@@ -731,110 +852,121 @@ public class SrsService {
                         + safe(requirement.requirementName())
         );
 
-        XWPFTable table = document.createTable(10, 2);
+        XWPFTable table = document.createTable(11, 2);
 
         setCellText(
                 table.getRow(0).getCell(0),
-                "Module",
+                "Requirement ID",
                 true
         );
         setCellText(
                 table.getRow(0).getCell(1),
-                requirement.module(),
+                requirement.requirementId(),
                 false
         );
 
         setCellText(
                 table.getRow(1).getCell(0),
-                "Description",
+                "Module",
                 true
         );
         setCellText(
                 table.getRow(1).getCell(1),
-                requirement.description(),
+                requirement.module(),
                 false
         );
 
         setCellText(
                 table.getRow(2).getCell(0),
-                "Primary Actor",
+                "Description",
                 true
         );
         setCellText(
                 table.getRow(2).getCell(1),
-                requirement.primaryActor(),
+                requirement.description(),
                 false
         );
 
         setCellText(
                 table.getRow(3).getCell(0),
-                "Secondary Actor",
+                "Primary Actor",
                 true
         );
         setCellText(
                 table.getRow(3).getCell(1),
-                requirement.secondaryActor(),
+                requirement.primaryActor(),
                 false
         );
 
         setCellText(
                 table.getRow(4).getCell(0),
-                "Preconditions",
+                "Secondary Actor",
                 true
         );
-        setNumberedText(
+        setCellText(
                 table.getRow(4).getCell(1),
-                requirement.preconditions()
+                requirement.secondaryActor(),
+                false
         );
 
         setCellText(
                 table.getRow(5).getCell(0),
-                "Basic Flow",
+                "Preconditions",
                 true
         );
         setNumberedText(
                 table.getRow(5).getCell(1),
-                requirement.basicFlow()
+                requirement.preconditions()
         );
 
         setCellText(
                 table.getRow(6).getCell(0),
-                "Business Rules",
+                "Basic Flow",
                 true
         );
         setNumberedText(
                 table.getRow(6).getCell(1),
-                requirement.businessRules()
+                requirement.basicFlow()
         );
 
         setCellText(
                 table.getRow(7).getCell(0),
-                "Fields",
+                "Business Rules",
                 true
         );
-        addFieldsTable(
+        setNumberedText(
                 table.getRow(7).getCell(1),
-                requirement.fields()
+                requirement.businessRules()
         );
 
         setCellText(
                 table.getRow(8).getCell(0),
-                "Postconditions",
+                "Fields",
                 true
         );
-        setNumberedText(
+        addFieldsTable(
                 table.getRow(8).getCell(1),
-                requirement.postconditions()
+                requirement.fields()
         );
 
         setCellText(
                 table.getRow(9).getCell(0),
+                "Postconditions",
+                true
+        );
+        setNumberedText(
+                table.getRow(9).getCell(1),
+                requirement.postconditions()
+        );
+
+        setCellText(
+                table.getRow(10).getCell(0),
                 "UI Design",
                 true
         );
 
         setMarkdownCell(
-                table.getRow(9).getCell(1),
+                table.getRow(10).getCell(1),
                 requirement.uiDesign()
         );
     }

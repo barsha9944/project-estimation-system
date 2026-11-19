@@ -1,6 +1,7 @@
 package com.projectestimation.backend.testcase.service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,9 +28,11 @@ import com.projectestimation.backend.testcase.model.TestCaseStep;
 import com.projectestimation.backend.testcase.repository.TestCaseRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TestCaseService {
 
     private final OpportunityRepository opportunityRepository;
@@ -47,6 +50,8 @@ public class TestCaseService {
     private final OpportunityDocumentStorageService documentStorageService;
 
     private final ObjectMapper objectMapper;
+
+    private final TestCaseExcelParser testCaseExcelParser;
 
 
     // ============================================================
@@ -248,34 +253,55 @@ public class TestCaseService {
     // GET TEST CASES
     // ============================================================
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TestCaseGenerationResponse getTestCases(
             Long opportunityId
     ) {
 
-        if (!opportunityRepository.existsById(opportunityId)) {
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
-            throw new ResourceNotFoundException(
-                    "Opportunity not found"
-            );
+        List<TestCase> testCases = testCaseRepository.findByOpportunityId(opportunityId);
+
+        try {
+            String relativePath = null;
+            if (!testCases.isEmpty() && testCases.get(0).getFilePath() != null) {
+                relativePath = testCases.get(0).getFilePath();
+            } else {
+                relativePath = documentStorageService.findLatestFile(opportunityId, "Quality/Test/Test Case", ".xlsx")
+                        .map(p -> {
+                            try {
+                                return documentStorageService.toOpportunityRelativePath(opportunityId, p);
+                            } catch (Exception e) {
+                                return null;
+                            }
+                        })
+                        .orElse(null);
+            }
+
+            if (relativePath != null && documentStorageService.exists(opportunityId, relativePath)) {
+                String currentHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+                String storedHash = !testCases.isEmpty() ? testCases.get(0).getFileHash() : null;
+
+                if (storedHash == null || !storedHash.equals(currentHash) || testCases.isEmpty()) {
+                    log.info("Detected physical Test Case Excel file update for opportunityId: {}, syncing from file", opportunityId);
+                    byte[] bytes = documentStorageService.readFile(opportunityId, relativePath);
+                    TestCaseGenerationResponse parsed = testCaseExcelParser.parse(bytes);
+                    if (parsed != null && parsed.testCases() != null && !parsed.testCases().isEmpty()) {
+                        syncTestCasesFromExcel(opportunity, relativePath, currentHash, parsed.testCases());
+                        return parsed;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse physical Test Case Excel file for opportunityId: {}", opportunityId, e);
         }
 
+        List<TestCaseDto> testCaseDtos = testCases.stream()
+                .map(this::mapToDto)
+                .toList();
 
-        List<TestCase> testCases =
-                testCaseRepository.findByOpportunityId(
-                        opportunityId
-                );
-
-
-        List<TestCaseDto> testCaseDtos =
-                testCases.stream()
-                        .map(this::mapToDto)
-                        .toList();
-
-
-        return new TestCaseGenerationResponse(
-                testCaseDtos
-        );
+        return new TestCaseGenerationResponse(testCaseDtos);
     }
 
 
@@ -540,28 +566,44 @@ public class TestCaseService {
     // ============================================================
 
     public byte[] downloadTestCases(
-        Long opportunityId
-) throws IOException {
+            Long opportunityId
+    ) throws IOException {
 
-    if (!opportunityRepository.existsById(opportunityId)) {
-        throw new ResourceNotFoundException(
-                "Opportunity not found"
-        );
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+
+        List<TestCase> testCases =
+                testCaseRepository.findByOpportunityId(opportunityId);
+
+        String relativePath = null;
+        if (!testCases.isEmpty() && testCases.get(0).getFilePath() != null) {
+            relativePath = testCases.get(0).getFilePath();
+        } else {
+            relativePath = documentStorageService.findLatestFile(opportunityId, "Quality/Test/Test Case", ".xlsx")
+                    .map(p -> {
+                        try {
+                            return documentStorageService.toOpportunityRelativePath(opportunityId, p);
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    })
+                    .orElse(null);
+        }
+
+        if (relativePath != null && documentStorageService.exists(opportunityId, relativePath)) {
+            return documentStorageService.readFile(opportunityId, relativePath);
+        }
+
+        if (testCases.isEmpty()) {
+            throw new ResourceNotFoundException("No test cases found for this opportunity");
+        }
+
+        byte[] excelBytes = testCaseExcelService.generateExcel(testCases);
+        saveTestCaseExcel(opportunityId);
+        return excelBytes;
     }
-
-    List<TestCase> testCases =
-            testCaseRepository.findByOpportunityId(opportunityId);
-
-    if (testCases.isEmpty()) {
-        throw new ResourceNotFoundException(
-                "No test cases found for this opportunity"
-        );
-    }
-
-    return testCaseExcelService.generateExcel(testCases);
-}
     
-    private void saveTestCaseExcel(Long opportunityId) throws IOException {
+    private String saveTestCaseExcel(Long opportunityId) throws IOException {
 
         Opportunity opportunity = opportunityRepository.findById(opportunityId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -572,25 +614,96 @@ public class TestCaseService {
                 testCaseRepository.findByOpportunityId(opportunityId);
 
         if (testCases.isEmpty()) {
-            return;
+            return null;
         }
 
         byte[] excelBytes =
                 testCaseExcelService.generateExcel(testCases);
 
         String fileName = opportunity.getOpportunityName()
-                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
                 .trim();
 
         if (fileName.isBlank()) {
             fileName = "TestCases";
         }
 
-        documentStorageService.saveFile(
+        String relativePath = documentStorageService.replaceFile(
                 opportunityId,
                 "Quality/Test/Test Case",
                 fileName + ".xlsx",
                 excelBytes
         );
+
+        String hash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+        LocalDateTime lastModified = documentStorageService.getLastModified(opportunityId, relativePath);
+
+        for (TestCase tc : testCases) {
+            tc.setFilePath(relativePath);
+            tc.setFileHash(hash);
+            tc.setFileLastModified(lastModified);
+            testCaseRepository.save(tc);
+        }
+
+        return relativePath;
+    }
+
+    private void syncTestCasesFromExcel(Opportunity opportunity, String relativePath, String fileHash, List<TestCaseDto> parsedDtos) {
+        testCaseRepository.deleteByOpportunityId(opportunity.getId());
+        LocalDateTime lastModified;
+        try {
+            lastModified = documentStorageService.getLastModified(opportunity.getId(), relativePath);
+        } catch (Exception e) {
+            lastModified = LocalDateTime.now();
+        }
+
+        for (TestCaseDto dto : parsedDtos) {
+            TestCase testCase = TestCase.builder()
+                    .opportunity(opportunity)
+                    .reqId(dto.reqId())
+                    .testCaseId(dto.testCaseId())
+                    .testCaseName(dto.testCaseName())
+                    .testCaseDescription(dto.testCaseDescription())
+                    .testData(dto.testData())
+                    .filePath(relativePath)
+                    .fileHash(fileHash)
+                    .fileLastModified(lastModified)
+                    .build();
+
+            if (dto.testCaseScenario() != null) {
+                for (TestScenarioDto scenarioDto : dto.testCaseScenario()) {
+                    TestCaseScenario scenario = TestCaseScenario.builder()
+                            .testCase(testCase)
+                            .scenarioId(scenarioDto.scenarioId())
+                            .scenarioName(scenarioDto.scenarioName())
+                            .scenarioType(scenarioDto.scenarioType())
+                            .testCondition(scenarioDto.testCondition())
+                            .build();
+
+                    if (scenarioDto.steps() != null) {
+                        for (TestStepDto stepDto : scenarioDto.steps()) {
+                            TestCaseStep step = TestCaseStep.builder()
+                                    .testCase(testCase)
+                                    .scenario(scenario)
+                                    .stepNumber(stepDto.stepNumber())
+                                    .stepDescription(stepDto.stepDescription())
+                                    .expectedResult(stepDto.expectedResult())
+                                    .actualResult(stepDto.actualResult())
+                                    .testStatus(stepDto.testStatus())
+                                    .passFail(stepDto.passFail())
+                                    .defectId(stepDto.defectId())
+                                    .severity(stepDto.severity())
+                                    .defectType(stepDto.defectType())
+                                    .rootCause(stepDto.rootCause())
+                                    .phaseIntroduced(stepDto.phaseIntroduced())
+                                    .build();
+                            scenario.getSteps().add(step);
+                        }
+                    }
+                    testCase.getTestCaseScenario().add(scenario);
+                }
+            }
+            testCaseRepository.save(testCase);
+        }
     }
 }

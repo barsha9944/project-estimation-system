@@ -1607,7 +1607,9 @@ public class ProjectMetricsCalculator {
                         normalizeTaskName(task.getTaskName());
 
                 return taskName.contains("system integration testing")
+                		|| taskName.contains("integration testing")
                         || taskName.equals("sit");
+                		
             })
             .findFirst()
             .orElseThrow(() ->
@@ -1638,7 +1640,8 @@ public class ProjectMetricsCalculator {
 
                     return taskName.contains("user acceptance testing")
                             || taskName.equals("uat")
-                            || taskName.contains("user acceptance test");
+                            || taskName.contains("user acceptance test")
+                            || taskName.contains("accepance testing");
                 })
                 .findFirst()
                 .orElseThrow(() ->
@@ -1673,8 +1676,10 @@ public class ProjectMetricsCalculator {
             || normalizedName.contains("coding")
             || normalizedName.contains("development")
             || normalizedName.contains("system integration testing")
+            || normalizedName.contains("itegrtion testing")
             || normalizedName.equals("sit")
             || normalizedName.contains("user acceptance testing")
+            || normalizedName.contains("acceptance testing")
             || normalizedName.equals("uat");
 }
     

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.srs.dto.FunctionalRequirementDto;
@@ -23,14 +24,15 @@ public class GeminiSrsOrchestrator {
 
     private static final int MAX_OUTPUT_TOKENS = 16384;
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
     private final ObjectMapper objectMapper;
 
     public GeminiSrsOrchestrator(
-            GeminiClient geminiClient,
+    		AiGateway aiGateway,
             ObjectMapper objectMapper) {
 
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
         this.objectMapper = objectMapper;
     }
 
@@ -43,7 +45,7 @@ public class GeminiSrsOrchestrator {
                 useCases
         );
 
-        String response = geminiClient.generateJsonContent(
+        String response = aiGateway.generateJsonContent(
                 prompt,
                 MAX_OUTPUT_TOKENS
         );

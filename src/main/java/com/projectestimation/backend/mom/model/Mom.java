@@ -64,6 +64,15 @@ public class Mom {
 
     private LocalDateTime createdAt;
 
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
+
     public Mom() {
     }
 
@@ -201,5 +210,29 @@ public class Mom {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getFileHash() {
+        return fileHash;
+    }
+
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
+    }
+
+    public LocalDateTime getFileLastModified() {
+        return fileLastModified;
+    }
+
+    public void setFileLastModified(LocalDateTime fileLastModified) {
+        this.fileLastModified = fileLastModified;
     }
 }

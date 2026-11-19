@@ -36,4 +36,13 @@ public class Srs {
 
     @Column(columnDefinition = "TEXT")
     private String srsData;
+
+    @Column(name = "file_path", length = 500)
+    private String filePath;
+
+    @Column(name = "file_hash", length = 64)
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private java.time.LocalDateTime fileLastModified;
 }

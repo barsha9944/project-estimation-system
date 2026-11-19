@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,6 +53,17 @@ public class RtmController {
         RtmResponseDto response = rtmService.generateRtm(opportunityId);
         return ResponseEntity.ok(
                 ApiResponse.success("RTM generated successfully", response)
+        );
+    }
+
+    @PutMapping
+    public ResponseEntity<ApiResponse<RtmResponseDto>> updateRtm(
+            @PathVariable Long opportunityId,
+            @RequestBody RtmResponseDto updatedRtm
+    ) throws IOException {
+        RtmResponseDto response = rtmService.saveRtm(opportunityId, updatedRtm);
+        return ResponseEntity.ok(
+                ApiResponse.success("RTM updated successfully", response)
         );
     }
 

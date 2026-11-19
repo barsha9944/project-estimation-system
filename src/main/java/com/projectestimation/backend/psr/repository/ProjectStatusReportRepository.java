@@ -18,4 +18,12 @@ public interface ProjectStatusReportRepository
     List<ProjectStatusReport> findByOpportunityIdOrderByVersionAsc(
             Long opportunityId
     );
+
+    List<ProjectStatusReport> findByOpportunityIdOrderByVersionDesc(
+            Long opportunityId
+    );
+
+    List<ProjectStatusReport> findByOpportunityId(
+            Long opportunityId
+    );
 }

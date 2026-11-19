@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -132,12 +133,73 @@ public class ProposalService {
 		proposal.setArchitectureImagePath(proposalDir.resolve(fileBaseName + "-architecture.png").toString());
 
 		proposal.setProcessFlowDirectory(proposalDir.toString());
+		proposal.setFileHash(computeFileHash(markdownFile));
+		proposal.setFileLastModified(LocalDateTime.now());
 		Proposal saved = proposalRepository.save(proposal);
 
 		opportunity.setStatus(OpportunityStatus.PROPOSAL_GENERATED);
 		opportunityRepository.save(opportunity);
 
 		return toResponse(saved);
+	}
+
+	public String computeFileHash(Path path) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] fileBytes = Files.readAllBytes(path);
+			byte[] hashBytes = digest.digest(fileBytes);
+			StringBuilder sb = new StringBuilder();
+			for (byte b : hashBytes) {
+				sb.append(String.format("%02x", b));
+			}
+			return sb.toString();
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	@Transactional
+	public ProposalResponse syncFromMarkdownFile(Long opportunityId) {
+		Proposal proposal = proposalRepository.findFirstByOpportunity_IdOrderByVersionDesc(opportunityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Proposal not found for this opportunity"));
+
+		if (proposal.getMarkdownFilePath() == null) {
+			return toResponse(proposal);
+		}
+
+		Path mdPath = Path.of(proposal.getMarkdownFilePath());
+		if (!Files.exists(mdPath)) {
+			return toResponse(proposal);
+		}
+
+		String currentHash = computeFileHash(mdPath);
+		if (currentHash != null && !currentHash.equals(proposal.getFileHash())) {
+			try {
+				String updatedMarkdown = Files.readString(mdPath);
+				proposal.setMarkdownContent(updatedMarkdown);
+				proposal.setSummaryText(updatedMarkdown);
+				proposal.setFileHash(currentHash);
+				proposal.setFileLastModified(LocalDateTime.now());
+
+				// Regenerate DOCX to keep physical Word document in sync with updated Markdown
+				if (proposal.getFileName() != null && proposal.getProposalDirectory() != null) {
+					String baseFileName = proposal.getFileName().replace(".docx", "");
+					List<String> processFlows = proposal.getProcessFlowHtml() == null || proposal.getProcessFlowHtml().isBlank()
+							? List.of()
+							: Arrays.asList(proposal.getProcessFlowHtml().split("\n---FLOW---\n"));
+
+					PandocDocxConverter.ConversionResult conversion = pandocDocxConverter.convertMarkdownToDocx(
+							updatedMarkdown, baseFileName, proposal.getArchitectureHtml(), processFlows);
+					proposal.setGeneratedDocPath(conversion.generatedDocPath());
+				}
+
+				proposal = proposalRepository.save(proposal);
+			} catch (Exception ex) {
+				log.warn("Failed to synchronize external proposal markdown changes for opp {}: {}", opportunityId, ex.getMessage());
+			}
+		}
+
+		return toResponse(proposal);
 	}
 
 	public ProposalResponse getLatestProposalByOpportunityId(Long opportunityId) {

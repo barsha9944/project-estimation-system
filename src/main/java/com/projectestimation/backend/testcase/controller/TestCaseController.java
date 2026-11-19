@@ -58,7 +58,7 @@ public class TestCaseController {
         );
     }
 
-    @PutMapping("/update")
+    @PutMapping(value = {"", "/update"})
     public ResponseEntity<ApiResponse<TestCaseGenerationResponse>> saveTestCases(
             @PathVariable Long opportunityId,
             @RequestBody SaveTestCaseRequest request) {

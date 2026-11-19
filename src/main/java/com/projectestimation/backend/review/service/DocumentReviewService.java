@@ -180,7 +180,7 @@ public class DocumentReviewService {
                     "1.0",
                     findings
             );
-            Path dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, dataSheetBytes);
+            String dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, dataSheetBytes);
             
             // 3. Generate and save Review Note 1 DOCX
             byte[] note1Bytes = reviewNoteGenerator.generateReviewNote(
@@ -196,18 +196,18 @@ public class DocumentReviewService {
                     "1.0",
                     false
             );
-            Path note1Path = saveFile(opportunity.getId(), review1FileName, note1Bytes);
+            String note1Path = saveFile(opportunity.getId(), review1FileName, note1Bytes);
 
             // Persist status and serialized findings for Cycle 2
             review.setFindingsData(objectMapper.writeValueAsString(findings));
 
             review.setDataSheetStatus(ReviewStatus.COMPLETED);
             review.setDataSheetGeneratedAt(LocalDateTime.now());
-            review.setDataSheetFilePath(dataSheetPath.toAbsolutePath().toString());
+            review.setDataSheetFilePath(dataSheetPath);
 
             review.setCycle1Status(ReviewStatus.COMPLETED);
             review.setCycle1GeneratedAt(LocalDateTime.now());
-            review.setCycle1FilePath(note1Path.toAbsolutePath().toString());
+            review.setCycle1FilePath(note1Path);
 
             documentReviewRepository.save(review);
             log.info("Successfully completed Cycle 1 review for opportunity {} ({}) with {} findings",
@@ -299,7 +299,7 @@ public class DocumentReviewService {
                     "1.0",
                     updatedFindings
             );
-            Path dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, updatedDataSheetBytes);
+            String dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, updatedDataSheetBytes);
 
             // 4. Generate and save Review Note 2 DOCX
             byte[] note2Bytes = reviewNoteGenerator.generateReviewNote(
@@ -315,14 +315,14 @@ public class DocumentReviewService {
                     "1.0",
                     isApproved
             );
-            Path note2Path = saveFile(opportunity.getId(), review2FileName, note2Bytes);
+            String note2Path = saveFile(opportunity.getId(), review2FileName, note2Bytes);
 
             review.setFindingsData(objectMapper.writeValueAsString(updatedFindings));
-            review.setDataSheetFilePath(dataSheetPath.toAbsolutePath().toString());
+            review.setDataSheetFilePath(dataSheetPath);
 
             review.setCycle2Status(ReviewStatus.COMPLETED);
             review.setCycle2GeneratedAt(LocalDateTime.now());
-            review.setCycle2FilePath(note2Path.toAbsolutePath().toString());
+            review.setCycle2FilePath(note2Path);
 
             documentReviewRepository.save(review);
             log.info("Successfully completed Cycle 2 review for opportunity {} ({}) with approved={}",
@@ -380,7 +380,7 @@ public class DocumentReviewService {
             throw new ResourceNotFoundException("Review Note Cycle 1 is not yet generated. Scheduled for: " + review.getCycle1ScheduledAt());
         }
 
-        return readFileBytes(review.getCycle1FilePath());
+        return readFileBytes(opportunityId, review.getCycle1FilePath());
     }
 
     public byte[] downloadCycle2Note(Long opportunityId, DocumentReviewType docType) throws IOException {
@@ -389,7 +389,7 @@ public class DocumentReviewService {
             throw new ResourceNotFoundException("Review Note Cycle 2 is not yet generated. Scheduled for: " + review.getCycle2ScheduledAt());
         }
 
-        return readFileBytes(review.getCycle2FilePath());
+        return readFileBytes(opportunityId, review.getCycle2FilePath());
     }
 
     public byte[] downloadDataSheet(Long opportunityId, DocumentReviewType docType) throws IOException {
@@ -398,7 +398,7 @@ public class DocumentReviewService {
             throw new ResourceNotFoundException("Review Data Sheet is not yet generated. Scheduled for: " + review.getDataSheetScheduledAt());
         }
 
-        return readFileBytes(review.getDataSheetFilePath());
+        return readFileBytes(opportunityId, review.getDataSheetFilePath());
     }
 
     public String getReview1FileName(Long opportunityId, DocumentReviewType docType) {
@@ -428,12 +428,12 @@ public class DocumentReviewService {
     }
 
 
-    private Path saveFile(
+    private String saveFile(
             Long opportunityId,
             String fileName,
             byte[] content) throws IOException {
 
-        return documentStorageService.saveFile(
+        return documentStorageService.replaceFile(
                 opportunityId,
                 "Quality/Review",
                 fileName,
@@ -442,8 +442,8 @@ public class DocumentReviewService {
     }
 
 
-    private byte[] readFileBytes(String filePathStr) throws IOException {
-        Path path = Paths.get(filePathStr);
+    private byte[] readFileBytes(Long opportunityId, String filePathStr) throws IOException {
+        Path path = documentStorageService.resolveStoredFilePath(opportunityId, filePathStr);
         if (!Files.exists(path)) {
             throw new ResourceNotFoundException("Generated review file could not be found on storage: " + filePathStr);
         }

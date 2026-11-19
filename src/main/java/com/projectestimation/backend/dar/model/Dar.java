@@ -43,6 +43,15 @@ public class Dar {
 
     private String documentName;
 
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -129,5 +138,29 @@ public class Dar {
 
     public void setDocumentName(String documentName) {
         this.documentName = documentName;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getFileHash() {
+        return fileHash;
+    }
+
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
+    }
+
+    public LocalDateTime getFileLastModified() {
+        return fileLastModified;
+    }
+
+    public void setFileLastModified(LocalDateTime fileLastModified) {
+        this.fileLastModified = fileLastModified;
     }
 }

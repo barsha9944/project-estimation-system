@@ -2,13 +2,21 @@
 package com.projectestimation.backend.common.storage;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -175,7 +183,7 @@ public class OpportunityDocumentStorageService {
     /**
      * Moves an existing document into the opportunity's root Backup folder.
      */
-    private Path backupExistingFile(
+    public Path backupExistingFile(
             Long opportunityId,
             Path existingFile) throws IOException {
 
@@ -244,6 +252,134 @@ public class OpportunityDocumentStorageService {
                     source,
                     destination,
                     StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * Converts an absolute path into an opportunity-relative path.
+     * E.g. "D:/proposal-storage/ProjectA/Baseline/SRS/Doc.docx" -> "Baseline/SRS/Doc.docx"
+     */
+    public String toOpportunityRelativePath(Long opportunityId, Path absolutePath) throws IOException {
+        Path opportunityFolder = getOpportunityFolder(opportunityId);
+        Path normalizedAbsolute = absolutePath.toAbsolutePath().normalize();
+        if (!normalizedAbsolute.startsWith(opportunityFolder)) {
+            throw new IllegalArgumentException("Path does not belong to opportunity folder: " + absolutePath);
+        }
+        return opportunityFolder.relativize(normalizedAbsolute).toString().replace('\\', '/');
+    }
+
+    /**
+     * Safely resolves an opportunity-relative path to its absolute Path on disk,
+     * guaranteeing no directory traversal outside the opportunity root.
+     */
+    public Path resolveStoredFilePath(Long opportunityId, String relativePath) throws IOException {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("Relative path is required");
+        }
+        Path opportunityFolder = getOpportunityFolder(opportunityId);
+        Path targetPath = opportunityFolder.resolve(relativePath).normalize().toAbsolutePath();
+        if (!targetPath.startsWith(opportunityFolder)) {
+            throw new IOException("Invalid path sequence detected: " + relativePath);
+        }
+        return targetPath;
+    }
+
+    /**
+     * Reads all bytes from an existing physical file specified by opportunity-relative path.
+     */
+    public byte[] readFile(Long opportunityId, String relativePath) throws IOException {
+        Path targetPath = resolveStoredFilePath(opportunityId, relativePath);
+        if (!Files.exists(targetPath) || !Files.isRegularFile(targetPath)) {
+            throw new ResourceNotFoundException("Document file not found: " + relativePath);
+        }
+        return Files.readAllBytes(targetPath);
+    }
+
+    /**
+     * Opens an InputStream for an existing physical file specified by opportunity-relative path.
+     */
+    public InputStream openInputStream(Long opportunityId, String relativePath) throws IOException {
+        Path targetPath = resolveStoredFilePath(opportunityId, relativePath);
+        if (!Files.exists(targetPath) || !Files.isRegularFile(targetPath)) {
+            throw new ResourceNotFoundException("Document file not found: " + relativePath);
+        }
+        return Files.newInputStream(targetPath);
+    }
+
+    /**
+     * Replaces an existing physical file, moving the previous file into the Backup folder,
+     * and writes the new content. Returns the opportunity-relative path of the new file.
+     */
+    public String replaceFile(Long opportunityId, String relativeFolder, String fileName, byte[] newContent) throws IOException {
+        Path savedPath = saveFile(opportunityId, relativeFolder, fileName, newContent);
+        return toOpportunityRelativePath(opportunityId, savedPath);
+    }
+
+    /**
+     * Returns whether a physical file exists at the opportunity-relative path.
+     */
+    public boolean exists(Long opportunityId, String relativePath) {
+        try {
+            Path targetPath = resolveStoredFilePath(opportunityId, relativePath);
+            return Files.exists(targetPath) && Files.isRegularFile(targetPath);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns the last modified timestamp of the physical file in LocalDateTime.
+     */
+    public LocalDateTime getLastModified(Long opportunityId, String relativePath) throws IOException {
+        Path targetPath = resolveStoredFilePath(opportunityId, relativePath);
+        if (!Files.exists(targetPath)) {
+            throw new ResourceNotFoundException("Document file not found: " + relativePath);
+        }
+        Instant instant = Files.getLastModifiedTime(targetPath).toInstant();
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
+
+    /**
+     * Computes the SHA-256 checksum of the physical file for change detection.
+     */
+    public String getFileChecksum(Long opportunityId, String relativePath) throws IOException {
+        Path targetPath = resolveStoredFilePath(opportunityId, relativePath);
+        if (!Files.exists(targetPath)) {
+            throw new ResourceNotFoundException("Document file not found: " + relativePath);
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] fileBytes = Files.readAllBytes(targetPath);
+            byte[] hashBytes = digest.digest(fileBytes);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
+        }
+    }
+
+    /**
+     * Finds the latest file in a relative folder matching an extension (e.g. ".docx").
+     */
+    public Optional<Path> findLatestFile(Long opportunityId, String relativeFolder, String extension) throws IOException {
+        Path folder = getDocumentFolder(opportunityId, relativeFolder);
+        if (!Files.exists(folder)) {
+            return Optional.empty();
+        }
+        try (Stream<Path> files = Files.list(folder)) {
+            return files
+                    .filter(Files::isRegularFile)
+                    .filter(p -> extension == null || p.getFileName().toString().toLowerCase().endsWith(extension.toLowerCase()))
+                    .max(Comparator.comparingLong(p -> {
+                        try {
+                            return Files.getLastModifiedTime(p).toMillis();
+                        } catch (IOException e) {
+                            return 0L;
+                        }
+                    }));
         }
     }
 }

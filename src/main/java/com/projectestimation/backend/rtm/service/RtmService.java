@@ -41,6 +41,7 @@ public class RtmService {
     private final GeminiRtmOrchestrator geminiRtmOrchestrator;
     private final OpportunityDocumentStorageService documentStorageService;
     private final RtmExcelService rtmExcelService;
+    private final RtmExcelParser rtmExcelParser;
     private final RtmRepository rtmRepository;
     private final ObjectMapper objectMapper;
 
@@ -52,6 +53,7 @@ public class RtmService {
             SrsSddDocumentParser documentParser,
             GeminiRtmOrchestrator geminiRtmOrchestrator,
             RtmExcelService rtmExcelService,
+            RtmExcelParser rtmExcelParser,
             RtmRepository rtmRepository,
             ObjectMapper objectMapper,
             OpportunityDocumentStorageService documentStorageService
@@ -63,6 +65,7 @@ public class RtmService {
         this.documentParser = documentParser;
         this.geminiRtmOrchestrator = geminiRtmOrchestrator;
         this.rtmExcelService = rtmExcelService;
+        this.rtmExcelParser = rtmExcelParser;
         this.rtmRepository = rtmRepository;
         this.objectMapper = objectMapper;
         this.documentStorageService = documentStorageService;
@@ -76,13 +79,57 @@ public class RtmService {
         return rtmRepository.findByOpportunityId(opportunityId).orElse(null);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public RtmResponseDto getRtmData(Long opportunityId) {
-        if (!opportunityRepository.existsById(opportunityId)) {
-            throw new ResourceNotFoundException("Opportunity not found with id: " + opportunityId);
-        }
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found with id: " + opportunityId));
 
         Rtm rtm = rtmRepository.findByOpportunityId(opportunityId).orElse(null);
+
+        // 1. Check physical file first (Single Source of Truth)
+        try {
+            String relativePath = rtm != null ? rtm.getFilePath() : null;
+            if (relativePath == null || !documentStorageService.exists(opportunityId, relativePath)) {
+                String fileName = opportunity.getOpportunityName().replaceAll("[\\\\/:*?\"<>|\\s]+", "_").trim();
+                if (fileName.isBlank()) fileName = "Requirement_Traceability_Matrix";
+                String candidate = "Quality/RTM/" + fileName + "_RTM.xls";
+                if (documentStorageService.exists(opportunityId, candidate)) {
+                    relativePath = candidate;
+                }
+            }
+
+            if (relativePath != null && documentStorageService.exists(opportunityId, relativePath)) {
+                byte[] fileBytes = documentStorageService.readFile(opportunityId, relativePath);
+                RtmResponseDto parsedDto = rtmExcelParser.parse(fileBytes, opportunityId, opportunity.getOpportunityName(), opportunity.getClientName());
+                if (parsedDto != null) {
+                    if (rtm == null) {
+                        rtm = Rtm.builder().opportunity(opportunity).build();
+                    }
+                    String currentHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+                    java.time.LocalDateTime lastMod = documentStorageService.getLastModified(opportunityId, relativePath);
+                    boolean metadataChanged = false;
+
+                    if (!relativePath.equals(rtm.getFilePath())) {
+                        rtm.setFilePath(relativePath);
+                        metadataChanged = true;
+                    }
+                    if (currentHash != null && !currentHash.equals(rtm.getFileHash())) {
+                        rtm.setFileHash(currentHash);
+                        rtm.setFileLastModified(lastMod);
+                        rtm.setRtmData(objectMapper.writeValueAsString(parsedDto));
+                        metadataChanged = true;
+                    }
+
+                    if (metadataChanged) {
+                        rtmRepository.save(rtm);
+                    }
+                    return parsedDto;
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed reading/parsing physical RTM file for opportunity {}, falling back to DB: {}", opportunityId, ex.getMessage());
+        }
+
         if (rtm == null || rtm.getRtmData() == null || rtm.getRtmData().isBlank()) {
             return null;
         }
@@ -147,19 +194,6 @@ public class RtmService {
                 rows
         );
 
-        // 7. Persist generated RTM into database
-        try {
-            Rtm rtm = rtmRepository.findByOpportunityId(opportunityId)
-                    .orElseGet(() -> Rtm.builder().opportunity(opportunity).build());
-            rtm.setOpportunity(opportunity);
-            rtm.setRtmData(objectMapper.writeValueAsString(responseDto));
-            rtmRepository.save(rtm);
-            log.info("Successfully generated and saved RTM for opportunityId: {}", opportunityId);
-        } catch (Exception e) {
-            log.error("Failed to save RTM data for opportunity id {}: {}", opportunityId, e.getMessage(), e);
-            throw new IllegalStateException("Failed to save RTM data: " + e.getMessage(), e);
-        }
-
         try {
             byte[] excelBytes = rtmExcelService.generateExcel(
                     opportunity,
@@ -174,12 +208,22 @@ public class RtmService {
                 fileName = "Requirement_Traceability_Matrix";
             }
 
-            documentStorageService.saveFile(
+            String relativePath = documentStorageService.replaceFile(
                     opportunityId,
                     "Quality/RTM",
                     fileName + "_RTM.xls",
                     excelBytes
             );
+
+            Rtm rtm = rtmRepository.findByOpportunityId(opportunityId)
+                    .orElseGet(() -> Rtm.builder().opportunity(opportunity).build());
+            rtm.setOpportunity(opportunity);
+            rtm.setFilePath(relativePath);
+            rtm.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+            rtm.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+            rtm.setRtmData(objectMapper.writeValueAsString(responseDto));
+            rtmRepository.save(rtm);
+            log.info("Successfully generated, saved and stored RTM for opportunityId: {}", opportunityId);
 
         } catch (IOException e) {
             log.error(
@@ -196,24 +240,89 @@ public class RtmService {
     }
 
     @Transactional
-public byte[] downloadRtm(Long opportunityId) throws IOException {
+    public byte[] downloadRtm(Long opportunityId) throws IOException {
 
-    Opportunity opportunity = opportunityRepository.findById(opportunityId)
-            .orElseThrow(() -> new ResourceNotFoundException(
-                    "Opportunity not found with id: " + opportunityId
-            ));
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Opportunity not found with id: " + opportunityId
+                ));
 
-    RtmResponseDto response = getRtmData(opportunityId);
+        Rtm rtm = rtmRepository.findByOpportunityId(opportunityId).orElse(null);
 
-    if (response == null) {
-        response = generateRtm(opportunityId);
+        // 1. Serve physical file directly from disk if it exists
+        if (rtm != null && rtm.getFilePath() != null && documentStorageService.exists(opportunityId, rtm.getFilePath())) {
+            return documentStorageService.readFile(opportunityId, rtm.getFilePath());
+        }
+
+        String fileName = opportunity.getOpportunityName()
+                .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
+                .trim();
+        if (fileName.isBlank()) {
+            fileName = "Requirement_Traceability_Matrix";
+        }
+        String relativePath = "Quality/RTM/" + fileName + "_RTM.xls";
+        if (documentStorageService.exists(opportunityId, relativePath)) {
+            if (rtm != null) {
+                rtm.setFilePath(relativePath);
+                rtmRepository.save(rtm);
+            }
+            return documentStorageService.readFile(opportunityId, relativePath);
+        }
+
+        // 2. Fallback to generating from data
+        RtmResponseDto response = getRtmData(opportunityId);
+        if (response == null) {
+            response = generateRtm(opportunityId);
+        }
+
+        byte[] bytes = rtmExcelService.generateExcel(
+                opportunity,
+                response.rows()
+        );
+        documentStorageService.saveFile(opportunityId, "Quality/RTM", fileName + "_RTM.xls", bytes);
+        if (rtm != null) {
+            rtm.setFilePath(relativePath);
+            rtm.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+            rtm.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+            rtmRepository.save(rtm);
+        }
+        return bytes;
     }
 
-    return rtmExcelService.generateExcel(
-            opportunity,
-            response.rows()
-    );
-}
+    @Transactional
+    public RtmResponseDto saveRtm(Long opportunityId, RtmResponseDto updatedRtm) throws IOException {
+        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found with id: " + opportunityId));
+
+        byte[] excelBytes = rtmExcelService.generateExcel(opportunity, updatedRtm.rows());
+
+        String fileName = opportunity.getOpportunityName()
+                .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
+                .trim();
+        if (fileName.isBlank()) {
+            fileName = "Requirement_Traceability_Matrix";
+        }
+
+        String relativePath = documentStorageService.replaceFile(
+                opportunityId,
+                "Quality/RTM",
+                fileName + "_RTM.xls",
+                excelBytes
+        );
+
+        Rtm rtm = rtmRepository.findByOpportunityId(opportunityId)
+                .orElseGet(() -> Rtm.builder().opportunity(opportunity).build());
+
+        rtm.setOpportunity(opportunity);
+        rtm.setFilePath(relativePath);
+        rtm.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+        rtm.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+        rtm.setRtmData(objectMapper.writeValueAsString(updatedRtm));
+
+        rtmRepository.save(rtm);
+
+        return updatedRtm;
+    }
 
     private String findTestCaseReferences(RtmRowDto row, List<TestCase> testCases) {
         if (testCases == null || testCases.isEmpty()) {

@@ -40,4 +40,13 @@ public class Rtm {
 
     @Column(name = "rtm_data", columnDefinition = "TEXT")
     private String rtmData;
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private java.time.LocalDateTime fileLastModified;
 }

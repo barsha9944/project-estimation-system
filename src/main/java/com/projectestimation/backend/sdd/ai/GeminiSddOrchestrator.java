@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.sdd.dto.SddDto;
 import com.projectestimation.backend.srs.dto.SrsDto;
 
@@ -12,14 +13,15 @@ public class GeminiSddOrchestrator {
 
     private static final int MAX_OUTPUT_TOKENS = 16384;
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
     private final ObjectMapper objectMapper;
 
     public GeminiSddOrchestrator(
-            GeminiClient geminiClient,
+    		AiGateway aiGateway,
             ObjectMapper objectMapper) {
 
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
         this.objectMapper = objectMapper;
     }
 
@@ -30,7 +32,7 @@ public class GeminiSddOrchestrator {
 
             String prompt = buildPrompt(srsJson);
 
-            String response = geminiClient.generateJsonContent(
+            String response = aiGateway.generateJsonContent(
                     prompt,
                     MAX_OUTPUT_TOKENS
             );

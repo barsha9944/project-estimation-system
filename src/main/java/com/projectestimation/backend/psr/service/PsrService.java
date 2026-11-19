@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.psr.ai.AiPsrResult;
@@ -33,6 +34,7 @@ public class PsrService {
     private final OpportunityRepository opportunityRepository;
     private final PsrDocxConverter psrDocxConverter;
     private final ObjectMapper objectMapper;
+    private final OpportunityDocumentStorageService documentStorageService;
 
     /*
      * ================================================================
@@ -489,6 +491,38 @@ public class PsrService {
                 status,
                 report.getMarkdownContent()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<PsrResponse> getPsrs(Long opportunityId) {
+        return projectStatusReportRepository.findByOpportunityId(opportunityId)
+                .stream()
+                .map(r -> toResponse(r, "RETRIEVED"))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] downloadPsr(Long opportunityId, Long psrId) throws java.io.IOException {
+        ProjectStatusReport report = projectStatusReportRepository.findById(psrId)
+                .orElseThrow(() -> new IllegalStateException("PSR not found: " + psrId));
+
+        String relPath = report.getFileLocation();
+        if (relPath == null || relPath.isBlank()) {
+            relPath = "Quality/PSR/" + report.getFileName();
+        }
+
+        if (documentStorageService.exists(opportunityId, relPath)) {
+            return documentStorageService.readFile(opportunityId, relPath);
+        }
+
+        throw new java.io.FileNotFoundException("Physical PSR document not found: " + relPath);
+    }
+
+    @Transactional(readOnly = true)
+    public String getPsrFileName(Long psrId) {
+        return projectStatusReportRepository.findById(psrId)
+                .map(ProjectStatusReport::getFileName)
+                .orElse("Project_Status_Report.docx");
     }
 
     /*

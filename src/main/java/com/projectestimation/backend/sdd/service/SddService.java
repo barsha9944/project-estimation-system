@@ -4,8 +4,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.BreakType;
@@ -51,6 +56,7 @@ import com.projectestimation.backend.srs.service.SrsService;
 import lombok.RequiredArgsConstructor;
 import net.sourceforge.plantuml.SourceStringReader;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SddService {
@@ -61,6 +67,7 @@ public class SddService {
     private final GeminiSddOrchestrator geminiSddOrchestrator;
     private final OpportunityDocumentStorageService documentStorageService;
     private final com.projectestimation.backend.review.service.DocumentReviewService documentReviewService;
+    private final SddDocxParser sddDocxParser;
     private final List<String> tocHeadings = new ArrayList<>();
     private XWPFParagraph tocParagraph;
 
@@ -89,20 +96,61 @@ public class SddService {
             return null;
         }
 
+        // 1. Check physical document first (Single Source of Truth)
         try {
+            String relativePath = sdd.getFilePath();
+            if (relativePath == null || !documentStorageService.exists(opportunityId, relativePath)) {
+                Optional<Path> latest = documentStorageService.findLatestFile(opportunityId, "Baseline/SDD", ".docx");
+                if (latest.isPresent()) {
+                    relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, latest.get());
+                }
+            }
 
-            return objectMapper.readValue(
-                    sdd.getSddData(),
-                    SddDto.class
-            );
+            if (relativePath != null && documentStorageService.exists(opportunityId, relativePath)) {
+                byte[] fileBytes = documentStorageService.readFile(opportunityId, relativePath);
+                SddDto parsedDto = sddDocxParser.parse(fileBytes);
+                if (parsedDto != null) {
+                    String currentHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+                    LocalDateTime lastMod = documentStorageService.getLastModified(opportunityId, relativePath);
+                    boolean metadataChanged = false;
 
-        } catch (Exception e) {
+                    if (!relativePath.equals(sdd.getFilePath())) {
+                        sdd.setFilePath(relativePath);
+                        metadataChanged = true;
+                    }
+                    if (currentHash != null && !currentHash.equals(sdd.getFileHash())) {
+                        sdd.setFileHash(currentHash);
+                        sdd.setFileLastModified(lastMod);
+                        sdd.setSddData(objectMapper.writeValueAsString(parsedDto));
+                        metadataChanged = true;
+                    }
 
-            throw new IllegalStateException(
-                    "Failed to parse saved SDD data",
-                    e
-            );
+                    if (metadataChanged) {
+                        sddRepository.save(sdd);
+                    }
+                    return parsedDto;
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed reading/parsing physical SDD file for opportunity {}, falling back to database cache: {}", opportunityId, ex.getMessage());
         }
+
+        // 2. Fallback to database JSON cache if physical file is not available
+        if (sdd.getSddData() != null && !sdd.getSddData().isBlank()) {
+            try {
+                return objectMapper.readValue(
+                        sdd.getSddData(),
+                        SddDto.class
+                );
+            } catch (Exception e) {
+                throw new IllegalStateException(
+                        "Failed to parse saved SDD data",
+                        e
+                );
+            }
+        }
+
+        return null;
     }
 
     public SrsDto getSrsInput(Long opportunityId) {
@@ -135,12 +183,6 @@ public class SddService {
         	                .opportunity(srsService.getOpportunity(opportunityId))
         	                .build());
 
-        	sdd.setSddData(
-        	        objectMapper.writeValueAsString(generatedSdd)
-        	);
-
-            sddRepository.save(sdd);
-            
             byte[] documentBytes =
                     buildSddDocumentBytes(generatedSdd, srsDto);
 
@@ -153,12 +195,21 @@ public class SddService {
                 fileName = "SDD";
             }
 
-            documentStorageService.saveFile(
+            String relativePath = documentStorageService.replaceFile(
                     opportunityId,
                     "Baseline/SDD",
                     fileName + "_sdd.docx",
                     documentBytes
             );
+
+            sdd.setFilePath(relativePath);
+            sdd.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+            sdd.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+            sdd.setSddData(
+                    objectMapper.writeValueAsString(generatedSdd)
+            );
+
+            sddRepository.save(sdd);
 
             try {
                 documentReviewService.initializeOrUpdateSchedule(
@@ -205,10 +256,34 @@ public class SddService {
     
     public byte[] downloadSdd(Long opportunityId) throws IOException {
 
+        Sdd sdd = sddRepository.findByOpportunityId(opportunityId)
+                .orElse(null);
+
+        // 1. Serve physical file directly from disk if it exists
+        if (sdd != null && sdd.getFilePath() != null && documentStorageService.exists(opportunityId, sdd.getFilePath())) {
+            return documentStorageService.readFile(opportunityId, sdd.getFilePath());
+        }
+
+        try {
+            Optional<Path> latest = documentStorageService.findLatestFile(opportunityId, "Baseline/SDD", ".docx");
+            if (latest.isPresent()) {
+                String relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, latest.get());
+                if (documentStorageService.exists(opportunityId, relativePath)) {
+                    if (sdd != null) {
+                        sdd.setFilePath(relativePath);
+                        sddRepository.save(sdd);
+                    }
+                    return documentStorageService.readFile(opportunityId, relativePath);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed checking physical SDD file: {}", ex.getMessage());
+        }
+
+        // 2. If physical file is missing, reconstruct and persist to disk
         SddDto sddDto = getGeneratedSdd(opportunityId);
 
         if (sddDto == null) {
-
             throw new ResourceNotFoundException(
                     "SDD not found for this opportunity"
             );
@@ -217,13 +292,68 @@ public class SddService {
         SrsDto srsDto = getSrsInput(opportunityId);
 
         try {
-            return buildSddDocumentBytes(sddDto, srsDto);
+            byte[] bytes = buildSddDocumentBytes(sddDto, srsDto);
+            String fileName = srsService.getOpportunity(opportunityId)
+                    .getOpportunityName()
+                    .replaceAll("[\\\\/:*?\"<>|]", "_")
+                    .trim();
+            if (fileName.isBlank()) {
+                fileName = "SDD";
+            }
+            Path saved = documentStorageService.saveFile(opportunityId, "Baseline/SDD", fileName + "_sdd.docx", bytes);
+            if (sdd != null) {
+                String relativePath = documentStorageService.toOpportunityRelativePath(opportunityId, saved);
+                sdd.setFilePath(relativePath);
+                sdd.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+                sdd.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+                sddRepository.save(sdd);
+            }
+            return bytes;
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Failed to generate SDD document",
                     e
             );
         }
+    }
+
+    public SddDto saveSdd(Long opportunityId, SddDto updatedSdd) throws IOException {
+        SrsDto srsDto = null;
+        try {
+            srsDto = getSrsInput(opportunityId);
+        } catch (Exception ignored) {}
+
+        byte[] documentBytes = buildSddDocumentBytes(updatedSdd, srsDto);
+
+        String fileName = srsService.getOpportunity(opportunityId)
+                .getOpportunityName()
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .trim();
+        if (fileName.isBlank()) {
+            fileName = "SDD";
+        }
+
+        // replaceFile moves any existing physical file to Backup/ with timestamp and writes new file
+        String relativePath = documentStorageService.replaceFile(
+                opportunityId,
+                "Baseline/SDD",
+                fileName + "_sdd.docx",
+                documentBytes
+        );
+
+        Sdd sdd = sddRepository.findByOpportunityId(opportunityId)
+                .orElseGet(() -> Sdd.builder()
+                        .opportunity(srsService.getOpportunity(opportunityId))
+                        .build());
+
+        sdd.setFilePath(relativePath);
+        sdd.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+        sdd.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+        sdd.setSddData(objectMapper.writeValueAsString(updatedSdd));
+
+        sddRepository.save(sdd);
+
+        return updatedSdd;
     }
 
     private void generateSddDocument(

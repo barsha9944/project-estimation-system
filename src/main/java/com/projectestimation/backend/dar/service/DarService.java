@@ -18,11 +18,14 @@ import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.apache.poi.util.Units;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.dar.ai.GeminiDarOrchestrator;
 import com.projectestimation.backend.dar.dto.DarAgendaItemDto;
 import com.projectestimation.backend.dar.dto.DarDiscussionNoteDto;
@@ -45,6 +48,8 @@ import com.projectestimation.backend.srs.service.SrsService;
 @Service
 public class DarService {
 
+    private static final Logger log = LoggerFactory.getLogger(DarService.class);
+
     private static final String REQUIREMENT_ANALYSIS =
             "Requirement Analysis";
 
@@ -59,6 +64,8 @@ public class DarService {
     private final SddService sddService;
     private final GeminiDarOrchestrator geminiDarOrchestrator;
     private final ObjectMapper objectMapper;
+    private final OpportunityDocumentStorageService documentStorageService;
+    private final DarDocxParser darDocxParser;
 
     public DarService(
             DarRepository darRepository,
@@ -68,7 +75,9 @@ public class DarService {
             SrsService srsService,
             SddService sddService,
             GeminiDarOrchestrator geminiDarOrchestrator,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            OpportunityDocumentStorageService documentStorageService,
+            DarDocxParser darDocxParser
     ) {
         this.darRepository = darRepository;
         this.opportunityRepository = opportunityRepository;
@@ -78,6 +87,8 @@ public class DarService {
         this.sddService = sddService;
         this.geminiDarOrchestrator = geminiDarOrchestrator;
         this.objectMapper = objectMapper;
+        this.documentStorageService = documentStorageService;
+        this.darDocxParser = darDocxParser;
     }
 
     @Transactional
@@ -178,12 +189,28 @@ public class DarService {
         dar.setDarContent(writeJson(generated));
         dar.setDocumentName(documentName);
 
+        try {
+            byte[] docxBytes = generateDocx(generated, opportunityId);
+            String relativePath = documentStorageService.replaceFile(
+                    opportunityId,
+                    "Quality/DAR",
+                    documentName,
+                    docxBytes
+            );
+            dar.setFilePath(relativePath);
+            dar.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+            dar.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+        } catch (IOException e) {
+            log.error("Failed to save physical DAR DOCX for opportunity: {}", opportunityId, e);
+            throw new RuntimeException("Failed to save DAR physical document", e);
+        }
+
         Dar saved = darRepository.save(dar);
 
         return toResponse(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public DarResponseDto getDar(Long opportunityId) {
 
         Dar dar = darRepository.findByOpportunityId(opportunityId)
@@ -192,10 +219,47 @@ public class DarService {
                                 + opportunityId
                 ));
 
+        syncDarFromPhysicalFileIfModified(dar);
+
         return toResponse(dar);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
+    public DarResponseDto updateDar(Long opportunityId, DarResponseDto updatedDto) throws IOException {
+        if (updatedDto == null) {
+            throw new IllegalArgumentException("Updated DAR payload cannot be null");
+        }
+
+        Dar dar = darRepository.findByOpportunityId(opportunityId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "DAR has not been generated for opportunity " + opportunityId
+                ));
+
+        if (updatedDto.meetingName() != null) dar.setMeetingName(updatedDto.meetingName());
+        if (updatedDto.meetingDate() != null) dar.setMeetingDate(updatedDto.meetingDate());
+        if (updatedDto.projectPhase() != null) dar.setProjectPhase(updatedDto.projectPhase());
+        if (updatedDto.invitees() != null) dar.setInvitees(writeJson(updatedDto.invitees()));
+        dar.setDarContent(writeJson(updatedDto));
+
+        byte[] docxBytes = generateDocx(updatedDto, opportunityId);
+
+        String relativePath = documentStorageService.replaceFile(
+                opportunityId,
+                "Quality/DAR",
+                dar.getDocumentName(),
+                docxBytes
+        );
+
+        dar.setFilePath(relativePath);
+        dar.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+        dar.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+
+        Dar saved = darRepository.save(dar);
+
+        return toResponse(saved);
+    }
+
+    @Transactional
     public byte[] downloadDar(Long opportunityId) throws IOException {
 
         Dar dar = darRepository.findByOpportunityId(opportunityId)
@@ -204,7 +268,35 @@ public class DarService {
                                 + opportunityId
                 ));
 
+        syncDarFromPhysicalFileIfModified(dar);
+
+        String relativePath = dar.getFilePath();
+        if (relativePath == null || relativePath.isBlank()) {
+            relativePath = "Quality/DAR/" + dar.getDocumentName();
+        }
+
+        if (documentStorageService.exists(opportunityId, relativePath)) {
+            return documentStorageService.readFile(opportunityId, relativePath);
+        }
+
         DarResponseDto dto = toResponse(dar);
+        byte[] docxBytes = generateDocx(dto, opportunityId);
+
+        String savedPath = documentStorageService.replaceFile(
+                opportunityId,
+                "Quality/DAR",
+                dar.getDocumentName(),
+                docxBytes
+        );
+        dar.setFilePath(savedPath);
+        dar.setFileHash(documentStorageService.getFileChecksum(opportunityId, savedPath));
+        dar.setFileLastModified(documentStorageService.getLastModified(opportunityId, savedPath));
+        darRepository.save(dar);
+
+        return docxBytes;
+    }
+
+    public byte[] generateDocx(DarResponseDto dto, Long opportunityId) throws IOException {
         String projectName = getProjectName(opportunityId);
 
         ProjectTeam team = projectTeamRepository
@@ -471,6 +563,85 @@ public class DarService {
 
             document.write(output);
             return output.toByteArray();
+        }
+    }
+
+    private void syncDarFromPhysicalFileIfModified(Dar dar) {
+        if (dar == null) return;
+        String relativePath = dar.getFilePath();
+        if (relativePath == null || relativePath.isBlank()) {
+            relativePath = "Quality/DAR/" + dar.getDocumentName();
+        }
+
+        try {
+            if (documentStorageService.exists(dar.getOpportunityId(), relativePath)) {
+                String currentHash = documentStorageService.getFileChecksum(dar.getOpportunityId(), relativePath);
+                if (dar.getFileHash() == null || !dar.getFileHash().equals(currentHash)) {
+                    log.info("Detected physical DAR DOCX update for opp: {}, syncing from file", dar.getOpportunityId());
+                    byte[] bytes = documentStorageService.readFile(dar.getOpportunityId(), relativePath);
+                    DarDocxParser.ParsedDarData parsed = darDocxParser.parse(bytes);
+                    if (parsed != null) {
+                        if (parsed.meetingName != null && !parsed.meetingName.isBlank()) {
+                            dar.setMeetingName(parsed.meetingName);
+                        }
+                        if (parsed.meetingDate != null) {
+                            dar.setMeetingDate(parsed.meetingDate);
+                        }
+                        if (parsed.projectPhase != null && !parsed.projectPhase.isBlank()) {
+                            dar.setProjectPhase(parsed.projectPhase);
+                        }
+                        if (parsed.invitees != null && !parsed.invitees.isEmpty()) {
+                            dar.setInvitees(writeJson(parsed.invitees));
+                        }
+
+                        DarResponseDto existingContent = null;
+                        try {
+                            if (dar.getDarContent() != null) {
+                                existingContent = objectMapper.readValue(dar.getDarContent(), DarResponseDto.class);
+                            }
+                        } catch (Exception ignored) {
+                        }
+
+                        DarResponseDto updatedDto = new DarResponseDto(
+                                dar.getId(),
+                                dar.getOpportunityId(),
+                                dar.getProjectPhase(),
+                                existingContent != null ? existingContent.phaseJustification() : null,
+                                dar.getMeetingDate(),
+                                dar.getMeetingName(),
+                                parsed.invitees != null && !parsed.invitees.isEmpty() ? parsed.invitees : (existingContent != null ? existingContent.invitees() : List.of()),
+                                parsed.agenda != null && !parsed.agenda.isEmpty() ? parsed.agenda : (existingContent != null ? existingContent.agenda() : List.of()),
+                                parsed.discussionNotes != null && !parsed.discussionNotes.isEmpty() ? parsed.discussionNotes : (existingContent != null ? existingContent.discussionNotes() : List.of()),
+                                parsed.evaluationCriteria != null && !parsed.evaluationCriteria.isEmpty() ? parsed.evaluationCriteria : (existingContent != null ? existingContent.evaluationCriteria() : List.of()),
+                                parsed.alternatives != null && !parsed.alternatives.isEmpty() ? parsed.alternatives : (existingContent != null ? existingContent.alternatives() : List.of()),
+                                parsed.recommendedAlternativeId != null ? parsed.recommendedAlternativeId : (existingContent != null ? existingContent.recommendedAlternativeId() : null),
+                                parsed.recommendationReason != null ? parsed.recommendationReason : (existingContent != null ? existingContent.recommendationReason() : null),
+                                dar.getDocumentName(),
+                                dar.getCreatedAt(),
+                                dar.getUpdatedAt()
+                        );
+
+                        dar.setDarContent(writeJson(updatedDto));
+                        dar.setFilePath(relativePath);
+                        dar.setFileHash(currentHash);
+                        dar.setFileLastModified(documentStorageService.getLastModified(dar.getOpportunityId(), relativePath));
+                        darRepository.save(dar);
+                    }
+                }
+            } else {
+                // If file does not exist on disk but we have saved DAR, generate it
+                if (dar.getDarContent() != null) {
+                    DarResponseDto dto = toResponse(dar);
+                    byte[] bytes = generateDocx(dto, dar.getOpportunityId());
+                    String savedPath = documentStorageService.replaceFile(dar.getOpportunityId(), "Quality/DAR", dar.getDocumentName(), bytes);
+                    dar.setFilePath(savedPath);
+                    dar.setFileHash(documentStorageService.getFileChecksum(dar.getOpportunityId(), savedPath));
+                    dar.setFileLastModified(documentStorageService.getLastModified(dar.getOpportunityId(), savedPath));
+                    darRepository.save(dar);
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Failed to sync DAR from physical file for opp: {}", dar.getOpportunityId(), ex);
         }
     }
 

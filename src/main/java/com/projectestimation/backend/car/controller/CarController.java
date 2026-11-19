@@ -6,6 +6,7 @@ import com.projectestimation.backend.car.dto.CarResponseDto;
 import com.projectestimation.backend.car.service.CarExcelService;
 import com.projectestimation.backend.car.service.CarRootCauseAnalysisService;
 import com.projectestimation.backend.car.service.CarService;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class CarController {
     private final CarService carService;
     private final CarRootCauseAnalysisService rootCauseAnalysisService;
     private final CarExcelService excelService;
+    private final OpportunityDocumentStorageService documentStorageService;
 
 //    /**
 //     * API 1: Create CAR and generate AI analysis.
@@ -55,6 +57,13 @@ public class CarController {
         CarResponseDto car =
                 rootCauseAnalysisService.generateAutomatedCar(opportunityId);
 
+        try {
+            byte[] excelFile = excelService.generateCarReport(car.getId());
+            String filename = "CAR_Report_" + car.getId() + ".xlsx";
+            documentStorageService.replaceFile(opportunityId, "Quality/CAR", filename, excelFile);
+        } catch (Exception ignored) {
+        }
+
         return ResponseEntity.ok(car);
     }
 
@@ -84,9 +93,33 @@ public class CarController {
             return ResponseEntity.notFound().build();
         }
 
+        String filename = "CAR_Report_" + carId + ".xlsx";
+        String relativePath = "Quality/CAR/" + filename;
+
+        try {
+            if (documentStorageService.exists(opportunityId, relativePath)) {
+                byte[] bytes = documentStorageService.readFile(opportunityId, relativePath);
+                return ResponseEntity.ok()
+                        .header(
+                                HttpHeaders.CONTENT_DISPOSITION,
+                                "attachment; filename=\"" + filename + "\""
+                        )
+                        .contentType(
+                                MediaType.parseMediaType(
+                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                )
+                        )
+                        .body(bytes);
+            }
+        } catch (Exception ignored) {
+        }
+
         byte[] excelFile = excelService.generateCarReport(carId);
 
-        String filename = "CAR_Report_" + carId + ".xlsx";
+        try {
+            documentStorageService.replaceFile(opportunityId, "Quality/CAR", filename, excelFile);
+        } catch (Exception ignored) {
+        }
 
         return ResponseEntity.ok()
                 .header(

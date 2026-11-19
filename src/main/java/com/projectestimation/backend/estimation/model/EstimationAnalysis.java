@@ -50,4 +50,12 @@ public class EstimationAnalysis {
     private BigDecimal hourlyRate;
 
     private BigDecimal projectPrice;
+
+    private String filePath;
+
+    private String fileName;
+
+    private String fileHash;
+
+    private LocalDateTime fileLastModified;
 }

@@ -4,6 +4,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
@@ -17,10 +18,12 @@ public class GeminiPmpOrchestrator {
      */
     private static final int MAX_OUTPUT_TOKENS = 16384;
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    
+    private final AiGateway aiGateway;
 
-    public GeminiPmpOrchestrator(GeminiClient geminiClient) {
-        this.geminiClient = geminiClient;
+    public GeminiPmpOrchestrator(AiGateway aiGateway) {
+        this.aiGateway = aiGateway;
     }
 
     public String generate(
@@ -33,7 +36,7 @@ public class GeminiPmpOrchestrator {
                 useCases
         );
 
-        return geminiClient.generateJsonContent(
+        return aiGateway.generateJsonContent(
                 prompt,
                 MAX_OUTPUT_TOKENS
         );

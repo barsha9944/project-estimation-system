@@ -9,6 +9,7 @@ import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -69,6 +70,15 @@ public class ProjectSchedule {
     private Double estimatedHours;
     
     private LocalDate projectEndDate;
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
 
     @OneToMany(
             mappedBy = "projectSchedule",

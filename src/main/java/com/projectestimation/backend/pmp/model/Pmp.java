@@ -41,4 +41,13 @@ public class Pmp {
 
     @Column(columnDefinition = "TEXT")
     private String pmpData;
+
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private java.time.LocalDateTime fileLastModified;
 }

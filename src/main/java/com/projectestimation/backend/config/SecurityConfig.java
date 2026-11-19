@@ -75,7 +75,8 @@ public class SecurityConfig {
                                 "/api/v1/proposals/**",
                                 "/api/v1/opportunities/**",
                                 "/api/v1/diagram/**",
-                                "/api/v1/project-metrics/**"
+                                "/api/v1/project-metrics/**",
+                                "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

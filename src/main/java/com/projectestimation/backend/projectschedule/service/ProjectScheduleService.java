@@ -45,6 +45,7 @@ import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTask
 import com.projectestimation.backend.projectschedule.dto.SaveTaskBreakdownRequest;
 import com.projectestimation.backend.projectschedule.dto.TaskBreakdownResponse;
 import com.projectestimation.backend.projectschedule.excel.ProjectScheduleExcelExporter;
+import com.projectestimation.backend.projectschedule.excel.ProjectScheduleExcelParser;
 import com.projectestimation.backend.projectschedule.model.ProjectSchedule;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTask;
 import com.projectestimation.backend.projectschedule.model.ProjectScheduleTaskBreakdown;
@@ -100,6 +101,7 @@ public class ProjectScheduleService {
 	private final PsrPeriodCalculator psrPeriodCalculator;
 	
 	private final OpportunityDocumentStorageService documentStorageService;
+	private final ProjectScheduleExcelParser projectScheduleExcelParser;
 
 	public ProjectScheduleResponse generateProjectSchedule(
 
@@ -397,6 +399,29 @@ return response;
 		// period from projectStartDate and refreshes its one report for that period.
 		projectScheduleRepository.flush();
 
+		try {
+			byte[] excelBytes = projectScheduleExcelExporter.export(request);
+			Opportunity opp = opportunityRepository.findById(opportunityId).orElse(null);
+			if (opp != null) {
+				String fileName = opp.getOpportunityName()
+						.replaceAll("[\\\\/:*?\"<>|]", "_")
+						.replaceAll("\\s+", "_")
+						+ "_Project_Schedule.xlsx";
+				String relativePath = documentStorageService.replaceFile(
+						opportunityId,
+						"Baseline/PMP",
+						fileName,
+						excelBytes
+				);
+				schedule.setFilePath(relativePath);
+				schedule.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+				schedule.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+				projectScheduleRepository.save(schedule);
+			}
+		} catch (Exception ex) {
+			log.warn("Failed saving physical Project Schedule Excel file: {}", ex.getMessage());
+		}
+
 		System.out.println(
 				"PSR EVENT PUBLISHED -> opportunityId=" + opportunityId + ", affectedVersions=" + affectedPsrVersions);
 
@@ -420,7 +445,24 @@ return response;
             .replaceAll("\\s+", "_")
             + "_Project_Schedule.xlsx";
 
+    String relativePath = "Baseline/PMP/" + fileName;
+
+    try {
+        if (documentStorageService.exists(opportunityId, relativePath)) {
+            byte[] fileBytes = documentStorageService.readFile(opportunityId, relativePath);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
+                    .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(fileBytes);
+        }
+    } catch (Exception ex) {
+        log.warn("Failed reading physical schedule file: {}", ex.getMessage());
+    }
+
     byte[] excel = projectScheduleExcelExporter.export(request);
+    try {
+        documentStorageService.saveFile(opportunityId, "Baseline/PMP", fileName, excel);
+    } catch (Exception ignored) {}
 
     return ResponseEntity.ok()
             .header(
@@ -434,11 +476,36 @@ return response;
             .body(excel);
 }
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public ProjectScheduleResponse getProjectSchedule(Long opportunityId) {
 
 		ProjectSchedule schedule = projectScheduleRepository.findByOpportunityIdWithTasks(opportunityId)
 				.orElseThrow(() -> new ResourceNotFoundException("Project schedule not found."));
+
+		// Check physical Excel file for external changes
+		Opportunity opp = opportunityRepository.findById(opportunityId).orElse(null);
+		if (opp != null) {
+			String fileName = opp.getOpportunityName().replaceAll("[\\\\/:*?\"<>|]", "_").replaceAll("\\s+", "_") + "_Project_Schedule.xlsx";
+			String relPath = "Baseline/PMP/" + fileName;
+			if (documentStorageService.exists(opportunityId, relPath)) {
+				try {
+					String currentHash = documentStorageService.getFileChecksum(opportunityId, relPath);
+					if (schedule.getFileHash() != null && !currentHash.equals(schedule.getFileHash())) {
+						// File was changed externally! Synchronize tasks from physical Excel
+						byte[] excelBytes = documentStorageService.readFile(opportunityId, relPath);
+						List<SaveProjectScheduleTaskRequest> parsedTasks = projectScheduleExcelParser.parseTasks(excelBytes);
+						if (!parsedTasks.isEmpty()) {
+							syncTasksFromExcel(schedule, parsedTasks);
+							schedule.setFileHash(currentHash);
+							schedule.setFileLastModified(documentStorageService.getLastModified(opportunityId, relPath));
+							projectScheduleRepository.save(schedule);
+						}
+					}
+				} catch (Exception ex) {
+					log.warn("Failed checking physical project schedule file for external changes: {}", ex.getMessage());
+				}
+			}
+		}
 
 		ProjectScheduleResponse response = new ProjectScheduleResponse();
 
@@ -984,5 +1051,41 @@ private SaveProjectScheduleRequest convertToSaveProjectScheduleRequest(
 
     return request;
 }
+
+	private void syncTasksFromExcel(ProjectSchedule schedule, List<SaveProjectScheduleTaskRequest> parsedTasks) {
+		if (schedule.getTasks() == null || parsedTasks == null) return;
+		Map<String, ProjectScheduleTask> taskByName = schedule.getTasks().stream()
+				.collect(Collectors.toMap(t -> t.getTaskName().trim().toLowerCase(), t -> t, (a, b) -> a));
+
+		for (SaveProjectScheduleTaskRequest pt : parsedTasks) {
+			if (pt.getTaskName() == null) continue;
+			ProjectScheduleTask existing = taskByName.get(pt.getTaskName().trim().toLowerCase());
+			if (existing != null) {
+				if (pt.getPlannedStartDate() != null) existing.setPlannedStartDate(pt.getPlannedStartDate());
+				if (pt.getPlannedEndDate() != null) existing.setPlannedEndDate(pt.getPlannedEndDate());
+				if (pt.getDuration() != null) existing.setDuration(pt.getDuration());
+				if (pt.getActualStartDate() != null) existing.setActualStartDate(pt.getActualStartDate());
+				if (pt.getActualEndDate() != null) existing.setActualEndDate(pt.getActualEndDate());
+				if (pt.getStatus() != null) existing.setStatus(pt.getStatus());
+
+				if (pt.getTaskBreakdowns() != null && existing.getTaskBreakdowns() != null) {
+					Map<String, ProjectScheduleTaskBreakdown> breakdownByName = existing.getTaskBreakdowns().stream()
+							.collect(Collectors.toMap(b -> b.getActivityName().trim().toLowerCase(), b -> b, (a, b) -> a));
+					for (SaveTaskBreakdownRequest pb : pt.getTaskBreakdowns()) {
+						if (pb.getActivityName() == null) continue;
+						ProjectScheduleTaskBreakdown existingBd = breakdownByName.get(pb.getActivityName().trim().toLowerCase());
+						if (existingBd != null) {
+							if (pb.getPlannedStartDate() != null) existingBd.setPlannedStartDate(pb.getPlannedStartDate());
+							if (pb.getPlannedEndDate() != null) existingBd.setPlannedEndDate(pb.getPlannedEndDate());
+							if (pb.getDuration() != null) existingBd.setDuration(pb.getDuration());
+							if (pb.getActualStartDate() != null) existingBd.setActualStartDate(pb.getActualStartDate());
+							if (pb.getActualEndDate() != null) existingBd.setActualEndDate(pb.getActualEndDate());
+							if (pb.getStatus() != null) existingBd.setStatus(pb.getStatus());
+						}
+					}
+				}
+			}
+		}
+	}
 
 }

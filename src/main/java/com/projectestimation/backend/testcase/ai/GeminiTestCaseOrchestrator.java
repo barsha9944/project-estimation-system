@@ -5,18 +5,20 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
 @Service
 public class GeminiTestCaseOrchestrator {
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
 
     public GeminiTestCaseOrchestrator(
-            GeminiClient geminiClient
+    		AiGateway aiGateway
     ) {
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
     }
 
     public String generate(
@@ -29,7 +31,7 @@ public class GeminiTestCaseOrchestrator {
                 useCases
         );
 
-        return geminiClient.generateJsonContent(
+        return aiGateway.generateJsonContent(
                 prompt,
                 8192
         );

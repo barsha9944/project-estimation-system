@@ -98,6 +98,12 @@ public class Proposal {
     @Column(name = "process_flow_directory")
     private String processFlowDirectory;
 
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -209,6 +215,22 @@ public class Proposal {
 
 	public void setProcessFlowDirectory(String processFlowDirectory) {
 		this.processFlowDirectory = processFlowDirectory;
+	}
+
+	public String getFileHash() {
+		return fileHash;
+	}
+
+	public void setFileHash(String fileHash) {
+		this.fileHash = fileHash;
+	}
+
+	public LocalDateTime getFileLastModified() {
+		return fileLastModified;
+	}
+
+	public void setFileLastModified(LocalDateTime fileLastModified) {
+		this.fileLastModified = fileLastModified;
 	}
 
 	/** @deprecated use {@link #setMarkdownContent(String)} */

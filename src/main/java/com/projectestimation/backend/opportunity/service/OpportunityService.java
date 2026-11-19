@@ -458,6 +458,7 @@ public ProjectTeamResponse getProjectTeam(Long opportunityId) {
 	            "Quality/Test/Test Case",
 	            "Quality/Review",
 	            "Quality/CAR",
+	            "Quality/DAR",
 
 	            "Baseline/SRS",
 	            "Baseline/SDD",

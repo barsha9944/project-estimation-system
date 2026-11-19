@@ -3,7 +3,15 @@ package com.projectestimation.backend.estimation.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -68,6 +76,8 @@ import com.projectestimation.backend.testcase.repository.TestCaseRepository;
 @Transactional
 public class CalculationService {
 
+	private static final Logger log = LoggerFactory.getLogger(CalculationService.class);
+
 	private final OpportunityRepository opportunityRepository;
 	private final EstimationAnalysisRepository estimationAnalysisRepository;
 	private final EstimationActorRepository estimationActorRepository;
@@ -82,6 +92,8 @@ public class CalculationService {
 	private final SrsRepository srsRepository;
 	private final SddRepository sddRepository;
 	private final RtmRepository rtmRepository;
+	private final OpportunityDocumentStorageService documentStorageService;
+	private final EstimationExcelParser estimationExcelParser;
 	
 	public CalculationService(OpportunityRepository opportunityRepository,
 			EstimationAnalysisRepository estimationAnalysisRepository,
@@ -96,7 +108,9 @@ public class CalculationService {
 			PmpRepository pmpRepository,
 			SrsRepository srsRepository,
 			SddRepository sddRepository,
-			RtmRepository rtmRepository) {
+			RtmRepository rtmRepository,
+			OpportunityDocumentStorageService documentStorageService,
+			EstimationExcelParser estimationExcelParser) {
 
 		this.opportunityRepository = opportunityRepository;
 		this.estimationAnalysisRepository = estimationAnalysisRepository;
@@ -112,6 +126,8 @@ public class CalculationService {
 		this.srsRepository = srsRepository;
 		this.sddRepository = sddRepository;
 		this.rtmRepository = rtmRepository;
+		this.documentStorageService = documentStorageService;
+		this.estimationExcelParser = estimationExcelParser;
 	}
 
 	public ActorCalculationResponse calculate(ActorCalculationRequest request) {
@@ -328,75 +344,98 @@ public class CalculationService {
 
 		estimationAnalysisRepository.save(analysis);
 
+		persistEstimationWorkbook(request.getOpportunityId(), analysis);
+
 		return new FinalCalculationResponse(ucp, hoursOfEffort);
 	}
-	
-	
-	
-	public byte[] downloadEstimate(
-	        DownloadEstimateRequest request
+
+	public byte[] generateWorkbookBytes(
+	        EstimationAnalysis analysis,
+	        List<EstimationActor> actors,
+	        List<EstimationUseCase> useCases,
+	        List<EstimationTechnicalFactor> technicalFactors,
+	        List<EstimationEnvironmentalFactor> environmentalFactors
 	) throws IOException {
-
-	    EstimationAnalysis analysis =
-	            estimationAnalysisRepository
-	                    .findByOpportunityId(request.getOpportunityId())
-	                    .orElseThrow(() ->
-	                            new ResourceNotFoundException("Estimation Analysis not found"));
-
-	    List<EstimationActor> actors =
-	            estimationActorRepository
-	                    .findByEstimationAnalysisId(analysis.getId());
-
-	    List<EstimationUseCase> useCases =
-	            estimationUseCaseRepository
-	                    .findByEstimationAnalysisId(analysis.getId());
-
-	    List<EstimationTechnicalFactor> technicalFactors =
-	            estimationTechnicalFactorRepository
-	                    .findByEstimationAnalysisId(analysis.getId());
-
-	    List<EstimationEnvironmentalFactor> environmentalFactors =
-	            estimationEnvironmentalFactorRepository
-	                    .findByEstimationAnalysisId(analysis.getId());
-
 	    try (
 	            XSSFWorkbook workbook = new XSSFWorkbook();
 	            ByteArrayOutputStream out = new ByteArrayOutputStream()
 	    ) {
-
-	        createActorSheet(
-	                workbook,
-	                actors,
-	                analysis
-	        );
-
-	        createUseCaseSheet(
-	                workbook,
-	                useCases,
-	                analysis
-	        );
-
-	        createTechnicalFactorSheet(
-	                workbook,
-	                technicalFactors,
-	                analysis
-	        );
-
-	        createEnvironmentalFactorSheet(
-	                workbook,
-	                environmentalFactors,
-	                analysis
-	        );
-
-	        createFinalCalculationSheet(
-	                workbook,
-	                analysis
-	        );
-
+	        createActorSheet(workbook, actors, analysis);
+	        createUseCaseSheet(workbook, useCases, analysis);
+	        createTechnicalFactorSheet(workbook, technicalFactors, analysis);
+	        createEnvironmentalFactorSheet(workbook, environmentalFactors, analysis);
+	        createFinalCalculationSheet(workbook, analysis);
 	        workbook.write(out);
-
 	        return out.toByteArray();
 	    }
+	}
+
+	public void persistEstimationWorkbook(Long opportunityId, EstimationAnalysis analysis) {
+	    if (analysis == null || analysis.getId() == null) return;
+	    try {
+	        Opportunity opportunity = analysis.getOpportunity();
+	        if (opportunity == null) {
+	            opportunity = opportunityRepository.findById(opportunityId).orElse(null);
+	            if (opportunity != null) {
+	                analysis.setOpportunity(opportunity);
+	            }
+	        }
+	        String oppName = (opportunity != null && opportunity.getOpportunityName() != null)
+	                ? opportunity.getOpportunityName()
+	                : "Opportunity_" + opportunityId;
+	        String safeName = oppName.replaceAll("[\\\\/:*?\"<>|\\s]+", "_").trim();
+	        String fileName = safeName + "_Estimate.xlsx";
+	        String relativePath = "Baseline/Estimation/" + fileName;
+
+	        List<EstimationActor> actors = estimationActorRepository.findByEstimationAnalysisId(analysis.getId());
+	        List<EstimationUseCase> useCases = estimationUseCaseRepository.findByEstimationAnalysisId(analysis.getId());
+	        List<EstimationTechnicalFactor> technicalFactors = estimationTechnicalFactorRepository.findByEstimationAnalysisId(analysis.getId());
+	        List<EstimationEnvironmentalFactor> environmentalFactors = estimationEnvironmentalFactorRepository.findByEstimationAnalysisId(analysis.getId());
+
+	        byte[] excelBytes = generateWorkbookBytes(analysis, actors, useCases, technicalFactors, environmentalFactors);
+
+	        documentStorageService.replaceFile(opportunityId, "Baseline/Estimation", fileName, excelBytes);
+	        String checksum = documentStorageService.getFileChecksum(opportunityId, relativePath);
+
+	        analysis.setFilePath(relativePath);
+	        analysis.setFileName(fileName);
+	        analysis.setFileHash(checksum);
+	        analysis.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+	        estimationAnalysisRepository.save(analysis);
+	    } catch (Exception ex) {
+	        log.warn("Failed persisting physical estimation workbook for opportunity {}: {}", opportunityId, ex.getMessage());
+	    }
+	}
+
+	public byte[] downloadEstimate(
+	        DownloadEstimateRequest request
+	) throws IOException {
+	    Long opportunityId = request.getOpportunityId();
+	    EstimationAnalysis analysis =
+	            estimationAnalysisRepository
+	                    .findByOpportunityId(opportunityId)
+	                    .orElseThrow(() ->
+	                            new ResourceNotFoundException("Estimation Analysis not found"));
+
+	    String fileName = getEstimateFileName(request);
+	    String relativePath = "Baseline/Estimation/" + fileName;
+
+	    if (documentStorageService.exists(opportunityId, relativePath)) {
+	        return documentStorageService.readFile(opportunityId, relativePath);
+	    }
+
+	    persistEstimationWorkbook(opportunityId, analysis);
+
+	    if (documentStorageService.exists(opportunityId, relativePath)) {
+	        return documentStorageService.readFile(opportunityId, relativePath);
+	    }
+
+	    List<EstimationActor> actors = estimationActorRepository.findByEstimationAnalysisId(analysis.getId());
+	    List<EstimationUseCase> useCases = estimationUseCaseRepository.findByEstimationAnalysisId(analysis.getId());
+	    List<EstimationTechnicalFactor> technicalFactors = estimationTechnicalFactorRepository.findByEstimationAnalysisId(analysis.getId());
+	    List<EstimationEnvironmentalFactor> environmentalFactors = estimationEnvironmentalFactorRepository.findByEstimationAnalysisId(analysis.getId());
+
+	    return generateWorkbookBytes(analysis, actors, useCases, technicalFactors, environmentalFactors);
 	}
 	
 	private void createActorSheet(
@@ -1429,171 +1468,291 @@ public class CalculationService {
 	    return opportunityName + "_Estimate.xlsx";
 	}
 	
-	public EstimationResponse getEstimation(
-        Long opportunityId) {
+	public EstimationResponse getEstimation(Long opportunityId) {
+		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(opportunityId)
+				.orElseThrow(() -> new ResourceNotFoundException("Estimation not found"));
 
-	    EstimationAnalysis analysis =
-	            estimationAnalysisRepository
-	                    .findByOpportunityId(opportunityId)
-	                    .orElseThrow(() ->
-	                            new ResourceNotFoundException(
-	                                    "Estimation not found"));
-	
-	    List<EstimationActor> actors =
-	            estimationActorRepository
-	                    .findByEstimationAnalysisId(
-	                            analysis.getId());
-	
-	    List<EstimationUseCase> useCases =
-	            estimationUseCaseRepository
-	                    .findByEstimationAnalysisId(
-	                            analysis.getId());
-	
-	    List<EstimationTechnicalFactor> technicalFactors =
-	            estimationTechnicalFactorRepository
-	                    .findByEstimationAnalysisId(
-	                            analysis.getId());
-	
-	    List<EstimationEnvironmentalFactor> environmentalFactors =
-	            estimationEnvironmentalFactorRepository
-	                    .findByEstimationAnalysisId(
-	                            analysis.getId());
-	
-	    EstimationResponse response =
-	            new EstimationResponse();
-	
-	    response.setActors(
-	
-	            actors.stream()
-	
-	                    .map(actor -> new EstimationActorResponse(
-	
-	                            actor.getActorName(),
-	
-	                            actor.getActorType()
-	
-	                    ))
-	
-	                    .toList()
-	
-	    );
-	    
-	    response.setUseCases(
-	
-	            useCases.stream()
-	
-	                    .map(useCase -> new EstimationUseCaseResponse(
-	
-	                            useCase.getUseCaseName(),
-	
-	                            useCase.getComplexity()
-	
-	                    ))
-	
-	                    .toList()
-	
-	    );
-	    
-	    response.setTechnicalFactors(
-	
-	            technicalFactors.stream()
-	
-	                    .map(factor ->
-	
-	                            new EstimationTechnicalFactorResponse(
-	
-	                                    factor.getFactorName(),
-	
-	                                    factor.getMultiplier(),
-	
-	                                    factor.getMagnitude(),
-	
-	                                    factor.getDescription()
-	
-	                            ))
-	
-	                    .toList()
-	
-	    );
-	    
-	    response.setEnvironmentalFactors(
-	
-	            environmentalFactors.stream()
-	
-	                    .map(factor ->
-	
-	                            new EstimationEnvironmentalFactorResponse(
-	
-	                                    factor.getFactorName(),
-	
-	                                    factor.getMultiplier(),
-	
-	                                    factor.getMagnitude(),
-	
-	                                    factor.getDescription()
-	
-	                            ))
-	
-	                    .toList()
-	
-	    );
-	    
-	    response.setActorWeight(
-	            analysis.getActorWeight());
-	
-	    response.setUucp(
-	            analysis.getUucp());
-	
-	    response.setTcf(
-	            analysis.getTcf());
-	
-	    response.setEf(
-	            analysis.getEf());
-	
-	    response.setUcp(
-	            analysis.getUcp());
-	
-	    response.setBenchmarkProductivityRatio(
-	            analysis.getBenchmarkProductivityRatio());
-	
-	    response.setHoursOfEffort(
-	            analysis.getHoursOfEffort());
-	    
-	    response.setCurrency(analysis.getCurrency());
+		String oppName = (analysis.getOpportunity() != null && analysis.getOpportunity().getOpportunityName() != null)
+				? analysis.getOpportunity().getOpportunityName()
+				: "Opportunity_" + opportunityId;
+		String safeName = oppName.replaceAll("[\\\\/:*?\"<>|\\s]+", "_").trim();
+		String fileName = safeName + "_Estimate.xlsx";
+		String relativePath = "Baseline/Estimation/" + fileName;
 
-	    response.setHourlyRate(analysis.getHourlyRate());
+		if (documentStorageService.exists(opportunityId, relativePath)) {
+			try {
+				String curHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
+				if (analysis.getFileHash() == null || !analysis.getFileHash().equals(curHash)) {
+					return syncFromExcelFile(opportunityId);
+				}
+			} catch (Exception ignored) {}
+		} else {
+			persistEstimationWorkbook(opportunityId, analysis);
+		}
 
-	    response.setProjectPrice(analysis.getProjectPrice());
-	    
-	    response.setEstimationCompleted(
-	            estimationAnalysisRepository
-	                    .findByOpportunityId(opportunityId)
-	                    .isPresent());
+		return buildEstimationResponse(analysis);
+	}
 
-	    response.setProposalCompleted(
-	            proposalRepository
-	                    .existsByOpportunityId(opportunityId));
+	@Transactional
+	public EstimationResponse syncFromExcelFile(Long opportunityId) {
+		EstimationAnalysis analysis = estimationAnalysisRepository.findByOpportunityId(opportunityId).orElse(null);
+		if (analysis == null) return null;
 
-	    response.setWorkScheduleCompleted(
-	    		projectScheduleRepository
-	                    .existsByOpportunityId(opportunityId));
+		String oppName = (analysis.getOpportunity() != null && analysis.getOpportunity().getOpportunityName() != null)
+				? analysis.getOpportunity().getOpportunityName()
+				: "Opportunity_" + opportunityId;
+		String safeName = oppName.replaceAll("[\\\\/:*?\"<>|\\s]+", "_").trim();
+		String fileName = safeName + "_Estimate.xlsx";
+		String relativePath = "Baseline/Estimation/" + fileName;
 
-	    response.setSummaryMetricsCompleted(
-	            projectMetricsRepository
-	                    .existsByOpportunityId(opportunityId));
-	    
-	    response.setTestCaseCompleted(testCaseRepository.existsByOpportunityId(opportunityId));
+		if (!documentStorageService.exists(opportunityId, relativePath)) {
+			return buildEstimationResponse(analysis);
+		}
 
-	    response.setPmpCompleted(pmpRepository.existsByOpportunityId(opportunityId));
-	    
-	    response.setSrsCompleted(srsRepository.existsByOpportunityId(opportunityId));
-	    
-	    
-	    response.setSddCompleted(sddRepository.existsByOpportunityId(opportunityId));
-	    
-	    response.setRtmCompleted(rtmRepository.existsByOpportunityId(opportunityId));
+		try {
+			byte[] bytes = documentStorageService.readFile(opportunityId, relativePath);
+			String curHash = documentStorageService.getFileChecksum(opportunityId, relativePath);
 
-	    return response;
+			EstimationExcelParser.ParsedEstimationWorkbook parsed = estimationExcelParser.parse(bytes);
+
+			// 1. Sync Actors
+			List<EstimationActor> existingActors = estimationActorRepository.findByEstimationAnalysisId(analysis.getId());
+			if (!parsed.getActors().isEmpty()) {
+				Map<String, EstimationActor> actorMap = new HashMap<>();
+				for (EstimationActor ea : existingActors) {
+					actorMap.put(ea.getActorName().trim().toLowerCase(), ea);
+				}
+				for (EstimationExcelParser.ParsedActor pa : parsed.getActors()) {
+					EstimationActor ea = actorMap.get(pa.name().toLowerCase());
+					if (ea != null) {
+						ea.setActorType(pa.type());
+					} else {
+						EstimationActor newActor = new EstimationActor();
+						newActor.setEstimationAnalysis(analysis);
+						newActor.setActorName(pa.name());
+						newActor.setActorType(pa.type());
+						existingActors.add(newActor);
+					}
+				}
+				estimationActorRepository.saveAll(existingActors);
+			}
+
+			// Recalculate AW
+			int totalAw = 0;
+			for (EstimationActor ea : existingActors) {
+				int mult = switch (ea.getActorType().toUpperCase()) {
+					case "SIMPLE" -> 1;
+					case "AVERAGE" -> 2;
+					default -> 3;
+				};
+				totalAw += mult;
+			}
+			analysis.setActorWeight(totalAw);
+
+			// 2. Sync Use Cases
+			List<EstimationUseCase> existingUseCases = estimationUseCaseRepository.findByEstimationAnalysisId(analysis.getId());
+			if (!parsed.getUseCases().isEmpty()) {
+				Map<String, EstimationUseCase> ucMap = new HashMap<>();
+				for (EstimationUseCase euc : existingUseCases) {
+					ucMap.put(euc.getUseCaseName().trim().toLowerCase(), euc);
+				}
+				for (EstimationExcelParser.ParsedUseCase puc : parsed.getUseCases()) {
+					EstimationUseCase euc = ucMap.get(puc.name().toLowerCase());
+					if (euc != null) {
+						euc.setComplexity(puc.complexity());
+					} else {
+						EstimationUseCase newUc = new EstimationUseCase();
+						newUc.setEstimationAnalysis(analysis);
+						newUc.setUseCaseName(puc.name());
+						newUc.setComplexity(puc.complexity());
+						existingUseCases.add(newUc);
+					}
+				}
+				estimationUseCaseRepository.saveAll(existingUseCases);
+			}
+
+			// Recalculate UUCW and UUCP
+			int totalUucw = 0;
+			for (EstimationUseCase euc : existingUseCases) {
+				int mult = switch (euc.getComplexity().toUpperCase()) {
+					case "SIMPLE" -> 5;
+					case "AVERAGE" -> 10;
+					default -> 15;
+				};
+				totalUucw += mult;
+			}
+			analysis.setUucp(totalAw + totalUucw);
+
+			// 3. Sync Technical Factors
+			List<EstimationTechnicalFactor> existingTf = estimationTechnicalFactorRepository.findByEstimationAnalysisId(analysis.getId());
+			if (!parsed.getTechnicalFactors().isEmpty()) {
+				Map<String, EstimationTechnicalFactor> tfMap = new HashMap<>();
+				for (EstimationTechnicalFactor etf : existingTf) {
+					tfMap.put(etf.getFactorName().trim().toLowerCase(), etf);
+				}
+				for (EstimationExcelParser.ParsedFactor pf : parsed.getTechnicalFactors()) {
+					EstimationTechnicalFactor etf = tfMap.get(pf.name().toLowerCase());
+					if (etf != null) {
+						etf.setMagnitude((int) Math.round(pf.magnitude()));
+					}
+				}
+				estimationTechnicalFactorRepository.saveAll(existingTf);
+			}
+			double tfSum = 0;
+			for (EstimationTechnicalFactor etf : existingTf) {
+				tfSum += (etf.getMultiplier() * etf.getMagnitude());
+			}
+			analysis.setTcf(0.6 + (0.01 * tfSum));
+
+			// 4. Sync Environmental Factors
+			List<EstimationEnvironmentalFactor> existingEf = estimationEnvironmentalFactorRepository.findByEstimationAnalysisId(analysis.getId());
+			if (!parsed.getEnvironmentalFactors().isEmpty()) {
+				Map<String, EstimationEnvironmentalFactor> efMap = new HashMap<>();
+				for (EstimationEnvironmentalFactor eef : existingEf) {
+					efMap.put(eef.getFactorName().trim().toLowerCase(), eef);
+				}
+				for (EstimationExcelParser.ParsedFactor pf : parsed.getEnvironmentalFactors()) {
+					EstimationEnvironmentalFactor eef = efMap.get(pf.name().toLowerCase());
+					if (eef != null) {
+						eef.setMagnitude((int) Math.round(pf.magnitude()));
+					}
+				}
+				estimationEnvironmentalFactorRepository.saveAll(existingEf);
+			}
+			double efSum = 0;
+			for (EstimationEnvironmentalFactor eef : existingEf) {
+				efSum += (eef.getMultiplier() * eef.getMagnitude());
+			}
+			analysis.setEf(1.4 + (-0.03 * efSum));
+
+			// 5. Final calculation values
+			Map<String, String> finalVals = parsed.getFinalCalculations();
+			if (finalVals.containsKey("benchmark productivity ratio")) {
+				try {
+					analysis.setBenchmarkProductivityRatio(Double.parseDouble(finalVals.get("benchmark productivity ratio")));
+				} catch (Exception ignored) {}
+			}
+			if (finalVals.containsKey("hourly rate")) {
+				try {
+					analysis.setHourlyRate(new BigDecimal(finalVals.get("hourly rate")));
+				} catch (Exception ignored) {}
+			}
+
+			// Recalculate UCP and HoursOfEffort
+			if (analysis.getUucp() != null && analysis.getTcf() != null && analysis.getEf() != null) {
+				double ucp = analysis.getUucp() * analysis.getTcf() * analysis.getEf();
+				analysis.setUcp(ucp);
+				if (analysis.getBenchmarkProductivityRatio() != null && analysis.getBenchmarkProductivityRatio() > 0) {
+					double hours = ucp / analysis.getBenchmarkProductivityRatio();
+					analysis.setHoursOfEffort(hours);
+					if (analysis.getHourlyRate() != null) {
+						analysis.setProjectPrice(analysis.getHourlyRate().multiply(BigDecimal.valueOf(hours)));
+					}
+				}
+			}
+
+			analysis.setFilePath(relativePath);
+			analysis.setFileName(fileName);
+			analysis.setFileHash(curHash);
+			analysis.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+			analysis.setUpdatedAt(LocalDateTime.now());
+			analysis = estimationAnalysisRepository.save(analysis);
+		} catch (Exception ex) {
+			log.warn("Error synchronizing external estimation workbook for opp {}: {}", opportunityId, ex.getMessage());
+		}
+
+		return buildEstimationResponse(analysis);
+	}
+
+	public EstimationResponse buildEstimationResponse(EstimationAnalysis analysis) {
+		Long opportunityId = analysis.getOpportunity() != null ? analysis.getOpportunity().getId() : null;
+
+		List<EstimationActor> actors =
+				estimationActorRepository
+						.findByEstimationAnalysisId(analysis.getId());
+
+		List<EstimationUseCase> useCases =
+				estimationUseCaseRepository
+						.findByEstimationAnalysisId(analysis.getId());
+
+		List<EstimationTechnicalFactor> technicalFactors =
+				estimationTechnicalFactorRepository
+						.findByEstimationAnalysisId(analysis.getId());
+
+		List<EstimationEnvironmentalFactor> environmentalFactors =
+				estimationEnvironmentalFactorRepository
+						.findByEstimationAnalysisId(analysis.getId());
+
+		EstimationResponse response = new EstimationResponse();
+
+		response.setActors(
+				actors.stream()
+						.map(actor -> new EstimationActorResponse(
+								actor.getActorName(),
+								actor.getActorType()
+						))
+						.toList()
+		);
+
+		response.setUseCases(
+				useCases.stream()
+						.map(useCase -> new EstimationUseCaseResponse(
+								useCase.getUseCaseName(),
+								useCase.getComplexity()
+						))
+						.toList()
+		);
+
+		response.setTechnicalFactors(
+				technicalFactors.stream()
+						.map(factor -> new EstimationTechnicalFactorResponse(
+								factor.getFactorName(),
+								factor.getMultiplier(),
+								factor.getMagnitude(),
+								factor.getDescription()
+						))
+						.toList()
+		);
+
+		response.setEnvironmentalFactors(
+				environmentalFactors.stream()
+						.map(factor -> new EstimationEnvironmentalFactorResponse(
+								factor.getFactorName(),
+								factor.getMultiplier(),
+								factor.getMagnitude(),
+								factor.getDescription()
+						))
+						.toList()
+		);
+
+		response.setActorWeight(analysis.getActorWeight());
+		response.setUucp(analysis.getUucp());
+		response.setTcf(analysis.getTcf());
+		response.setEf(analysis.getEf());
+		response.setUcp(analysis.getUcp());
+		response.setBenchmarkProductivityRatio(analysis.getBenchmarkProductivityRatio());
+		response.setHoursOfEffort(analysis.getHoursOfEffort());
+		response.setCurrency(analysis.getCurrency());
+		response.setHourlyRate(analysis.getHourlyRate());
+		response.setProjectPrice(analysis.getProjectPrice());
+
+		if (opportunityId != null) {
+			response.setEstimationCompleted(
+					estimationAnalysisRepository.findByOpportunityId(opportunityId).isPresent());
+			response.setProposalCompleted(
+					proposalRepository.existsByOpportunityId(opportunityId));
+			response.setWorkScheduleCompleted(
+					projectScheduleRepository.existsByOpportunityId(opportunityId));
+			response.setSummaryMetricsCompleted(
+					projectMetricsRepository.existsByOpportunityId(opportunityId));
+			response.setTestCaseCompleted(testCaseRepository.existsByOpportunityId(opportunityId));
+			response.setPmpCompleted(pmpRepository.existsByOpportunityId(opportunityId));
+			response.setSrsCompleted(srsRepository.existsByOpportunityId(opportunityId));
+			response.setSddCompleted(sddRepository.existsByOpportunityId(opportunityId));
+			response.setRtmCompleted(rtmRepository.existsByOpportunityId(opportunityId));
+		}
+
+		return response;
 	}
 	
 	private void saveActors(
@@ -1765,6 +1924,8 @@ public class CalculationService {
 	    saveEnvironmentalFactors(
 	            analysis,
 	            request.getEnvironmentalFactors());
+
+	    persistEstimationWorkbook(request.getOpportunityId(), analysis);
 
 	    return getEstimation(
 	            request.getOpportunityId());

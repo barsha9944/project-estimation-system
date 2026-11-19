@@ -43,6 +43,8 @@ import com.projectestimation.backend.projectschedule.repository.ProjectScheduleT
 @Service
 public class MomService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MomService.class);
+
     private static final String KICKOFF = "KICKOFF";
     private static final String TEAM = "TEAM";
     private static final String CLIENT = "CLIENT";
@@ -59,6 +61,8 @@ public class MomService {
     private final GeminiMomOrchestrator geminiMomOrchestrator;
     private final OpportunityDocumentStorageService documentStorageService;
     private final ObjectMapper objectMapper;
+    private final MomDocxParser momDocxParser;
+
     public MomService(
             OpportunityRepository opportunityRepository,
             ProjectTeamRepository projectTeamRepository,
@@ -66,7 +70,8 @@ public class MomService {
             ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository,
             GeminiMomOrchestrator geminiMomOrchestrator,
             ObjectMapper objectMapper,
-            OpportunityDocumentStorageService documentStorageService
+            OpportunityDocumentStorageService documentStorageService,
+            MomDocxParser momDocxParser
     ) {
         this.opportunityRepository = opportunityRepository;
         this.projectTeamRepository = projectTeamRepository;
@@ -76,6 +81,7 @@ public class MomService {
         this.geminiMomOrchestrator = geminiMomOrchestrator;
         this.objectMapper = objectMapper;
         this.documentStorageService = documentStorageService;
+        this.momDocxParser = momDocxParser;
     }
     // ============================================================
     // GENERATE ALL MOMS
@@ -232,35 +238,137 @@ public class MomService {
     // GET ALL MOMS
     // ============================================================
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<MomDto> getAllMoms(
             Long opportunityId
     ) {
 
-        return momRepository
+        List<Mom> moms = momRepository
                 .findByOpportunityIdOrderByMeetingSequenceAsc(
                         opportunityId
-                )
-                .stream()
+                );
+
+        for (Mom mom : moms) {
+            syncMomFromPhysicalFileIfModified(mom);
+        }
+
+        return moms.stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    @Transactional
+    public MomDto getMomById(Long opportunityId, Long momId) {
+        Mom mom = momRepository.findById(momId)
+                .orElseThrow(() -> new RuntimeException("MOM not found: " + momId));
+        syncMomFromPhysicalFileIfModified(mom);
+        return toDto(mom);
     }
 
     // ============================================================
     // DOWNLOAD MOM
     // ============================================================
 
-    public byte[] downloadMom(Long momId) {
+    public byte[] downloadMom(Long momId) throws IOException {
 
-    Mom mom = momRepository.findById(momId)
-            .orElseThrow(() ->
-                    new RuntimeException(
-                            "MOM not found: " + momId
-                    )
-            );
+        Mom mom = momRepository.findById(momId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "MOM not found: " + momId
+                        )
+                );
 
-    return generateDocx(mom);
-}
+        String relativePath = mom.getFilePath();
+        if (relativePath == null || relativePath.isBlank()) {
+            relativePath = "Quality/MOM/" + mom.getDocumentName();
+        }
+
+        if (documentStorageService.exists(mom.getOpportunityId(), relativePath)) {
+            return documentStorageService.readFile(mom.getOpportunityId(), relativePath);
+        }
+
+        byte[] docBytes = generateDocx(mom);
+        saveMomDocument(mom);
+        return docBytes;
+    }
+
+    @Transactional
+    public MomDto updateMom(Long opportunityId, Long momId, MomDto updatedDto) throws IOException {
+        Mom mom = momRepository.findById(momId)
+                .orElseThrow(() -> new RuntimeException("MOM not found: " + momId));
+
+        if (updatedDto.meetingName() != null) mom.setMeetingName(updatedDto.meetingName());
+        if (updatedDto.projectName() != null) mom.setProjectName(updatedDto.projectName());
+        if (updatedDto.clientName() != null) mom.setClientName(updatedDto.clientName());
+        if (updatedDto.meetingDate() != null) mom.setMeetingDate(updatedDto.meetingDate());
+        if (updatedDto.meetingTime() != null) mom.setMeetingTime(updatedDto.meetingTime());
+        if (updatedDto.meetingLocation() != null) mom.setMeetingLocation(updatedDto.meetingLocation());
+        if (updatedDto.invitees() != null) mom.setInvitees(objectMapper.writeValueAsString(updatedDto.invitees()));
+        if (updatedDto.recordedBy() != null) mom.setRecordedBy(updatedDto.recordedBy());
+        if (updatedDto.circulation() != null) mom.setCirculation(updatedDto.circulation());
+        if (updatedDto.agenda() != null) mom.setAgenda(objectMapper.writeValueAsString(updatedDto.agenda()));
+        if (updatedDto.discussionNotes() != null) mom.setDiscussionNotes(objectMapper.writeValueAsString(updatedDto.discussionNotes()));
+
+        byte[] documentBytes = generateDocx(mom);
+
+        String relativePath = documentStorageService.replaceFile(
+                opportunityId,
+                "Quality/MOM",
+                mom.getDocumentName(),
+                documentBytes
+        );
+
+        mom.setFilePath(relativePath);
+        mom.setFileHash(documentStorageService.getFileChecksum(opportunityId, relativePath));
+        mom.setFileLastModified(documentStorageService.getLastModified(opportunityId, relativePath));
+        momRepository.save(mom);
+
+        return toDto(mom);
+    }
+
+    private void syncMomFromPhysicalFileIfModified(Mom mom) {
+        if (mom == null) return;
+        String relativePath = mom.getFilePath();
+        if (relativePath == null || relativePath.isBlank()) {
+            relativePath = "Quality/MOM/" + mom.getDocumentName();
+        }
+
+        try {
+            if (documentStorageService.exists(mom.getOpportunityId(), relativePath)) {
+                String currentHash = documentStorageService.getFileChecksum(mom.getOpportunityId(), relativePath);
+                if (mom.getFileHash() == null || !mom.getFileHash().equals(currentHash)) {
+                    log.info("Detected physical MOM DOCX update for momId: {}, syncing from file", mom.getId());
+                    byte[] bytes = documentStorageService.readFile(mom.getOpportunityId(), relativePath);
+                    MomDocxParser.ParsedMomData parsed = momDocxParser.parse(bytes);
+                    if (parsed != null) {
+                        if (parsed.meetingName != null && !parsed.meetingName.isBlank()) mom.setMeetingName(parsed.meetingName);
+                        if (parsed.projectName != null && !parsed.projectName.isBlank()) mom.setProjectName(parsed.projectName);
+                        if (parsed.clientName != null && !parsed.clientName.isBlank()) mom.setClientName(parsed.clientName);
+                        if (parsed.meetingDate != null) mom.setMeetingDate(parsed.meetingDate);
+                        if (parsed.meetingTime != null) mom.setMeetingTime(parsed.meetingTime);
+                        if (parsed.meetingLocation != null) mom.setMeetingLocation(parsed.meetingLocation);
+                        if (parsed.invitees != null && !parsed.invitees.isEmpty()) {
+                            mom.setInvitees(objectMapper.writeValueAsString(parsed.invitees));
+                        }
+                        if (parsed.recordedBy != null) mom.setRecordedBy(parsed.recordedBy);
+                        if (parsed.circulation != null) mom.setCirculation(parsed.circulation);
+                        if (parsed.agenda != null && !parsed.agenda.isEmpty()) {
+                            mom.setAgenda(objectMapper.writeValueAsString(parsed.agenda));
+                        }
+                        if (parsed.discussionNotes != null && !parsed.discussionNotes.isEmpty()) {
+                            mom.setDiscussionNotes(objectMapper.writeValueAsString(parsed.discussionNotes));
+                        }
+                        mom.setFilePath(relativePath);
+                        mom.setFileHash(currentHash);
+                        mom.setFileLastModified(documentStorageService.getLastModified(mom.getOpportunityId(), relativePath));
+                        momRepository.save(mom);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Failed to sync MOM from physical file for momId: {}", mom.getId(), ex);
+        }
+    }
 
     public String getMomDocumentName(Long momId) {
 
@@ -2218,12 +2326,17 @@ public class MomService {
         try {
             byte[] documentBytes = generateDocx(mom);
 
-            documentStorageService.saveFile(
+            String relativePath = documentStorageService.replaceFile(
                     mom.getOpportunityId(),
                     "Quality/MOM",
                     mom.getDocumentName(),
                     documentBytes
             );
+
+            mom.setFilePath(relativePath);
+            mom.setFileHash(documentStorageService.getFileChecksum(mom.getOpportunityId(), relativePath));
+            mom.setFileLastModified(documentStorageService.getLastModified(mom.getOpportunityId(), relativePath));
+            momRepository.save(mom);
 
         } catch (IOException ex) {
             throw new IllegalStateException(

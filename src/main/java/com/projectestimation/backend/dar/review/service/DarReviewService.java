@@ -2,6 +2,7 @@ package com.projectestimation.backend.dar.review.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
+import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.dar.model.Dar;
 import com.projectestimation.backend.dar.repository.DarRepository;
 import com.projectestimation.backend.dar.review.ai.GeminiDarReviewOrchestrator;
@@ -37,6 +38,7 @@ public class DarReviewService {
     private final GeminiDarReviewOrchestrator geminiOrchestrator;
     private final DarService darService;
     private final ObjectMapper objectMapper;
+    private final OpportunityDocumentStorageService documentStorageService;
     private final boolean allowImmediateAccess;
 
     public DarReviewService(
@@ -46,6 +48,7 @@ public class DarReviewService {
             GeminiDarReviewOrchestrator geminiOrchestrator,
             DarService darService,
             ObjectMapper objectMapper,
+            OpportunityDocumentStorageService documentStorageService,
             @Value("${dar.review.allow-immediate-access:false}")
             boolean allowImmediateAccess
     ) {
@@ -55,6 +58,7 @@ public class DarReviewService {
         this.geminiOrchestrator = geminiOrchestrator;
         this.darService = darService;
         this.objectMapper = objectMapper;
+        this.documentStorageService = documentStorageService;
         this.allowImmediateAccess = allowImmediateAccess;
     }
 
@@ -107,6 +111,21 @@ public class DarReviewService {
             saved.setCreatedAt(LocalDateTime.now());
         }
         saved.setUpdatedAt(LocalDateTime.now());
+
+        try {
+            byte[] docxBytes = generateReviewDocx(opportunityId, review);
+            String fileName = "DAR_Review_" + opportunityId + ".docx";
+            String relPath = documentStorageService.replaceFile(
+                    opportunityId,
+                    "Quality/Review",
+                    fileName,
+                    docxBytes
+            );
+            saved.setFilePath(relPath);
+            saved.setFileHash(documentStorageService.getFileChecksum(opportunityId, relPath));
+            saved.setFileLastModified(documentStorageService.getLastModified(opportunityId, relPath));
+        } catch (IOException ignored) {
+        }
 
         reviewRepository.save(saved);
 
@@ -180,14 +199,61 @@ public class DarReviewService {
 
         saved.setReviewData(writeJson(updated));
         saved.setUpdatedAt(LocalDateTime.now());
+
+        try {
+            byte[] docxBytes = generateReviewDocx(opportunityId, updated);
+            String fileName = "DAR_Review_" + opportunityId + ".docx";
+            String relPath = documentStorageService.replaceFile(
+                    opportunityId,
+                    "Quality/Review",
+                    fileName,
+                    docxBytes
+            );
+            saved.setFilePath(relPath);
+            saved.setFileHash(documentStorageService.getFileChecksum(opportunityId, relPath));
+            saved.setFileLastModified(documentStorageService.getLastModified(opportunityId, relPath));
+        } catch (IOException ignored) {
+        }
+
         reviewRepository.save(saved);
 
         return updated;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] downloadReview(Long opportunityId) throws IOException {
+        DarReview saved = reviewRepository.findByOpportunityId(opportunityId).orElse(null);
+        String relPath = (saved != null && saved.getFilePath() != null)
+                ? saved.getFilePath()
+                : "Quality/Review/DAR_Review_" + opportunityId + ".docx";
+
+        if (documentStorageService.exists(opportunityId, relPath)) {
+            return documentStorageService.readFile(opportunityId, relPath);
+        }
+
         DarReviewDto review = getReview(opportunityId);
+        byte[] docxBytes = generateReviewDocx(opportunityId, review);
+
+        try {
+            String savedPath = documentStorageService.replaceFile(
+                    opportunityId,
+                    "Quality/Review",
+                    "DAR_Review_" + opportunityId + ".docx",
+                    docxBytes
+            );
+            if (saved != null) {
+                saved.setFilePath(savedPath);
+                saved.setFileHash(documentStorageService.getFileChecksum(opportunityId, savedPath));
+                saved.setFileLastModified(documentStorageService.getLastModified(opportunityId, savedPath));
+                reviewRepository.save(saved);
+            }
+        } catch (IOException ignored) {
+        }
+
+        return docxBytes;
+    }
+
+    public byte[] generateReviewDocx(Long opportunityId, DarReviewDto review) throws IOException {
 
         try (
                 XWPFDocument document = new XWPFDocument();

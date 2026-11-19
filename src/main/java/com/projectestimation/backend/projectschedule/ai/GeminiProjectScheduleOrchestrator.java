@@ -3,6 +3,7 @@ package com.projectestimation.backend.projectschedule.ai;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 
@@ -15,7 +16,9 @@ public class GeminiProjectScheduleOrchestrator {
 
     private final GeminiProjectScheduleResponseParser responseParser;
 
-    private final GeminiClient geminiClient;
+//    private final GeminiClient geminiClient;
+    
+    private final AiGateway aiGateway;
 
     public GeminiProjectScheduleOrchestrator(
 
@@ -23,7 +26,7 @@ public class GeminiProjectScheduleOrchestrator {
 
             GeminiProjectScheduleResponseParser responseParser,
 
-            GeminiClient geminiClient
+            AiGateway aiGateway
 
     ) {
 
@@ -31,7 +34,7 @@ public class GeminiProjectScheduleOrchestrator {
 
         this.responseParser = responseParser;
 
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
 
     }
 
@@ -89,7 +92,7 @@ public class GeminiProjectScheduleOrchestrator {
                 );
 
         String json =
-                geminiClient.generateJsonContent(
+        		aiGateway.generateJsonContent(
                         prompt,
                         MAX_OUTPUT_TOKENS
                 );
