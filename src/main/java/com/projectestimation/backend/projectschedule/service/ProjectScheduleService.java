@@ -547,6 +547,7 @@ return response;
 					log.warn("Failed generating on-demand initial PSR for opp {}: {}", opportunityId, ex.getMessage());
 				}
 			} else {
+				psrService.syncPsrFromPhysicalFileIfModified(currentPsr);
 				PsrResponse psrResponse = new PsrResponse(currentPsr.getId(), currentPsr.getFileName(),
 						currentPsr.getFileLocation(), currentPsr.getGeneratedAt(), "GENERATED",
 						currentPsr.getMarkdownContent());
@@ -626,7 +627,7 @@ return response;
 				                        .orElse(null);
 
 				        if (breakdownPsr != null) {
-
+				            psrService.syncPsrFromPhysicalFileIfModified(breakdownPsr);
 				            br.setPsrFileName(breakdownPsr.getFileName());
 				            br.setPsrFileLocation(breakdownPsr.getFileLocation());
 				            br.setPsrMarkdown(breakdownPsr.getMarkdownContent());

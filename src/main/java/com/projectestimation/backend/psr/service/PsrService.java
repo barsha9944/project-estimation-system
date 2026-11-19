@@ -379,6 +379,20 @@ public class PsrService {
                 );
 
         /*
+         * Parse the physical generated DOCX to obtain authoritative, clean Markdown
+         * without any Pandoc formatting artifacts ({width=...}, <br> tags).
+         */
+        String finalMarkdown = markdown;
+        try {
+            PsrDocxParser.ParsedPsrData parsed = psrDocxParser.parse(conversion.docxBytes());
+            if (parsed != null && parsed.reconstructedMarkdown() != null && !parsed.reconstructedMarkdown().isBlank()) {
+                finalMarkdown = parsed.reconstructedMarkdown();
+            }
+        } catch (Exception ex) {
+            log.warn("Failed parsing freshly generated PSR DOCX for clean markdown: {}", ex.getMessage());
+        }
+
+        /*
          * ============================================================
          * UPDATE THE EXISTING PSR ENTITY
          * ============================================================
@@ -386,7 +400,7 @@ public class PsrService {
         applyReportData(
                 report,
                 content,
-                markdown,
+                finalMarkdown,
                 baseFileName,
                 conversion
         );
@@ -591,8 +605,14 @@ public class PsrService {
         try {
             if (documentStorageService.exists(opportunityId, relPath)) {
                 String currentHash = documentStorageService.getFileChecksum(opportunityId, relPath);
-                if (psr.getFileHash() == null || !psr.getFileHash().equals(currentHash)) {
-                    log.info("Detected physical PSR DOCX update for opp: {}, psr: {}, syncing from file", opportunityId, psr.getId());
+                boolean hashChanged = psr.getFileHash() == null || !psr.getFileHash().equals(currentHash);
+                boolean needsHealing = psr.getMarkdownContent() == null
+                        || psr.getMarkdownContent().contains("{width=")
+                        || psr.getMarkdownContent().contains("<br>");
+
+                if (hashChanged || needsHealing) {
+                    log.info("Detected physical PSR DOCX update (hashChanged={}, needsHealing={}) for opp: {}, psr: {}, syncing from file",
+                            hashChanged, needsHealing, opportunityId, psr.getId());
                     byte[] docxBytes = documentStorageService.readFile(opportunityId, relPath);
                     PsrDocxParser.ParsedPsrData parsed = psrDocxParser.parse(docxBytes);
                     if (parsed != null) {
@@ -605,16 +625,12 @@ public class PsrService {
                         if (parsed.riskStatus() != null && !parsed.riskStatus().isBlank()) {
                             psr.setRiskStatus(parsed.riskStatus());
                         }
+                        if (parsed.reportDate() != null) {
+                            psr.setReportDate(parsed.reportDate());
+                        }
 
-                        // Check if a companion .md file was also modified or exists
-                        String baseName = psr.getFileName() != null && psr.getFileName().endsWith(".docx")
-                                ? psr.getFileName().substring(0, psr.getFileName().length() - 5)
-                                : "PSR_" + (psr.getVersion() != null ? psr.getVersion() : "1");
-                        String mdRelPath = "Quality/PSR/" + baseName + ".md";
-                        if (documentStorageService.exists(opportunityId, mdRelPath)) {
-                            byte[] mdBytes = documentStorageService.readFile(opportunityId, mdRelPath);
-                            psr.setMarkdownContent(new String(mdBytes, java.nio.charset.StandardCharsets.UTF_8));
-                        } else if (parsed.reconstructedMarkdown() != null && !parsed.reconstructedMarkdown().isBlank()) {
+                        // Always set markdown content directly from parsed physical DOCX
+                        if (parsed.reconstructedMarkdown() != null && !parsed.reconstructedMarkdown().isBlank()) {
                             psr.setMarkdownContent(parsed.reconstructedMarkdown());
                         }
                     }
@@ -624,6 +640,39 @@ public class PsrService {
                     psr.setFileHash(currentHash);
                     psr.setFileLastModified(documentStorageService.getLastModified(opportunityId, relPath));
                     projectStatusReportRepository.save(psr);
+
+                    // If an obsolete companion .md exists on disk from earlier versions, clean it up
+                    try {
+                        String baseName = psr.getFileName() != null && psr.getFileName().endsWith(".docx")
+                                ? psr.getFileName().substring(0, psr.getFileName().length() - 5)
+                                : "PSR_" + (psr.getVersion() != null ? psr.getVersion() : "1");
+                        String mdFileName = baseName + ".md";
+                        String mdRelPath = "Quality/PSR/" + mdFileName;
+                        if (documentStorageService.exists(opportunityId, mdRelPath)) {
+                            byte[] mdBytes = (parsed != null && parsed.reconstructedMarkdown() != null)
+                                    ? parsed.reconstructedMarkdown().getBytes(java.nio.charset.StandardCharsets.UTF_8)
+                                    : new byte[0];
+                            documentStorageService.saveFile(opportunityId, "Quality/PSR", mdFileName, mdBytes);
+                        }
+                    } catch (Exception ignored) {}
+
+                    // Broadcast event if hash changed externally
+                    if (hashChanged && documentSyncService != null) {
+                        try {
+                            documentSyncService.publishEvent(
+                                    DocumentChangeEvent.of(
+                                            opportunityId,
+                                            "PSR",
+                                            relPath,
+                                            "EXTERNAL_MODIFIED",
+                                            currentHash,
+                                            "PSR document updated on disk"
+                                    )
+                            );
+                        } catch (Exception ex) {
+                            log.warn("Failed publishing PSR change event: {}", ex.getMessage());
+                        }
+                    }
                 }
             }
         } catch (Exception ex) {

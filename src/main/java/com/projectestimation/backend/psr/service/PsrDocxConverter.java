@@ -103,6 +103,11 @@ public class PsrDocxConverter {
                     docxFile
             );
 
+            // Clean up temporary markdown file after pandoc generates docx
+            try {
+                Files.deleteIfExists(markdownFile);
+            } catch (Exception ignored) {}
+
             // ============================================
             // READ GENERATED DOCX
             // ============================================
