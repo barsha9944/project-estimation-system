@@ -6,12 +6,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
+import com.projectestimation.backend.common.sync.DocumentChangeEvent;
+import com.projectestimation.backend.common.sync.DocumentSyncService;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.psr.ai.AiPsrResult;
@@ -21,11 +26,10 @@ import com.projectestimation.backend.psr.dto.PsrResponse;
 import com.projectestimation.backend.psr.model.ProjectStatusReport;
 import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
 
-import lombok.RequiredArgsConstructor;
-
 @Service
-@RequiredArgsConstructor
 public class PsrService {
+
+    private static final Logger log = LoggerFactory.getLogger(PsrService.class);
 
     private final ProjectStatusReportRepository projectStatusReportRepository;
     private final PsrScheduleDataService psrScheduleDataService;
@@ -35,6 +39,32 @@ public class PsrService {
     private final PsrDocxConverter psrDocxConverter;
     private final ObjectMapper objectMapper;
     private final OpportunityDocumentStorageService documentStorageService;
+    private final PsrDocxParser psrDocxParser;
+    private final DocumentSyncService documentSyncService;
+
+    public PsrService(
+            ProjectStatusReportRepository projectStatusReportRepository,
+            PsrScheduleDataService psrScheduleDataService,
+            PsrPeriodCalculator psrPeriodCalculator,
+            GeminiPsrOrchestrator geminiPsrOrchestrator,
+            OpportunityRepository opportunityRepository,
+            PsrDocxConverter psrDocxConverter,
+            ObjectMapper objectMapper,
+            OpportunityDocumentStorageService documentStorageService,
+            PsrDocxParser psrDocxParser,
+            @Lazy DocumentSyncService documentSyncService
+    ) {
+        this.projectStatusReportRepository = projectStatusReportRepository;
+        this.psrScheduleDataService = psrScheduleDataService;
+        this.psrPeriodCalculator = psrPeriodCalculator;
+        this.geminiPsrOrchestrator = geminiPsrOrchestrator;
+        this.opportunityRepository = opportunityRepository;
+        this.psrDocxConverter = psrDocxConverter;
+        this.objectMapper = objectMapper;
+        this.documentStorageService = documentStorageService;
+        this.psrDocxParser = psrDocxParser;
+        this.documentSyncService = documentSyncService;
+    }
 
     /*
      * ================================================================
@@ -157,14 +187,17 @@ public class PsrService {
                     new ArrayList<>();
 
             for (PsrPeriod period : periods) {
-
-                responses.add(
-                        generateOrUpdatePsr(
-                                opportunity,
-                                opportunityId,
-                                period
-                        )
-                );
+                try {
+                    responses.add(
+                            generateOrUpdatePsr(
+                                    opportunity,
+                                    opportunityId,
+                                    period
+                            )
+                    );
+                } catch (Exception ex) {
+                    log.error("Failed generating initial PSR for period {}: {}", period.version(), ex.getMessage());
+                }
             }
 
             return responses;
@@ -186,14 +219,17 @@ public class PsrService {
                 if (affectedVersions.contains(
                         period.version()
                 )) {
-
-                    responses.add(
-                            generateOrUpdatePsr(
-                                    opportunity,
-                                    opportunityId,
-                                    period
-                            )
-                    );
+                    try {
+                        responses.add(
+                                generateOrUpdatePsr(
+                                        opportunity,
+                                        opportunityId,
+                                        period
+                                )
+                        );
+                    } catch (Exception ex) {
+                        log.error("Failed updating affected PSR for period {}: {}", period.version(), ex.getMessage());
+                    }
                 }
             }
         }
@@ -220,14 +256,17 @@ public class PsrService {
                             );
 
             if (!exists) {
-
-                responses.add(
-                        generateOrUpdatePsr(
-                                opportunity,
-                                opportunityId,
-                                period
-                        )
-                );
+                try {
+                    responses.add(
+                            generateOrUpdatePsr(
+                                    opportunity,
+                                    opportunityId,
+                                    period
+                            )
+                    );
+                } catch (Exception ex) {
+                    log.error("Failed creating missing PSR for period {}: {}", period.version(), ex.getMessage());
+                }
             }
         }
 
@@ -363,6 +402,15 @@ public class PsrService {
                 LocalDateTime.now()
         );
 
+        try {
+            String relPath = conversion.generatedDocPath();
+            report.setFilePath(relPath);
+            report.setFileHash(documentStorageService.getFileChecksum(opportunityId, relPath));
+            report.setFileLastModified(documentStorageService.getLastModified(opportunityId, relPath));
+        } catch (Exception ex) {
+            log.warn("Failed recording physical PSR file hash/timestamp: {}", ex.getMessage());
+        }
+
         /*
          * ============================================================
          * SAVE
@@ -375,6 +423,23 @@ public class PsrService {
                 projectStatusReportRepository.save(
                         report
                 );
+
+        if (documentSyncService != null) {
+            try {
+                documentSyncService.publishEvent(
+                        DocumentChangeEvent.of(
+                                opportunityId,
+                                "PSR",
+                                savedReport.getFilePath() != null ? savedReport.getFilePath() : "Quality/PSR/" + savedReport.getFileName(),
+                                isNew ? "CREATED" : "UPDATED",
+                                savedReport.getFileHash(),
+                                "PSR document " + (isNew ? "generated" : "updated") + " on disk"
+                        )
+                );
+            } catch (Exception ex) {
+                log.warn("Failed publishing PSR change event: {}", ex.getMessage());
+            }
+        }
 
         return toResponse(
                 savedReport,
@@ -437,6 +502,10 @@ public class PsrService {
                 conversion.generatedDocPath()
         );
 
+        report.setFilePath(
+                conversion.generatedDocPath()
+        );
+
         /*
          * THIS IS THE IMPORTANT UPDATE:
          *
@@ -493,18 +562,110 @@ public class PsrService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PsrResponse> getPsrs(Long opportunityId) {
-        return projectStatusReportRepository.findByOpportunityId(opportunityId)
-                .stream()
+        List<ProjectStatusReport> reports = projectStatusReportRepository.findByOpportunityId(opportunityId);
+        for (ProjectStatusReport report : reports) {
+            syncPsrFromPhysicalFileIfModified(report);
+        }
+        return reports.stream()
                 .map(r -> toResponse(r, "RETRIEVED"))
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
+    public void syncPsrFromPhysicalFileIfModified(ProjectStatusReport psr) {
+        if (psr == null || psr.getId() == null || psr.getOpportunity() == null) {
+            return;
+        }
+
+        Long opportunityId = psr.getOpportunity().getId();
+        String relPath = psr.getFilePath();
+        if (relPath == null || relPath.isBlank()) {
+            relPath = psr.getFileLocation();
+        }
+        if (relPath == null || relPath.isBlank()) {
+            relPath = "Quality/PSR/" + psr.getFileName();
+        }
+
+        try {
+            if (documentStorageService.exists(opportunityId, relPath)) {
+                String currentHash = documentStorageService.getFileChecksum(opportunityId, relPath);
+                if (psr.getFileHash() == null || !psr.getFileHash().equals(currentHash)) {
+                    log.info("Detected physical PSR DOCX update for opp: {}, psr: {}, syncing from file", opportunityId, psr.getId());
+                    byte[] docxBytes = documentStorageService.readFile(opportunityId, relPath);
+                    PsrDocxParser.ParsedPsrData parsed = psrDocxParser.parse(docxBytes);
+                    if (parsed != null) {
+                        if (parsed.activitiesPerformed() != null && !parsed.activitiesPerformed().isEmpty()) {
+                            psr.setActivitiesPerformed(objectMapper.writeValueAsString(parsed.activitiesPerformed()));
+                        }
+                        if (parsed.nextWeekPlannedActivities() != null && !parsed.nextWeekPlannedActivities().isEmpty()) {
+                            psr.setNextWeekPlannedActivities(objectMapper.writeValueAsString(parsed.nextWeekPlannedActivities()));
+                        }
+                        if (parsed.riskStatus() != null && !parsed.riskStatus().isBlank()) {
+                            psr.setRiskStatus(parsed.riskStatus());
+                        }
+
+                        // Check if a companion .md file was also modified or exists
+                        String baseName = psr.getFileName() != null && psr.getFileName().endsWith(".docx")
+                                ? psr.getFileName().substring(0, psr.getFileName().length() - 5)
+                                : "PSR_" + (psr.getVersion() != null ? psr.getVersion() : "1");
+                        String mdRelPath = "Quality/PSR/" + baseName + ".md";
+                        if (documentStorageService.exists(opportunityId, mdRelPath)) {
+                            byte[] mdBytes = documentStorageService.readFile(opportunityId, mdRelPath);
+                            psr.setMarkdownContent(new String(mdBytes, java.nio.charset.StandardCharsets.UTF_8));
+                        } else if (parsed.reconstructedMarkdown() != null && !parsed.reconstructedMarkdown().isBlank()) {
+                            psr.setMarkdownContent(parsed.reconstructedMarkdown());
+                        }
+                    }
+
+                    psr.setFilePath(relPath);
+                    psr.setFileLocation(relPath);
+                    psr.setFileHash(currentHash);
+                    psr.setFileLastModified(documentStorageService.getLastModified(opportunityId, relPath));
+                    projectStatusReportRepository.save(psr);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed syncing PSR from physical file for psr {}: {}", psr.getId(), ex.getMessage());
+        }
+    }
+
+    @Transactional
+    public PsrResponse generateOrUpdateInitialPsr(Long opportunityId) {
+        Opportunity opportunity = opportunityRepository
+                .findByIdForPsrSynchronization(opportunityId)
+                .orElse(null);
+        if (opportunity == null) return null;
+
+        var schedule = psrScheduleDataService.getScheduleForPsr(opportunityId);
+        if (schedule == null || schedule.getProjectStartDate() == null || schedule.getProjectEndDate() == null) {
+            return null;
+        }
+
+        List<PsrPeriod> periods = psrPeriodCalculator.calculatePeriods(
+                schedule.getProjectStartDate(),
+                schedule.getProjectEndDate()
+        );
+
+        if (periods.isEmpty()) {
+            return null;
+        }
+
+        PsrPeriod targetPeriod = psrPeriodCalculator.findPeriodForDate(periods, LocalDate.now());
+        if (targetPeriod == null) {
+            targetPeriod = periods.get(0);
+        }
+
+        return generateOrUpdatePsr(opportunity, opportunityId, targetPeriod);
+    }
+
+    @Transactional
     public byte[] downloadPsr(Long opportunityId, Long psrId) throws java.io.IOException {
         ProjectStatusReport report = projectStatusReportRepository.findById(psrId)
                 .orElseThrow(() -> new IllegalStateException("PSR not found: " + psrId));
+
+        syncPsrFromPhysicalFileIfModified(report);
 
         String relPath = report.getFileLocation();
         if (relPath == null || relPath.isBlank()) {

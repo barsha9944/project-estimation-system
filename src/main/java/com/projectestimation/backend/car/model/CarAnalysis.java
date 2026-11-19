@@ -85,6 +85,15 @@ public class CarAnalysis {
     private List<CarEffectiveness> effectivenessReviews =
         new ArrayList<>();
 
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

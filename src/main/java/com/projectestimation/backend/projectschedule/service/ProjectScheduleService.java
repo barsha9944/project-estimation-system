@@ -280,119 +280,100 @@ return response;
 
 		projectScheduleRepository.flush();
 
-//		projectScheduleTaskRepository.deleteByProjectScheduleId(
-//				schedule.getId());
+		List<ProjectScheduleTask> existingTasks = schedule.getTasks();
+		if (existingTasks == null) {
+			existingTasks = new ArrayList<>();
+			schedule.setTasks(existingTasks);
+		}
+
+		Map<Long, ProjectScheduleTask> existingById = existingTasks.stream()
+				.filter(t -> t.getId() != null)
+				.collect(Collectors.toMap(ProjectScheduleTask::getId, t -> t, (a, b) -> a));
+
+		Map<String, ProjectScheduleTask> existingByName = existingTasks.stream()
+				.filter(t -> t.getTaskName() != null && !t.getTaskName().isBlank())
+				.collect(Collectors.toMap(t -> t.getTaskName().trim().toLowerCase(), t -> t, (a, b) -> a));
+
+		Set<Long> savedTaskIds = new HashSet<>();
+		Set<String> processedTaskNames = new HashSet<>();
 
 		for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
+			if (taskRequest.getTaskName() == null || taskRequest.getTaskName().isBlank()) {
+				continue;
+			}
 
-			ProjectScheduleTask task;
+			String canonicalName = taskRequest.getTaskName().trim();
+			String nameKey = canonicalName.toLowerCase();
 
+			ProjectScheduleTask task = null;
+
+			// 1. Try matching by ID first
 			if (taskRequest.getId() != null) {
+				task = existingById.get(taskRequest.getId());
+				if (task == null) {
+					task = projectScheduleTaskRepository.findById(taskRequest.getId()).orElse(null);
+				}
+			}
 
-				task = projectScheduleTaskRepository.findById(taskRequest.getId()).orElseThrow(
-						() -> new ResourceNotFoundException("Project schedule task not found: " + taskRequest.getId()));
+			// 2. If not matched by ID, try matching by canonical task name
+			if (task == null) {
+				task = existingByName.get(nameKey);
+			}
 
-			} else {
+			// 3. If duplicate task name appears again within the same request, merge into previously matched/created task
+			if (processedTaskNames.contains(nameKey)) {
+				log.warn("Duplicate task name '{}' detected in request. Merging into existing task.", canonicalName);
+				if (task != null && taskRequest.getTaskBreakdowns() != null) {
+					saveOrMergeBreakdowns(task, taskRequest.getTaskBreakdowns());
+				}
+				continue;
+			}
+			processedTaskNames.add(nameKey);
 
+			if (task == null) {
 				task = new ProjectScheduleTask();
 				task.setProjectSchedule(schedule);
+				existingTasks.add(task);
 			}
 
 			task.setSequence(taskRequest.getSequence());
-
-			task.setTaskName(taskRequest.getTaskName());
-
+			task.setTaskName(canonicalName);
 			task.setDuration(taskRequest.getDuration());
-
 			task.setPlannedStartDate(taskRequest.getPlannedStartDate());
-
 			task.setPlannedEndDate(taskRequest.getPlannedEndDate());
-
-			// task.setActualStartDate(taskRequest.getActualStartDate());
-
-			// task.setActualEndDate(taskRequest.getActualEndDate());
 			task.setActualStartDate(taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate()
 					: taskRequest.getPlannedStartDate());
-
 			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate()
 					: taskRequest.getPlannedEndDate());
-
 			task.setPredecessor(taskRequest.getPredecessor());
-
 			task.setStatus(taskRequest.getStatus());
 
 			ProjectScheduleTask savedTask = projectScheduleTaskRepository.save(task);
-
-			if (taskRequest.getTaskBreakdowns() != null) {
-
-				List<ProjectScheduleTaskBreakdown> existingBreakdowns = savedTask.getTaskBreakdowns();
-
-				if (existingBreakdowns == null) {
-					existingBreakdowns = new ArrayList<>();
-					savedTask.setTaskBreakdowns(existingBreakdowns);
-				}
-
-				Map<Long, ProjectScheduleTaskBreakdown> existingBreakdownMap = existingBreakdowns.stream()
-						.filter(b -> b.getId() != null)
-						.collect(Collectors.toMap(ProjectScheduleTaskBreakdown::getId, b -> b));
-
-				List<Long> requestBreakdownIds = new ArrayList<>();
-
-				for (SaveTaskBreakdownRequest breakdownRequest : taskRequest.getTaskBreakdowns()) {
-
-					ProjectScheduleTaskBreakdown breakdown;
-
-					if (breakdownRequest.getId() != null) {
-
-						breakdown = existingBreakdownMap.get(breakdownRequest.getId());
-
-						if (breakdown == null) {
-							throw new ResourceNotFoundException(
-									"Project schedule breakdown not found: " + breakdownRequest.getId());
-						}
-
-						requestBreakdownIds.add(breakdownRequest.getId());
-
-					} else {
-
-						breakdown = new ProjectScheduleTaskBreakdown();
-
-						breakdown.setProjectScheduleTask(savedTask);
-
-						existingBreakdowns.add(breakdown);
-					}
-
-					breakdown.setActivityName(breakdownRequest.getActivityName());
-
-					breakdown.setDuration(breakdownRequest.getDuration());
-
-					breakdown.setPlannedStartDate(breakdownRequest.getPlannedStartDate());
-
-					breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
-
-					breakdown.setStatus(breakdownRequest.getStatus());
-
-					breakdown.setProgress(breakdownRequest.getProgress());
-					
-					breakdown.setSequence(breakdownRequest.getSequence());
-
-					breakdown.setPredecessor(breakdownRequest.getPredecessor());
-
-					breakdown.setActualStartDate(
-							breakdownRequest.getActualStartDate() != null ? breakdownRequest.getActualStartDate()
-									: breakdownRequest.getPlannedStartDate());
-
-					breakdown.setActualEndDate(
-							breakdownRequest.getActualEndDate() != null ? breakdownRequest.getActualEndDate()
-									: breakdownRequest.getPlannedEndDate());
-				}
-
-				existingBreakdowns.removeIf(
-						breakdown -> breakdown.getId() != null && !requestBreakdownIds.contains(breakdown.getId()));
-
-				projectScheduleTaskRepository.save(savedTask);
+			if (savedTask.getId() != null) {
+				savedTaskIds.add(savedTask.getId());
+				existingById.put(savedTask.getId(), savedTask);
+				existingByName.put(nameKey, savedTask);
 			}
 
+			if (taskRequest.getTaskBreakdowns() != null) {
+				saveOrMergeBreakdowns(savedTask, taskRequest.getTaskBreakdowns());
+			}
+		}
+
+		// Clean up orphan tasks in DB that were deleted by user or duplicates from previous saves
+		List<ProjectScheduleTask> orphanTasks = existingTasks.stream()
+				.filter(t -> t.getId() != null && !savedTaskIds.contains(t.getId()))
+				.toList();
+
+		if (!orphanTasks.isEmpty()) {
+			log.info("Removing {} orphan tasks for schedule {}", orphanTasks.size(), schedule.getId());
+			for (ProjectScheduleTask orphan : orphanTasks) {
+				if (orphan.getTaskBreakdowns() != null) {
+					projectScheduleTaskBreakdownRepository.deleteAll(orphan.getTaskBreakdowns());
+				}
+			}
+			projectScheduleTaskRepository.deleteAll(orphanTasks);
+			existingTasks.removeAll(orphanTasks);
 		}
 
 		// Schedule persistence is the PSR trigger. The PSR service derives the
@@ -531,14 +512,41 @@ return response;
 		 * Find the PSR belonging to the current 15-working-day period.
 		 */
 		PsrPeriod currentPeriod = psrPeriodCalculator.findPeriodForDate(psrPeriods, LocalDate.now());
+		if (currentPeriod == null && !psrPeriods.isEmpty()) {
+			if (schedule.getProjectStartDate() != null && LocalDate.now().isBefore(schedule.getProjectStartDate())) {
+				currentPeriod = psrPeriods.get(0);
+			} else if (schedule.getProjectEndDate() != null && LocalDate.now().isAfter(schedule.getProjectEndDate())) {
+				currentPeriod = psrPeriods.get(psrPeriods.size() - 1);
+			} else {
+				currentPeriod = psrPeriods.get(0);
+			}
+		}
 
 		if (currentPeriod != null) {
 
 			ProjectStatusReport currentPsr = projectStatusReportRepository
 					.findByOpportunityIdAndVersion(opportunityId, currentPeriod.version()).orElse(null);
 
-			if (currentPsr != null) {
+			if (currentPsr == null) {
+				// Fallback to earliest available generated PSR for this opportunity
+				currentPsr = projectStatusReportRepository
+						.findByOpportunityIdOrderByVersionAsc(opportunityId)
+						.stream()
+						.findFirst()
+						.orElse(null);
+			}
 
+			// If still null on first save, generate initial PSR on-demand
+			if (currentPsr == null) {
+				try {
+					PsrResponse generated = psrService.generateOrUpdateInitialPsr(opportunityId);
+					if (generated != null) {
+						response.setPsr(generated);
+					}
+				} catch (Exception ex) {
+					log.warn("Failed generating on-demand initial PSR for opp {}: {}", opportunityId, ex.getMessage());
+				}
+			} else {
 				PsrResponse psrResponse = new PsrResponse(currentPsr.getId(), currentPsr.getFileName(),
 						currentPsr.getFileLocation(), currentPsr.getGeneratedAt(), "GENERATED",
 						currentPsr.getMarkdownContent());
@@ -862,6 +870,13 @@ return response;
 			}
 		}
 
+		// On initial save or if no specific task period was detected, ensure period 1 is included
+		if (existingSchedule == null || affectedVersions.isEmpty()) {
+			if (!newPeriods.isEmpty()) {
+				affectedVersions.add(1);
+			}
+		}
+
 		return affectedVersions;
 	}
 
@@ -1086,6 +1101,74 @@ private SaveProjectScheduleRequest convertToSaveProjectScheduleRequest(
 				}
 			}
 		}
+	}
+
+	private void saveOrMergeBreakdowns(ProjectScheduleTask savedTask, List<SaveTaskBreakdownRequest> breakdownRequests) {
+		if (breakdownRequests == null) return;
+
+		List<ProjectScheduleTaskBreakdown> existingBreakdowns = savedTask.getTaskBreakdowns();
+		if (existingBreakdowns == null) {
+			existingBreakdowns = new ArrayList<>();
+			savedTask.setTaskBreakdowns(existingBreakdowns);
+		}
+
+		Map<Long, ProjectScheduleTaskBreakdown> existingBreakdownMap = existingBreakdowns.stream()
+				.filter(b -> b.getId() != null)
+				.collect(Collectors.toMap(ProjectScheduleTaskBreakdown::getId, b -> b, (a, b) -> a));
+
+		Map<String, ProjectScheduleTaskBreakdown> existingByName = existingBreakdowns.stream()
+				.filter(b -> b.getActivityName() != null && !b.getActivityName().isBlank())
+				.collect(Collectors.toMap(b -> b.getActivityName().trim().toLowerCase(), b -> b, (a, b) -> a));
+
+		List<Long> requestBreakdownIds = new ArrayList<>();
+
+		for (SaveTaskBreakdownRequest breakdownRequest : breakdownRequests) {
+			if (breakdownRequest.getActivityName() == null || breakdownRequest.getActivityName().isBlank()) continue;
+
+			String cleanName = breakdownRequest.getActivityName().trim();
+			ProjectScheduleTaskBreakdown breakdown = null;
+
+			if (breakdownRequest.getId() != null) {
+				breakdown = existingBreakdownMap.get(breakdownRequest.getId());
+			}
+
+			if (breakdown == null) {
+				breakdown = existingByName.get(cleanName.toLowerCase());
+			}
+
+			if (breakdown == null) {
+				breakdown = new ProjectScheduleTaskBreakdown();
+				breakdown.setProjectScheduleTask(savedTask);
+				existingBreakdowns.add(breakdown);
+			}
+
+			breakdown.setActivityName(cleanName);
+			breakdown.setDuration(breakdownRequest.getDuration());
+			breakdown.setPlannedStartDate(breakdownRequest.getPlannedStartDate());
+			breakdown.setPlannedEndDate(breakdownRequest.getPlannedEndDate());
+			breakdown.setStatus(breakdownRequest.getStatus());
+			breakdown.setProgress(breakdownRequest.getProgress());
+			breakdown.setSequence(breakdownRequest.getSequence());
+			breakdown.setPredecessor(breakdownRequest.getPredecessor());
+			breakdown.setActualStartDate(
+					breakdownRequest.getActualStartDate() != null ? breakdownRequest.getActualStartDate()
+							: breakdownRequest.getPlannedStartDate());
+			breakdown.setActualEndDate(
+					breakdownRequest.getActualEndDate() != null ? breakdownRequest.getActualEndDate()
+							: breakdownRequest.getPlannedEndDate());
+
+			ProjectScheduleTaskBreakdown savedBd = projectScheduleTaskBreakdownRepository.save(breakdown);
+			if (savedBd.getId() != null) {
+				requestBreakdownIds.add(savedBd.getId());
+				existingBreakdownMap.put(savedBd.getId(), savedBd);
+				existingByName.put(cleanName.toLowerCase(), savedBd);
+			}
+		}
+
+		existingBreakdowns.removeIf(
+				breakdown -> breakdown.getId() != null && !requestBreakdownIds.contains(breakdown.getId()));
+
+		projectScheduleTaskRepository.save(savedTask);
 	}
 
 }

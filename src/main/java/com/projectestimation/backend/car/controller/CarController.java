@@ -60,7 +60,10 @@ public class CarController {
         try {
             byte[] excelFile = excelService.generateCarReport(car.getId());
             String filename = "CAR_Report_" + car.getId() + ".xlsx";
-            documentStorageService.replaceFile(opportunityId, "Quality/CAR", filename, excelFile);
+            String relPath = documentStorageService.replaceFile(opportunityId, "Quality/CAR", filename, excelFile);
+            String hash = documentStorageService.getFileChecksum(opportunityId, relPath);
+            java.time.LocalDateTime lastMod = documentStorageService.getLastModified(opportunityId, relPath);
+            carService.recordPhysicalFileMetadata(car.getId(), relPath, hash, lastMod);
         } catch (Exception ignored) {
         }
 
@@ -117,7 +120,10 @@ public class CarController {
         byte[] excelFile = excelService.generateCarReport(carId);
 
         try {
-            documentStorageService.replaceFile(opportunityId, "Quality/CAR", filename, excelFile);
+            String relPath = documentStorageService.replaceFile(opportunityId, "Quality/CAR", filename, excelFile);
+            String hash = documentStorageService.getFileChecksum(opportunityId, relPath);
+            java.time.LocalDateTime lastMod = documentStorageService.getLastModified(opportunityId, relPath);
+            carService.recordPhysicalFileMetadata(carId, relPath, hash, lastMod);
         } catch (Exception ignored) {
         }
 

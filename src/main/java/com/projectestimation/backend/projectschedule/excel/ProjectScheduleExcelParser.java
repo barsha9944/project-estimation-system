@@ -72,13 +72,14 @@ public class ProjectScheduleExcelParser {
 
             if (taskName == null || taskName.isBlank()) continue;
 
-            String taskKey = (seq != null ? seq + "_" : "") + taskName.trim();
+            String canonicalTaskName = taskName.trim().replaceAll("\\s+", " ");
+            String taskKey = canonicalTaskName.toLowerCase();
             SaveProjectScheduleTaskRequest taskRequest = taskMap.get(taskKey);
 
             if (taskRequest == null) {
                 taskRequest = new SaveProjectScheduleTaskRequest();
                 taskRequest.setSequence(seq != null ? seq : (taskMap.size() + 1));
-                taskRequest.setTaskName(taskName.trim());
+                taskRequest.setTaskName(canonicalTaskName);
                 taskRequest.setPlannedStartDate(plannedStart);
                 taskRequest.setPlannedEndDate(plannedEnd);
                 taskRequest.setDuration(workingDays != null ? workingDays : 1);
@@ -88,22 +89,29 @@ public class ProjectScheduleExcelParser {
                 taskRequest.setStatus(status != null && !status.isBlank() ? status : "NOT_STARTED");
                 taskRequest.setTaskBreakdowns(new ArrayList<>());
                 taskMap.put(taskKey, taskRequest);
+            } else if (seq != null && (taskRequest.getSequence() == null || seq < taskRequest.getSequence())) {
+                taskRequest.setSequence(seq);
             }
 
             if (breakdownName != null && !breakdownName.isBlank()) {
-                SaveTaskBreakdownRequest breakdown = new SaveTaskBreakdownRequest();
-                breakdown.setActivityName(breakdownName.trim());
-                breakdown.setPlannedStartDate(plannedStart);
-                breakdown.setPlannedEndDate(plannedEnd);
-                breakdown.setDuration(workingDays != null ? workingDays : 1);
-                breakdown.setActualStartDate(actualStart != null ? actualStart : plannedStart);
-                breakdown.setActualEndDate(actualEnd != null ? actualEnd : plannedEnd);
-                breakdown.setPredecessor(predecessor);
-                breakdown.setStatus(status != null && !status.isBlank() ? status : "NOT_STARTED");
-                breakdown.setProgress(0);
-                breakdown.setSequence(taskRequest.getTaskBreakdowns().size() + 1);
+                String cleanBreakdownName = breakdownName.trim().replaceAll("\\s+", " ");
+                boolean exists = taskRequest.getTaskBreakdowns().stream()
+                        .anyMatch(b -> b.getActivityName() != null && b.getActivityName().trim().equalsIgnoreCase(cleanBreakdownName));
+                if (!exists) {
+                    SaveTaskBreakdownRequest breakdown = new SaveTaskBreakdownRequest();
+                    breakdown.setActivityName(cleanBreakdownName);
+                    breakdown.setPlannedStartDate(plannedStart);
+                    breakdown.setPlannedEndDate(plannedEnd);
+                    breakdown.setDuration(workingDays != null ? workingDays : 1);
+                    breakdown.setActualStartDate(actualStart != null ? actualStart : plannedStart);
+                    breakdown.setActualEndDate(actualEnd != null ? actualEnd : plannedEnd);
+                    breakdown.setPredecessor(predecessor);
+                    breakdown.setStatus(status != null && !status.isBlank() ? status : "NOT_STARTED");
+                    breakdown.setProgress(0);
+                    breakdown.setSequence(taskRequest.getTaskBreakdowns().size() + 1);
 
-                taskRequest.getTaskBreakdowns().add(breakdown);
+                    taskRequest.getTaskBreakdowns().add(breakdown);
+                }
             }
         }
 

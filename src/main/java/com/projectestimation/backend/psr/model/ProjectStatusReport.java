@@ -43,6 +43,15 @@ public class ProjectStatusReport {
 
     private String fileLocation;
 
+    @Column(name = "file_path")
+    private String filePath;
+
+    @Column(name = "file_hash")
+    private String fileHash;
+
+    @Column(name = "file_last_modified")
+    private LocalDateTime fileLastModified;
+
     private LocalDateTime generatedAt;
 
     private LocalDate reportDate;

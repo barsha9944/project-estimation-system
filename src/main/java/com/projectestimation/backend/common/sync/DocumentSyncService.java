@@ -20,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.projectestimation.backend.car.model.CarAnalysis;
 import com.projectestimation.backend.car.repository.CarAnalysisRepository;
+import com.projectestimation.backend.car.service.CarService;
 import com.projectestimation.backend.common.storage.OpportunityDocumentStorageService;
 import com.projectestimation.backend.dar.model.Dar;
 import com.projectestimation.backend.dar.repository.DarRepository;
@@ -44,6 +45,7 @@ import com.projectestimation.backend.proposal.repository.ProposalRepository;
 import com.projectestimation.backend.proposal.service.ProposalService;
 import com.projectestimation.backend.psr.model.ProjectStatusReport;
 import com.projectestimation.backend.psr.repository.ProjectStatusReportRepository;
+import com.projectestimation.backend.psr.service.PsrService;
 import com.projectestimation.backend.rtm.model.Rtm;
 import com.projectestimation.backend.rtm.repository.RtmRepository;
 import com.projectestimation.backend.rtm.service.RtmService;
@@ -91,7 +93,9 @@ public class DocumentSyncService {
     private final EstimationAnalysisRepository estimationAnalysisRepository;
     private final CalculationService calculationService;
     private final CarAnalysisRepository carAnalysisRepository;
+    private final CarService carService;
     private final ProjectStatusReportRepository projectStatusReportRepository;
+    private final PsrService psrService;
 
     public DocumentSyncService(
             OpportunityDocumentStorageService documentStorageService,
@@ -118,7 +122,9 @@ public class DocumentSyncService {
             EstimationAnalysisRepository estimationAnalysisRepository,
             @Lazy CalculationService calculationService,
             CarAnalysisRepository carAnalysisRepository,
-            ProjectStatusReportRepository projectStatusReportRepository
+            @Lazy CarService carService,
+            ProjectStatusReportRepository projectStatusReportRepository,
+            @Lazy PsrService psrService
     ) {
         this.documentStorageService = documentStorageService;
         this.srsRepository = srsRepository;
@@ -144,7 +150,9 @@ public class DocumentSyncService {
         this.estimationAnalysisRepository = estimationAnalysisRepository;
         this.calculationService = calculationService;
         this.carAnalysisRepository = carAnalysisRepository;
+        this.carService = carService;
         this.projectStatusReportRepository = projectStatusReportRepository;
+        this.psrService = psrService;
     }
 
     public SseEmitter subscribe(Long opportunityId) {
@@ -414,16 +422,12 @@ public class DocumentSyncService {
             List<CarAnalysis> cars = carAnalysisRepository.findByOpportunityIdOrderByCreatedAtDesc(opportunityId);
             for (CarAnalysis car : cars) {
                 String fileName = "CAR_Report_" + car.getId() + ".xlsx";
-                String relPath = "Quality/CAR/" + fileName;
+                String relPath = car.getFilePath() != null ? car.getFilePath() : "Quality/CAR/" + fileName;
                 if (documentStorageService.exists(opportunityId, relPath)) {
                     String curHash = documentStorageService.getFileChecksum(opportunityId, relPath);
-                    String scanKey = "CAR_" + car.getId();
-                    String prevHash = lastScannedHashes.get(scanKey);
-                    if (prevHash == null) {
-                        lastScannedHashes.put(scanKey, curHash);
-                    } else if (!prevHash.equals(curHash)) {
-                        lastScannedHashes.put(scanKey, curHash);
+                    if (car.getFileHash() == null || !car.getFileHash().equals(curHash)) {
                         log.info("External change detected on CAR XLSX (id={}) for opportunity: {}", car.getId(), opportunityId);
+                        carService.syncCarFromPhysicalFileIfModified(car);
                         detected.add(DocumentChangeEvent.of(opportunityId, "CAR", relPath, "EXTERNAL_MODIFIED", curHash, "CAR Excel report updated on disk"));
                     }
                 }
@@ -436,19 +440,13 @@ public class DocumentSyncService {
         try {
             List<ProjectStatusReport> psrs = projectStatusReportRepository.findByOpportunityIdOrderByVersionDesc(opportunityId);
             for (ProjectStatusReport psr : psrs) {
-                if (psr.getFileName() != null) {
-                    String relPath = "Quality/PSR/" + psr.getFileName();
-                    if (documentStorageService.exists(opportunityId, relPath)) {
-                        String curHash = documentStorageService.getFileChecksum(opportunityId, relPath);
-                        String scanKey = "PSR_" + psr.getId();
-                        String prevHash = lastScannedHashes.get(scanKey);
-                        if (prevHash == null) {
-                            lastScannedHashes.put(scanKey, curHash);
-                        } else if (!prevHash.equals(curHash)) {
-                            lastScannedHashes.put(scanKey, curHash);
-                            log.info("External change detected on PSR DOCX (id={}) for opportunity: {}", psr.getId(), opportunityId);
-                            detected.add(DocumentChangeEvent.of(opportunityId, "PSR", relPath, "EXTERNAL_MODIFIED", curHash, "PSR document updated on disk"));
-                        }
+                String relPath = psr.getFilePath() != null ? psr.getFilePath() : (psr.getFileLocation() != null ? psr.getFileLocation() : (psr.getFileName() != null ? "Quality/PSR/" + psr.getFileName() : null));
+                if (relPath != null && documentStorageService.exists(opportunityId, relPath)) {
+                    String curHash = documentStorageService.getFileChecksum(opportunityId, relPath);
+                    if (psr.getFileHash() == null || !psr.getFileHash().equals(curHash)) {
+                        log.info("External change detected on PSR DOCX (id={}) for opportunity: {}", psr.getId(), opportunityId);
+                        psrService.syncPsrFromPhysicalFileIfModified(psr);
+                        detected.add(DocumentChangeEvent.of(opportunityId, "PSR", relPath, "EXTERNAL_MODIFIED", curHash, "PSR document updated on disk"));
                     }
                 }
             }

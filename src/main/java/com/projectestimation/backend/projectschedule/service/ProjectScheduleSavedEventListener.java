@@ -24,9 +24,13 @@ public class ProjectScheduleSavedEventListener {
             + event.affectedPsrVersions()
         );
 
-        psrService.synchronizePsrs(
-            event.opportunityId(),
-            event.affectedPsrVersions()
-        );
+        try {
+            psrService.synchronizePsrs(
+                event.opportunityId(),
+                event.affectedPsrVersions()
+            );
+        } catch (Exception ex) {
+            System.err.println("Error synchronizing PSRs for opportunity " + event.opportunityId() + ": " + ex.getMessage());
+        }
     }
 }
