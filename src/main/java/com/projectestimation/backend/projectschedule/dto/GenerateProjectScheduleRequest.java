@@ -1,26 +1,32 @@
 package com.projectestimation.backend.projectschedule.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-
-import java.time.LocalDate;
-
-import org.springframework.boot.context.properties.bind.DefaultValue;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class GenerateProjectScheduleRequest {
 
 	@NotNull
 	private LocalDate projectStartDate;
 
+	@NotNull
+	private LocalDate projectEndDate;
+	
 	@JsonProperty("durationDays")
 	private int duration;
 
 	@NotNull
+	@DecimalMin("0.01")
+	private BigDecimal teamSize;
+	
 	@Min(1)
-	private Integer teamSize;
+	private Integer sprintCount;
 
 	@NotNull
 	@Min(1)
@@ -57,12 +63,28 @@ public class GenerateProjectScheduleRequest {
 		this.projectStartDate = projectStartDate;
 	}
 
-	public Integer getTeamSize() {
-		return teamSize;
+	public LocalDate getProjectEndDate() {
+	    return projectEndDate;
 	}
 
-	public void setTeamSize(Integer teamSize) {
-		this.teamSize = teamSize;
+	public void setProjectEndDate(LocalDate projectEndDate) {
+	    this.projectEndDate = projectEndDate;
+	}
+	
+	public BigDecimal getTeamSize() {
+	    return teamSize;
+	}
+
+	public void setTeamSize(BigDecimal teamSize) {
+	    this.teamSize = teamSize;
+	}
+	
+	public Integer getSprintCount() {
+	    return sprintCount;
+	}
+
+	public void setSprintCount(Integer sprintCount) {
+	    this.sprintCount = sprintCount;
 	}
 
 	public Integer getWorkingDaysPerWeek() {

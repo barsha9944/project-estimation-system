@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -11,7 +12,7 @@ public class SaveProjectScheduleRequest {
     private LocalDate projectStartDate;
 
     @NotNull
-    private Integer teamSize;
+    private BigDecimal teamSize;
 
     @NotNull
     private Integer workingDaysPerWeek;
@@ -46,11 +47,11 @@ public class SaveProjectScheduleRequest {
         this.projectStartDate = projectStartDate;
     }
 
-    public Integer getTeamSize() {
+    public BigDecimal getTeamSize() {
         return teamSize;
     }
 
-    public void setTeamSize(Integer teamSize) {
+    public void setTeamSize(BigDecimal teamSize) {
         this.teamSize = teamSize;
     }
 

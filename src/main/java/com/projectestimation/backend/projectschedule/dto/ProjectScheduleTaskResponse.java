@@ -11,6 +11,8 @@ public class ProjectScheduleTaskResponse {
 
     private Integer sequence;
 
+    private Integer sprintNumber;
+    
     private String taskName;
 
     private LocalDate plannedStartDate;
@@ -51,6 +53,14 @@ public class ProjectScheduleTaskResponse {
         this.sequence = sequence;
     }
 
+    public Integer getSprintNumber() {
+        return sprintNumber;
+    }
+
+    public void setSprintNumber(Integer sprintNumber) {
+        this.sprintNumber = sprintNumber;
+    }
+    
     public String getTaskName() {
         return taskName;
     }

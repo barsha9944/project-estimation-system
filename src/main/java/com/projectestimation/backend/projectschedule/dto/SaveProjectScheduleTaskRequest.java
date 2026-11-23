@@ -8,6 +8,8 @@ public class SaveProjectScheduleTaskRequest {
     private Long id;
 
     private Integer sequence;
+    
+    private Integer sprintNumber;
 
     private String taskName;
 
@@ -43,6 +45,14 @@ public class SaveProjectScheduleTaskRequest {
         this.sequence = sequence;
     }
 
+    public Integer getSprintNumber() {
+        return sprintNumber;
+    }
+
+    public void setSprintNumber(Integer sprintNumber) {
+        this.sprintNumber = sprintNumber;
+    }
+    
     public String getTaskName() {
         return taskName;
     }

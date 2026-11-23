@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,7 +52,8 @@ public class ProjectSchedule {
 
     private LocalDate projectStartDate;
 
-    private Integer teamSize;
+    @Column(name = "team_size", precision = 10, scale = 2)
+    private BigDecimal teamSize;
 
     private Integer workingDaysPerWeek;
 

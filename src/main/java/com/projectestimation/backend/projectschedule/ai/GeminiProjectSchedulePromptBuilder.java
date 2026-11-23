@@ -1,5 +1,7 @@
 package com.projectestimation.backend.projectschedule.ai;
 
+import java.math.BigDecimal;
+
 import org.springframework.stereotype.Component;
 
 import com.projectestimation.backend.estimation.model.EstimationAnalysis;
@@ -19,8 +21,10 @@ public class GeminiProjectSchedulePromptBuilder {
 			String useCases,
 
 			String projectStartDate,
+			
+			String projectEndDate,
 
-			Integer teamSize,
+			BigDecimal teamSize,
 
 			Integer workingDays,
 
@@ -30,7 +34,9 @@ public class GeminiProjectSchedulePromptBuilder {
 
 			Integer durationDays,
 
-			Double estimatedHours
+			Double estimatedHours,
+			
+			Integer sprintCount
 
 	) {
 
@@ -97,9 +103,12 @@ public class GeminiProjectSchedulePromptBuilder {
 
 							Project Start Date:
 							%s
+							
+							Project End Date:
+							%s
 
 							Team Size:
-							%d
+							%s
 
 							Working Days Per Week:
 							%d
@@ -110,6 +119,8 @@ public class GeminiProjectSchedulePromptBuilder {
 							Buffer Percentage:
 							%d
 
+							Number of Sprints:
+							%s
 							====================================================
 INSTRUCTIONS
 ====================================================
@@ -117,6 +128,105 @@ INSTRUCTIONS
 1. PROJECT ANALYSIS
 
    Analyse the project information, actors and use cases.
+
+SPRINT PLANNING RULES
+
+1. A sprint represents 21 working days.
+2. Saturday and Sunday are non-working days.
+3. If the user provides a sprint count, generate EXACTLY that
+   number of sprints. Do not add or remove sprints.
+4. If the user does not provide a sprint count, determine
+   the appropriate number based on project complexity,
+   use cases and available project duration.
+5. Distribute all development use cases across the planned
+   sprints.
+6. Multiple use cases may belong to the same sprint.
+7. All tasks assigned to a sprint must fit within its
+   working-day boundaries.
+8. Sprint allocation must never extend the supplied
+   project start date or project end date.
+9. The final sprint must finish within the fixed project
+   duration.
+10. Do not create additional sprints to accommodate
+    unfinished work.
+    
+    11. Sprints apply ONLY to use-case implementation tasks.
+    Requirement Analysis, Solution Design, SIT, UAT and
+    Project Closure must never be assigned to a sprint.
+
+12. Set sprintNumber to null for:
+    - Requirement Analysis
+    - Solution Design
+    - SIT
+    - UAT
+    - Project Closure
+
+13. Every use-case implementation parent task must have
+    a valid sprintNumber.
+
+14. The requested sprint count refers ONLY to coding sprints.
+    It does not include analysis, design, SIT, UAT or
+    Project Closure.
+
+15. SIT, UAT and Project Closure must always be three
+    separate parent task rows, in this exact order.
+
+16. Never combine SIT, UAT and Project Closure into
+    one parent task.
+
+17. Multiple estimation use cases may be combined into
+    one parent task ONLY when they belong to the same
+    coding sprint.
+
+18. Never combine a use-case implementation task with
+    SIT, UAT or Project Closure.
+    MANDATORY TASK NAMING AND STRUCTURE RULES
+
+Generate tasks in this exact order:
+
+1. Requirement Analysis
+2. Solution Design
+3. Use-case implementation tasks
+4. SIT
+5. UAT
+6. Project Closure
+
+TASK NAMING RULES
+
+1. Requirement Analysis and Solution Design must always be present.
+2. Use-case implementation task names must come only from
+   the supplied estimation use cases.
+3. Do not invent, rename, paraphrase, or omit estimation use cases.
+4. SIT, UAT, and Project Closure must always be present
+   and must be the final three tasks.
+5. If multiple use cases are assigned to the same sprint,
+   combine their names into ONE parent task name,
+   separated by commas.
+6. Do not create separate parent task rows for use cases
+   belonging to the same sprint.
+
+REQUIRED TASK BREAKDOWNS
+
+- Requirement Analysis:
+  Documentation, Review
+
+- Solution Design:
+  Documentation, Review
+
+- Use-case implementation tasks:
+  Coding, Code Review, Unit Testing
+
+- SIT:
+  Testing, Debugging
+
+- UAT:
+  Testing, Debugging
+
+- Project Closure:
+  Documentation, Review
+
+Use these exact task and breakdown names.
+Do not substitute different activity names.
 
 2. TASK GENERATION
 
@@ -176,6 +286,28 @@ INSTRUCTIONS
 
    Do not make the project longer or shorter than the required
    duration.
+   
+   HARD PROJECT DATE BOUNDARIES
+
+1. The supplied Project Start Date and Project End Date are
+   fixed and must never be changed.
+
+2. The first task must start on the exact supplied Project Start Date.
+
+3. The final task must end on the exact supplied Project End Date.
+
+4. Every task and task breakdown must fit completely
+   between these two dates, inclusive.
+
+5. Do not calculate a different project end date from
+   the duration. Use the supplied Project End Date.
+
+6. Do not extend, shorten, or shift the project dates
+   to accommodate tasks.
+
+7. If the available working days are insufficient,
+   redistribute task durations to fit within the fixed
+   dates. Never schedule work outside the boundaries.
 
 8. TASK DATES
 
@@ -458,6 +590,7 @@ OUTPUT FORMAT
   "tasks": [
     {
       "sequence": 1,
+      "sprintNumber": null,
       "taskName": "",
       "duration": number,
       "plannedTaskStartDate": "yyyy-MM-dd",
@@ -553,6 +686,29 @@ Before returning the JSON, verify ALL of the following:
 30. The maximum plannedEndDate across ALL tasks and ALL breakdowns MUST equal the required project end date.
 
 31. The required project end date is a HARD boundary and MUST NEVER be exceeded.
+
+32. Every coding task must have an integer sprintNumber.
+
+33. Requirement Analysis, Solution Design, SIT, UAT and
+    Project Closure must have sprintNumber set to null.
+
+34. SIT, UAT and Project Closure must exist as three
+    separate parent tasks.
+
+35. The final three parent task names must be exactly:
+    SIT
+    UAT
+    Project Closure
+
+36. Never combine UAT and Project Closure into one task.
+
+37. Never combine SIT with UAT or Project Closure.
+
+38. The number of distinct sprintNumber values among
+    coding tasks must equal the requested sprint count
+    when one is provided.
+
+39. Only coding tasks may be included in sprint allocation.
 							"""
 				.formatted(
 
@@ -579,6 +735,8 @@ Before returning the JSON, verify ALL of the following:
 						useCases,
 
 						projectStartDate,
+						
+						projectEndDate,
 
 						teamSize,
 
@@ -587,6 +745,10 @@ Before returning the JSON, verify ALL of the following:
 						workingHours,
 
 						buffer,
+						
+						sprintCount == null
+				        ? "Not specified - Gemini decides"
+				        : sprintCount.toString(),
 
 						durationDays,
 

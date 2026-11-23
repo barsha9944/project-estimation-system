@@ -127,38 +127,46 @@ public class ProjectScheduleService {
 				.map(useCase -> useCase.getUseCaseName() + " (" + useCase.getComplexity() + ")")
 				.collect(Collectors.joining("\n"));
 
-		double hoursWithBuffer = request.getEstimatedHours() * (1 + request.getBufferPercentage() / 100.0);
+		LocalDate projectStartDate = request.getProjectStartDate();
+		LocalDate projectEndDate = request.getProjectEndDate();
 
-		int durationDays = request.getDuration() > 0
-		        ? request.getDuration()
-		        : (int) Math.ceil(
-		                hoursWithBuffer
-		                        / (request.getTeamSize()
-		                        * request.getWorkingHoursPerDay())
-		        );
+		if (projectStartDate == null || projectEndDate == null) {
+		    throw new IllegalArgumentException(
+		            "Project start date and end date are required."
+		    );
+		}
 
-		System.out.println("Duration days : " + durationDays);
+		if (projectStartDate.isAfter(projectEndDate)) {
+		    throw new IllegalArgumentException(
+		            "Project start date cannot be after project end date."
+		    );
+		}
 
-		/*
-		 * The project must always start on a working day.
-		 * If the selected start date is Saturday or Sunday,
-		 * move it to the next working day.
-		 */
-		LocalDate projectStartDate =
-		        moveToNextWorkingDay(request.getProjectStartDate());
+		if (isWeekend(projectStartDate) || isWeekend(projectEndDate)) {
+		    throw new IllegalArgumentException(
+		            "Project start date and end date must be working days."
+		    );
+		}
 
-		LocalDate projectEndDate =
-		        calculateProjectEndDate(
-		                projectStartDate,
-		                durationDays
-		        );
+		int durationDays = 0;
+
+		LocalDate currentDate = projectStartDate;
+
+		while (!currentDate.isAfter(projectEndDate)) {
+		    if (!isWeekend(currentDate)) {
+		        durationDays++;
+		    }
+		    currentDate = currentDate.plusDays(1);
+		}
+
+		System.out.println("Fixed project duration: " + durationDays);
 
 		AiProjectScheduleResult result;
 		try {
 			result = orchestrator.generate(opportunity, analysis, actorText, useCaseText,
-					projectStartDate.toString(), request.getTeamSize(), request.getWorkingDaysPerWeek(),
+					projectStartDate.toString(), projectEndDate.toString(), request.getTeamSize(), request.getWorkingDaysPerWeek(),
 					request.getWorkingHoursPerDay(), request.getBufferPercentage(), durationDays,
-					request.getEstimatedHours());
+					request.getEstimatedHours(), request.getSprintCount());
 		} catch (Exception ex) {
 			throw new ProjectScheduleFailedException("Failed to generate project schedule", ex);
 		}
@@ -337,6 +345,7 @@ return response;
 			}
 
 			task.setSequence(taskRequest.getSequence());
+			task.setSprintNumber(taskRequest.getSprintNumber());
 			task.setTaskName(canonicalName);
 			task.setDuration(taskRequest.getDuration());
 			task.setPlannedStartDate(taskRequest.getPlannedStartDate());
@@ -654,6 +663,7 @@ return response;
 
 		response.setId(task.getId());
 		response.setSequence(task.getSequence());
+		response.setSprintNumber(task.getSprintNumber());
 		response.setTaskName(task.getTaskName());
 		response.setDuration(task.getDuration());
 		response.setPlannedStartDate(task.getPlannedStartDate());
@@ -1000,6 +1010,7 @@ private SaveProjectScheduleRequest convertToSaveProjectScheduleRequest(
                     new SaveProjectScheduleTaskRequest();
 
             taskRequest.setSequence(task.getSequence());
+            taskRequest.setSprintNumber(task.getSprintNumber());
             taskRequest.setTaskName(task.getTaskName());
             taskRequest.setDuration(task.getDuration());
 

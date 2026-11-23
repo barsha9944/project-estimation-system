@@ -34,6 +34,8 @@ public class ProjectScheduleTask {
 
     private Integer sequence;
 
+    private Integer sprintNumber;
+
     private String taskName;
 
     private LocalDate plannedStartDate;

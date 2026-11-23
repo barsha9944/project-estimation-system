@@ -1,5 +1,7 @@
 package com.projectestimation.backend.projectschedule.ai;
 
+import java.math.BigDecimal;
+
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
@@ -49,8 +51,10 @@ public class GeminiProjectScheduleOrchestrator {
             String useCases,
 
             String projectStartDate,
+            
+            String projectEndDate,
 
-            Integer teamSize,
+            BigDecimal teamSize,
 
             Integer workingDays,
 
@@ -60,7 +64,9 @@ public class GeminiProjectScheduleOrchestrator {
             
             Integer durationDays,
             
-            Double estimatedHours
+            Double estimatedHours,
+            
+            Integer sprintCount
 
     ) {
 
@@ -76,6 +82,8 @@ public class GeminiProjectScheduleOrchestrator {
                         useCases,
 
                         projectStartDate,
+                        
+                        projectEndDate,
 
                         teamSize,
 
@@ -87,7 +95,9 @@ public class GeminiProjectScheduleOrchestrator {
                         
                         durationDays,
                         
-                        estimatedHours
+                        estimatedHours,
+                        
+                        sprintCount
 
                 );
 

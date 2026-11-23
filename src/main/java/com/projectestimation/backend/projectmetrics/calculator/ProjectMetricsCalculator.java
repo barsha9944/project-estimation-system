@@ -686,7 +686,7 @@ public class ProjectMetricsCalculator {
 
         return duration
                 * schedule.getWorkingHoursPerDay()
-                * schedule.getTeamSize()
+                * schedule.getTeamSize().doubleValue()
                 * 1.0;
     }
     
@@ -970,7 +970,7 @@ public class ProjectMetricsCalculator {
 
         return duration
                 * schedule.getWorkingHoursPerDay()
-                * schedule.getTeamSize()
+                * schedule.getTeamSize().doubleValue()
                 * 1.0;
     }
     
@@ -1593,7 +1593,7 @@ public class ProjectMetricsCalculator {
 
         return getBreakdownDuration(schedule, activityName)
                 * schedule.getWorkingHoursPerDay()
-                * schedule.getTeamSize()
+                * schedule.getTeamSize().doubleValue()
                 * 1.0;
     }
     

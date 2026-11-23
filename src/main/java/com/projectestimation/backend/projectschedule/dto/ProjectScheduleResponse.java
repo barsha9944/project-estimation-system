@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import com.projectestimation.backend.psr.dto.PsrResponse;
@@ -20,7 +21,7 @@ public class ProjectScheduleResponse {
     
     private Integer bufferPercentage;
     
-    private Integer teamSize;
+    private BigDecimal teamSize;
     
     private Integer WorkingDaysPerWeek;
     
@@ -91,11 +92,11 @@ public class ProjectScheduleResponse {
 		this.bufferPercentage = bufferPercentage;
 	}
 
-	public Integer getTeamSize() {
+	public BigDecimal getTeamSize() {
 		return teamSize;
 	}
 
-	public void setTeamSize(Integer teamSize) {
+	public void setTeamSize(BigDecimal teamSize) {
 		this.teamSize = teamSize;
 	}
 

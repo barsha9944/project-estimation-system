@@ -1,5 +1,6 @@
 package com.projectestimation.backend.projectschedule.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -18,7 +19,7 @@ public class RecalculateProjectScheduleRequest {
 
     private LocalDate projectStartDate;
 
-    private Integer teamSize;
+    private BigDecimal teamSize;
 
     private Integer workingDaysPerWeek;
 
