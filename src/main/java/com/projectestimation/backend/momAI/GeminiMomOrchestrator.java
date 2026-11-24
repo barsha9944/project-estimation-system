@@ -5,18 +5,21 @@ import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 
 @Service
 public class GeminiMomOrchestrator {
 
     private static final int MAX_OUTPUT_TOKENS = 8192;
 
-    private final GeminiClient geminiClient;
+    //private final GeminiClient geminiClient;
+    
+    private final AiGateway aiGateway;
 
     public GeminiMomOrchestrator(
-            GeminiClient geminiClient
+    		AiGateway aiGateway
     ) {
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
     }
 
     public String generate(
@@ -187,7 +190,7 @@ public class GeminiMomOrchestrator {
                 safe(previousMeetingInformation)
         );
 
-        return geminiClient.generateJsonContent(
+        return aiGateway.generateJsonContent(
                 prompt,
                 MAX_OUTPUT_TOKENS
         );
