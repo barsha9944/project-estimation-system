@@ -92,8 +92,6 @@ public class ProjectScheduleService {
 
 	private final ProjectStatusReportRepository projectStatusReportRepository;
 
-	private final ApplicationEventPublisher applicationEventPublisher;
-
 	private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
 
 	private final PsrService psrService;
@@ -412,11 +410,6 @@ return response;
 			log.warn("Failed saving physical Project Schedule Excel file: {}", ex.getMessage());
 		}
 
-		System.out.println(
-				"PSR EVENT PUBLISHED -> opportunityId=" + opportunityId + ", affectedVersions=" + affectedPsrVersions);
-
-		
-		applicationEventPublisher.publishEvent(new ProjectScheduleSavedEvent(opportunityId, affectedPsrVersions));
 
 	}
 
@@ -701,7 +694,7 @@ return response;
     response.setActualDuration(
             ChronoUnit.DAYS.between(
                     breakdown.getActualStartDate(),
-                    breakdown.getActualEndDate()));
+                    breakdown.getActualEndDate()) + 1);
 
     return response;
 }

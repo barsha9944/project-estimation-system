@@ -228,6 +228,25 @@ REQUIRED TASK BREAKDOWNS
 Use these exact task and breakdown names.
 Do not substitute different activity names.
 
+REVIEW DURATION LIMITS
+
+1. Requirement Analysis:
+   - Review breakdown duration must not exceed 3 working days.
+
+2. Solution Design:
+   - Review breakdown duration must not exceed 3 working days.
+
+3. Use-case implementation tasks:
+   - Code Review breakdown duration must not exceed 2 working days.
+
+4. These are strict maximum durations, not targets.
+5. Each review breakdown must have at least 1 working day.
+6. Calculate durations using working days only.
+7. Do not extend the project end date to accommodate these limits.
+8. Redistribute the remaining duration within the existing
+   project schedule while preserving all other task and
+   breakdown requirements.
+
 2. TASK GENERATION
 
    Create a realistic enterprise software implementation
