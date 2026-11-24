@@ -546,22 +546,19 @@ return response;
 			}
 
 			// If still null on first save, generate initial PSR on-demand
-			if (currentPsr == null) {
-				try {
-					PsrResponse generated = psrService.generateOrUpdateInitialPsr(opportunityId);
-					if (generated != null) {
-						response.setPsr(generated);
-					}
-				} catch (Exception ex) {
-					log.warn("Failed generating on-demand initial PSR for opp {}: {}", opportunityId, ex.getMessage());
-				}
-			} else {
-				psrService.syncPsrFromPhysicalFileIfModified(currentPsr);
-				PsrResponse psrResponse = new PsrResponse(currentPsr.getId(), currentPsr.getFileName(),
-						currentPsr.getFileLocation(), currentPsr.getGeneratedAt(), "GENERATED",
-						currentPsr.getMarkdownContent());
+			if (currentPsr != null) {
+			    psrService.syncPsrFromPhysicalFileIfModified(currentPsr);
 
-				response.setPsr(psrResponse);
+			    PsrResponse psrResponse = new PsrResponse(
+			            currentPsr.getId(),
+			            currentPsr.getFileName(),
+			            currentPsr.getFileLocation(),
+			            currentPsr.getGeneratedAt(),
+			            "GENERATED",
+			            currentPsr.getMarkdownContent()
+			    );
+
+			    response.setPsr(psrResponse);
 			}
 		}
 

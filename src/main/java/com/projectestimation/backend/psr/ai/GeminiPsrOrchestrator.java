@@ -3,6 +3,7 @@ package com.projectestimation.backend.psr.ai;
 import org.springframework.stereotype.Service;
 
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.psr.dto.PsrContentDto;
 
 @Service
@@ -12,16 +13,16 @@ public class GeminiPsrOrchestrator {
 
     private final GeminiPsrPromptBuilder promptBuilder;
     private final GeminiPsrResponseParser responseParser;
-    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
 
     public GeminiPsrOrchestrator(
             GeminiPsrPromptBuilder promptBuilder,
             GeminiPsrResponseParser responseParser,
-            GeminiClient geminiClient
+            AiGateway aiGateway
     ) {
         this.promptBuilder = promptBuilder;
         this.responseParser = responseParser;
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
     }
 
     public AiPsrResult generate(
@@ -36,7 +37,7 @@ public class GeminiPsrOrchestrator {
                 psrVersion
         );
 
-        String markdown = geminiClient.generateContent(
+        String markdown = aiGateway.generateContent(
                 prompt,
                 "text/plain",
                 MAX_OUTPUT_TOKENS
