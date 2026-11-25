@@ -228,6 +228,42 @@ REQUIRED TASK BREAKDOWNS
 Use these exact task and breakdown names.
 Do not substitute different activity names.
 
+REVIEW DURATION RULES
+
+1. Requirement Analysis:
+   - Documentation duration must be allocated realistically.
+   - Review must take between 2 and 3 working days,
+     inclusive.
+
+2. Solution Design:
+   - Documentation duration must be allocated realistically.
+   - Review must take between 2 and 3 working days,
+     inclusive.
+
+3. Use-case implementation tasks:
+   - Coding duration must be allocated realistically.
+   - Code Review must take between 1 and 2 working days,
+     inclusive.
+   - Unit Testing duration must be allocated realistically.
+
+4. All review durations must use working days only.
+   Monday to Friday are working days.
+   Saturday and Sunday are non-working days.
+
+5. These are mandatory minimum and maximum durations,
+   not optional targets.
+
+6. Do not assign a review duration below the minimum
+   or above the maximum.
+
+7. Redistribute the remaining working days among the
+   other activities within the same phase where possible.
+
+8. Preserve all phase allocation percentages, task order,
+   breakdown sequence, dependencies and fixed project dates.
+
+9. Do not extend or shorten the total project duration.
+
 2. TASK GENERATION
 
    Create a realistic enterprise software implementation
@@ -485,31 +521,96 @@ Do not substitute different activity names.
    estimatedHours must represent the total estimated effort
    distributed across all tasks and breakdowns.
 
-22. EFFORT DISTRIBUTION
+22. PROJECT DURATION PHASE ALLOCATION
 
-   Distribute the TOTAL PROJECT EFFORT approximately as follows:
+   Distribute the TOTAL PROJECT DURATION using working days
+   across the following three phases:
 
-   - Analysis and Design activities: 30%%
-   - Development / Coding activities: 50%%
-   - System Integration Testing: 10%%
-   - User Acceptance Testing: 5%%
-   - Reviews and Unit Testing: 5%%
+   A. ANALYSIS AND DESIGN: 20%%–30%%
 
-23. EFFORT SCOPE
+      Includes only:
+      - Requirement Analysis
+      - Solution Design
 
-   The percentages in instruction 22 apply to the ENTIRE
-   PROJECT, not to each individual task.
+   B. CONSTRUCTION: 40%%–60%%
 
-24. EFFORT REALISM
+   Includes:
+   - Use-case implementation tasks
+   - Coding
+   - Code Review
+   - Unit Testing
 
-   Distribute effort realistically according to project
-   complexity.
+   All three breakdowns of use-case implementation tasks
+   belong to the Construction phase.
 
-   Do not generate equal duration for every task.
+   Do NOT include SIT or UAT in this phase.
 
-   If rounding leaves a small amount of remaining effort,
-   allocate it reasonably while keeping the total project
-   duration unchanged.
+   C. TESTING AND CLOSURE: 10%%–40%%
+
+      Includes:
+      - SIT
+      - UAT
+      - Project Closure
+
+   STRICT ALLOCATION RULES:
+
+   1. All three phase allocations MUST add up to exactly
+      100%% of the total project working days.
+
+   2. Each phase MUST remain within its specified percentage
+      range.
+
+   3. Calculate allocations using working days only.
+      Saturday and Sunday must never be counted.
+
+   4. Distribute the available working days realistically
+      according to project complexity and use cases.
+
+   5. Do not count the same task or activity duration twice.
+
+   6. Do not change the fixed project start date,
+      project end date or total project duration.
+
+   7. If rounding is required, adjust the phase allocations
+      while ensuring the total remains exactly 100%%.
+
+23. PHASE ALLOCATION SCOPE
+
+   The percentages in instruction 22 apply to the TOTAL
+   PROJECT DURATION measured in working days.
+
+   They do not represent estimated effort hours.
+
+   Calculate each phase allocation from the working-day
+   durations of its included tasks and activities.
+
+   Each task and activity must belong to exactly one phase.
+   Do not count any duration more than once.
+
+   The sum of all three phase durations must equal the
+   complete project duration in working days.
+
+24. EFFORT AND DURATION REALISM
+
+   1. Distribute estimated effort hours realistically
+      according to project complexity and task requirements.
+
+   2. Do not generate equal durations for every task.
+
+   3. Allocate task durations in working days while
+      respecting the three phase allocation ranges
+      defined in Instruction 22.
+
+   4. If rounding is required, adjust task durations
+      while ensuring:
+      - All three phase percentages remain within their
+        specified ranges.
+      - The three phase allocations total exactly 100%%.
+      - Total project duration remains unchanged.
+      - All review-duration rules are satisfied.
+
+   5. Do not confuse estimated effort hours with
+      schedule duration in working days.
 
 25. TASK NAMES
 

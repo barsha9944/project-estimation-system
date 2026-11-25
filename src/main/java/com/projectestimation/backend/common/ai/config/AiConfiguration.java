@@ -1,3 +1,4 @@
+
 package com.projectestimation.backend.common.ai.config;
 
 import org.springframework.context.annotation.Bean;
@@ -13,9 +14,7 @@ import com.projectestimation.backend.common.ai.gemini.GeminiProvider;
 public class AiConfiguration {
 
     @Bean
-    public AiProvider geminiLiteProvider(
-            GeminiClient client) {
-
+    public AiProvider geminiLiteProvider(GeminiClient client) {
         return new GeminiProvider(
                 client,
                 "Gemini Lite",
@@ -25,27 +24,42 @@ public class AiConfiguration {
     }
 
     @Bean
-    public AiProvider openAiProvider(
-            OpenAiClient client) {
+    public AiProvider geminiFlashProvider(GeminiClient client) {
+        return new GeminiProvider(
+                client,
+                "Gemini Flash Lite",
+                "gemini-3.5-flash-lite",
+                2
+        );
+    }
 
+    @Bean
+    public AiProvider gemini36FlashProvider(GeminiClient client) {
+        return new GeminiProvider(
+                client,
+                "Gemini 3.6 Flash",
+                "gemini-3.6-flash",
+                3
+        );
+    }
+
+    @Bean
+    public AiProvider gemini4HydrogenProvider(GeminiClient client) {
+        return new GeminiProvider(
+                client,
+                "Gemini 4 Hydrogen",
+                "gemini-4-hydrogen",
+                4
+        );
+    }
+
+    @Bean
+    public AiProvider openAiProvider(OpenAiClient client) {
         return new OpenAiProvider(
                 client,
                 "OpenAI",
                 "gpt-4.1-mini",
-                3
-        );
-    }
-    
-    
-    @Bean
-    public AiProvider geminiFlashProvider(
-            GeminiClient client) {
-
-        return new GeminiProvider(
-                client,
-                "Gemini Flash",
-                "gemini-3.5-flash-lite",
-                2
+                5
         );
     }
 }
