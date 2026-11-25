@@ -57,5 +57,7 @@ public class EstimationResponse {
     private Boolean sddCompleted;
     
     private Boolean rtmCompleted;
+    
+    private Boolean carCompleted;
 
 }

@@ -28,6 +28,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.projectestimation.backend.car.repository.CarAnalysisRepository;
 import com.projectestimation.backend.common.exception.BadRequestException;
 import com.projectestimation.backend.common.exception.ResourceNotFoundException;
 import com.projectestimation.backend.estimation.dto.ActorCalculationRequest;
@@ -92,6 +93,7 @@ public class CalculationService {
 	private final SrsRepository srsRepository;
 	private final SddRepository sddRepository;
 	private final RtmRepository rtmRepository;
+	private final CarAnalysisRepository carRepository;
 	private final OpportunityDocumentStorageService documentStorageService;
 	private final EstimationExcelParser estimationExcelParser;
 	
@@ -109,6 +111,7 @@ public class CalculationService {
 			SrsRepository srsRepository,
 			SddRepository sddRepository,
 			RtmRepository rtmRepository,
+			CarAnalysisRepository carRepository,
 			OpportunityDocumentStorageService documentStorageService,
 			EstimationExcelParser estimationExcelParser) {
 
@@ -126,6 +129,7 @@ public class CalculationService {
 		this.srsRepository = srsRepository;
 		this.sddRepository = sddRepository;
 		this.rtmRepository = rtmRepository;
+		this.carRepository = carRepository;
 		this.documentStorageService = documentStorageService;
 		this.estimationExcelParser = estimationExcelParser;
 	}
@@ -1750,6 +1754,7 @@ public class CalculationService {
 			response.setSrsCompleted(srsRepository.existsByOpportunityId(opportunityId));
 			response.setSddCompleted(sddRepository.existsByOpportunityId(opportunityId));
 			response.setRtmCompleted(rtmRepository.existsByOpportunityId(opportunityId));
+			response.setCarCompleted(carRepository.existsByOpportunityId(opportunityId));
 		}
 
 		return response;

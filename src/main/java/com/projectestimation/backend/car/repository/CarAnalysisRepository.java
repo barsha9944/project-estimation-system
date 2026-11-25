@@ -14,4 +14,6 @@ public interface CarAnalysisRepository
     );
 
     List<CarAnalysis> findByStatus(String status);
+    
+    boolean existsByOpportunityId(Long opportunityId);
 }
