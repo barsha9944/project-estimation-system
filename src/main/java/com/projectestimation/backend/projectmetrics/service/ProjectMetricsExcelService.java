@@ -2,6 +2,8 @@ package com.projectestimation.backend.projectmetrics.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -100,6 +102,10 @@ public class ProjectMetricsExcelService {
 
             CellStyle dataStyle =
                     createStyle(workbook, "FFFFFF", false, 11);
+            
+            dataStyle.setDataFormat(
+                    workbook.createDataFormat().getFormat("0.00")
+            );
 
             createHeaders(
                     sheet,
@@ -1361,9 +1367,11 @@ public class ProjectMetricsExcelService {
         if (value == null) {
             cell.setCellValue("");
         } else {
-            cell.setCellValue(
-                    value.doubleValue()
-            );
+            double roundedValue = BigDecimal.valueOf(value.doubleValue())
+                    .setScale(2, RoundingMode.HALF_UP)
+                    .doubleValue();
+
+            cell.setCellValue(roundedValue);
         }
     }
     
