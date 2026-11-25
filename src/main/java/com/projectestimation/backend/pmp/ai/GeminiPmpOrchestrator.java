@@ -261,6 +261,26 @@ public class GeminiPmpOrchestrator {
                 ============================================================
 
                 1. Generate a realistic professional PMP.
+                VERSION CONTROL PLATFORM RULE — MANDATORY:
+
+				GitHub is the ONLY permitted version control platform throughout
+				the entire PMP.
+				
+				Whenever version control, source-code repositories, repository
+				hosting, branch management, source-code management, or version-control
+				tools are mentioned, use GitHub only.
+				
+				Do not mention GitLab, Bitbucket, SVN, Azure Repos, or any alternative
+				version control platform.
+				
+				This rule applies to ALL PMP sections, subsections, tables,
+				descriptions, examples, configuration items, processes, tools,
+				release procedures and backup procedures.
+				
+				Do not suggest or imply that any alternative version control
+				platform may be used, even as an example.
+
+				If a version control platform needs to be specified, always use GitHub.
 
                 2. Use the supplied project information as the PRIMARY source.
 
@@ -1520,6 +1540,53 @@ public class GeminiPmpOrchestrator {
                 productReviewTesting
 
                 Do NOT leave these arrays empty.
+                
+                MANDATORY SRS AND SDD REVIEWS:
+
+				The qualityManagement.reviews array MUST contain both of the
+				following review entries for every PMP:
+				
+				1. SRS Review
+				2. SDD Review
+				
+				These two entries are mandatory and must not be omitted,
+				even when other review activities are also generated.
+				
+				SRS REVIEW:
+				- name: "SRS Review"
+				- description: Generate a project-specific description covering
+				  the review of the Software Requirements Specification (SRS),
+				  including requirement completeness, correctness, consistency,
+				  clarity, traceability and alignment with project requirements.
+				- responsible: Appropriate project review role, such as
+				  Business Analyst, Project Manager or designated reviewer.
+				- timing: Requirements Analysis / Before SRS Approval.
+				- target: Reviewed and approved SRS with identified review
+				  observations addressed.
+				- status: Planned.
+				
+				SDD REVIEW:
+				- name: "SDD Review"
+				- description: Generate a project-specific description covering
+				  the review of the Software Design Document (SDD), including
+				  architecture, design components, data flow, interfaces,
+				  technical consistency and alignment with approved SRS.
+				- responsible: Appropriate design review role, such as
+				  Technical Lead, Solution Architect or designated reviewer.
+				- timing: Design Phase / Before SDD Approval.
+				- target: Reviewed and approved SDD with identified review
+				  observations addressed.
+				- status: Planned.
+				
+				IMPORTANT:
+				- Generate both entries as PmpItemDto objects.
+				- Use the exact names "SRS Review" and "SDD Review".
+				- Generate descriptions based on the current project's requirements.
+				- Do not use generic or identical descriptions for both reviews.
+				- Do not replace or remove existing review entries.
+				- Avoid duplicate SRS Review or SDD Review entries.
+				- Both entries must be included in qualityManagement.reviews,
+				  which is displayed under Section 12.4 Reviews.
 
                 Standards may include relevant project standards such as:
 
@@ -1640,8 +1707,13 @@ public class GeminiPmpOrchestrator {
                 Put type, repository, owner, baseline and remarks inside
                 description.
 
-                Only mention a specific repository or version-control
-                platform if it is supplied in the project information.
+            GitHub is the only permitted version control platform.
+
+			Always use GitHub when describing repositories, source-code
+			management, version control, branch management or repository hosting.
+			
+			Do not mention or suggest any alternative platform, regardless
+			of the information supplied in the project details.
 
                 The following scalar fields must contain meaningful
                 project-specific descriptions:

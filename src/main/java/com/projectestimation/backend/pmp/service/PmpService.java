@@ -41,6 +41,13 @@ import com.projectestimation.backend.pmp.dto.ValidationPlanDto;
 import com.projectestimation.backend.pmp.model.Pmp;
 import com.projectestimation.backend.pmp.repository.PmpRepository;
 
+import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
+import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
+import org.springframework.beans.factory.annotation.Value;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -52,6 +59,9 @@ public class PmpService {
     private static final String WHITE = "FFFFFF";
 
     private static final String BLACK = "000000";
+    
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendBaseUrl;
 
     private final OpportunityRepository opportunityRepository;
 
@@ -142,7 +152,7 @@ public class PmpService {
             pmp.setOpportunity(opportunity);
 
             try {
-                byte[] documentBytes = generatePmpDocument(pmpDto);
+                byte[] documentBytes = generatePmpDocument(pmpDto, opportunityId);
                 String relativePath = documentStorageService.replaceFile(
                         opportunityId,
                         "Baseline/PMP",
@@ -244,15 +254,29 @@ public class PmpService {
         addEstimationItem(sizeDetails, "Actor Weight (AW)", analysis.getActorWeight());
         addEstimationItem(sizeDetails, "Unadjusted Use Case Points (UUCP)", analysis.getUucp());
         addEstimationItem(sizeDetails, "Technical Complexity Factor (TCF)", analysis.getTcf());
-        addEstimationItem(sizeDetails, "Environmental Factor (EF)", analysis.getEf());
-        addEstimationItem(sizeDetails, "Adjusted Use Case Points (UCP)", analysis.getUcp());
+        addEstimationItemThreeDecimals(
+                sizeDetails,
+                "Environmental Factor (EF)",
+                analysis.getEf()
+        );
+
+        addEstimationItemThreeDecimals(
+                sizeDetails,
+                "Adjusted Use Case Points (UCP)",
+                analysis.getUcp()
+        );
 
         List<PmpItemDto> effortDetails = new ArrayList<>();
-        addEstimationItem(effortDetails, "Benchmark Productivity Ratio", analysis.getBenchmarkProductivityRatio());
-        addEstimationItem(effortDetails, "Estimated Effort (Hours)", analysis.getHoursOfEffort());
-        addEstimationItem(effortDetails, "Hourly Rate", analysis.getHourlyRate());
-        addEstimationItem(effortDetails, "Estimated Project Price", analysis.getProjectPrice());
-        addEstimationItem(effortDetails, "Currency", analysis.getCurrency());
+        addEstimationItem(
+                effortDetails,
+                "Benchmark Productivity Ratio",
+                analysis.getBenchmarkProductivityRatio()
+        );
+        addEstimationItem(
+                effortDetails,
+                "Estimated Effort (Hours)",
+                analysis.getHoursOfEffort()
+        );
 
         EstimatedSizeEffortDto estimated = new EstimatedSizeEffortDto(sizeDetails, effortDetails);
 
@@ -284,6 +308,35 @@ public class PmpService {
                 name, String.valueOf(value), "", "", "", ""
         ));
     }
+    
+    private void addEstimationItemThreeDecimals(
+            List<PmpItemDto> items,
+            String name,
+            Object value) {
+
+        if (value == null) {
+            return;
+        }
+
+        String formattedValue;
+
+        try {
+            formattedValue = new BigDecimal(value.toString())
+                    .setScale(3, RoundingMode.HALF_UP)
+                    .toPlainString();
+        } catch (NumberFormatException exception) {
+            formattedValue = String.valueOf(value);
+        }
+
+        items.add(new PmpItemDto(
+                name,
+                formattedValue,
+                "",
+                "",
+                "",
+                ""
+        ));
+    }
 
     @Transactional
     public PmpGenerationResponse savePmp(Long opportunityId, PmpDto pmpDto) {
@@ -292,7 +345,7 @@ public class PmpService {
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
         try {
-            byte[] documentBytes = generatePmpDocument(pmpDto);
+            byte[] documentBytes = generatePmpDocument(pmpDto, opportunityId);
 
             String relativePath = documentStorageService.replaceFile(
                     opportunityId,
@@ -347,7 +400,8 @@ public class PmpService {
 
         try {
             PmpDto dto = objectMapper.readValue(pmp.getPmpData(), PmpDto.class);
-            byte[] bytes = generatePmpDocument(dto);
+            byte[] bytes = generatePmpDocument(dto, opportunityId);
+//            byte[] bytes = generatePmpDocument(dto);
             documentStorageService.saveFile(opportunityId, "Baseline/PMP", "PMP.docx", bytes);
             pmp.setFilePath("Baseline/PMP/PMP.docx");
             pmp.setFileHash(documentStorageService.getFileChecksum(opportunityId, "Baseline/PMP/PMP.docx"));
@@ -359,7 +413,10 @@ public class PmpService {
         }
     }
 
-    private byte[] generatePmpDocument(PmpDto pmpDto) throws IOException {
+    private byte[] generatePmpDocument(
+            PmpDto pmpDto,
+            Long opportunityId
+    ) throws IOException {
 
         try (XWPFDocument document = new XWPFDocument();
 
@@ -419,11 +476,11 @@ public class PmpService {
 
             addSectionHeading(document, "9.0 Estimated Size & Effort");
 
-            addEstimatedSizeEffort(document, pmpDto);
+            addEstimatedSizeEffort(document, pmpDto, opportunityId);
 
             addSectionHeading(document, "10.0 Schedule");
 
-            addSchedule(document, pmpDto);
+            addSchedule(document, pmpDto, opportunityId);
 
             addSectionHeading(document, "11.0 Metrication Plan");
 
@@ -1310,17 +1367,51 @@ public class PmpService {
     }
 
     // =========================== 9.0 =============================
+    private void addDocumentHyperlink(
+            XWPFDocument document,
+            String text,
+            String url) {
 
-    private void addEstimatedSizeEffort(XWPFDocument document, PmpDto dto) {
-        if (dto == null || dto.estimatedSizeEffort() == null) return;
+        XWPFParagraph paragraph = document.createParagraph();
+
+        XWPFHyperlinkRun hyperlink = paragraph.createHyperlinkRun(url);
+
+        hyperlink.setText(text);
+        hyperlink.setColor("0563C1");
+        hyperlink.setUnderline(UnderlinePatterns.SINGLE);
+    }
+
+    private void addEstimatedSizeEffort(
+            XWPFDocument document,
+            PmpDto dto,
+            Long opportunityId) {
+
+        if (dto == null || dto.estimatedSizeEffort() == null) {
+            return;
+        }
 
         addSubHeading(document, "9.1 Estimated Size Details of the Project");
-        addOriginalEstimationTable(document, "Original Estimation - Size",
-                dto.estimatedSizeEffort().sizeDetails());
+
+        addOriginalEstimationTable(
+                document,
+                "Original Estimation - Size",
+                dto.estimatedSizeEffort().sizeDetails()
+        );
 
         addSubHeading(document, "9.2 Estimated Effort Details of the Project");
-        addOriginalEstimationTable(document, "Original Estimation - Effort",
-                dto.estimatedSizeEffort().effortDetails());
+
+        addOriginalEstimationTable(
+                document,
+                "Original Estimation - Effort",
+                dto.estimatedSizeEffort().effortDetails()
+        );
+
+        addDocumentHyperlink(
+                document,
+                "View Estimation",
+                frontendBaseUrl + "/opportunities/"
+                        + opportunityId + "/estimate-workflow"
+        );
     }
 
     private void addOriginalEstimationTable(
@@ -1330,8 +1421,8 @@ public class PmpService {
         addTableTitle(document, title);
         XWPFTable table = document.createTable(items.size() + 1, 2);
         formatTable(table);
-        setCellText(table.getRow(0).getCell(0), "Estimation Parameter", true);
-        setCellText(table.getRow(0).getCell(1), "Original Value", true);
+        setCellText(table.getRow(0).getCell(0), "Name", true);
+        setCellText(table.getRow(0).getCell(1), "Description", true);
 
         for (int i = 0; i < items.size(); i++) {
             PmpItemDto item = items.get(i);
@@ -1343,16 +1434,28 @@ public class PmpService {
 
     // =========================== 10.0 ============================
 
-    private void addSchedule(XWPFDocument document, PmpDto dto) {
+    private void addSchedule(
+            XWPFDocument document,
+            PmpDto dto,
+            Long opportunityId) {
 
-        if (dto == null || dto.schedule() == null) return;
+        if (dto == null || dto.schedule() == null) {
+            return;
+        }
 
-        addPmpItemsTable(document, "Project Schedule",
+        addPmpItemsTable(
+                document,
+                "Project Schedule",
+                dto.schedule().scheduleItems()
+        );
 
-                dto.schedule().scheduleItems());
-
+        addDocumentHyperlink(
+                document,
+                "View Work Schedule",
+                frontendBaseUrl + "/proposal-schedule?opportunityId="
+                        + opportunityId
+        );
     }
-
     // =========================== 11.0 ============================
 
     private void addMetricationPlan(XWPFDocument document, PmpDto dto) {
@@ -1541,7 +1644,10 @@ public class PmpService {
 
         addSubHeading(document, "15.4 Version Control & Nomenclature");
 
-        addText(document, dto.configurationManagementPlan().versionControl());
+        addText(
+                document,
+                "GitHub is the only version control platform used for this project."
+        );
 
         addSubHeading(document, "15.5 CI Status Accounting & Reporting");
 
@@ -1549,7 +1655,10 @@ public class PmpService {
 
         addSubHeading(document, "15.6 Configuration Management Audit");
 
-        addText(document, dto.configurationManagementPlan().audit());
+        addText(
+                document,
+                "Configuration audits performed as a part of process audit"
+        );
 
         addSubHeading(document, "15.7 Back-up Plan");
 

@@ -192,7 +192,7 @@ try {
             convertToSaveProjectScheduleRequest(response);
 
     byte[] excelBytes =
-            projectScheduleExcelExporter.export(excelRequest);
+            projectScheduleExcelExporter.export(excelRequest, opportunityId);
 
     String fileName = opportunity.getOpportunityName()
             .replaceAll("[\\\\/:*?\"<>|]", "_")
@@ -390,7 +390,7 @@ return response;
 		projectScheduleRepository.flush();
 
 		try {
-			byte[] excelBytes = projectScheduleExcelExporter.export(request);
+			byte[] excelBytes = projectScheduleExcelExporter.export(request, opportunityId);
 			Opportunity opp = opportunityRepository.findById(opportunityId).orElse(null);
 			if (opp != null) {
 				String fileName = opp.getOpportunityName()
@@ -449,7 +449,7 @@ return response;
         log.warn("Failed reading physical schedule file: {}", ex.getMessage());
     }
 
-    byte[] excel = projectScheduleExcelExporter.export(request);
+    byte[] excel = projectScheduleExcelExporter.export(request, opportunityId);
     try {
         documentStorageService.saveFile(opportunityId, "Baseline/PMP", fileName, excel);
     } catch (Exception ignored) {}
