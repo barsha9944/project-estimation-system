@@ -50,17 +50,27 @@ import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleRequ
 import com.projectestimation.backend.projectschedule.dto.SaveProjectScheduleTaskRequest;
 import com.projectestimation.backend.projectschedule.util.ExcelChartDateAxisFixer;
 
+import org.apache.poi.common.usermodel.HyperlinkType;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Hyperlink;
+import org.springframework.beans.factory.annotation.Value;
+
 @Component
 public class ProjectScheduleExcelExporter {
+	
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendBaseUrl;
 
-    public byte[] export(SaveProjectScheduleRequest request) {
+    public byte[] export(
+            SaveProjectScheduleRequest request,
+            Long opportunityId) {
 
         try (
                 XSSFWorkbook workbook = new XSSFWorkbook();
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
         ) {
 
-        	createProjectScheduleSheet(workbook, request);
+        	createProjectScheduleSheet(workbook, request, opportunityId);
 
         	createHiddenGanttDataSheet(workbook, request);
 
@@ -85,11 +95,41 @@ public class ProjectScheduleExcelExporter {
 
     }
 
-private void createProjectScheduleSheet(
-        XSSFWorkbook workbook,
-        SaveProjectScheduleRequest request) {
+    private void createProjectScheduleSheet(
+            XSSFWorkbook workbook,
+            SaveProjectScheduleRequest request,
+            Long opportunityId) {
 
     Sheet sheet = workbook.createSheet("Project Schedule");
+    
+ // Work Schedule page hyperlink
+    Row linkRow = sheet.createRow(0);
+    Cell linkCell = linkRow.createCell(0);
+
+    linkCell.setCellValue("Open Work Schedule Page");
+
+    CreationHelper creationHelper = workbook.getCreationHelper();
+
+    Hyperlink hyperlink = creationHelper.createHyperlink(
+            HyperlinkType.URL
+    );
+
+    hyperlink.setAddress(
+            frontendBaseUrl
+                    + "/proposal-schedule?opportunityId="
+                    + opportunityId
+    );
+
+    linkCell.setHyperlink(hyperlink);
+
+    Font linkFont = workbook.createFont();
+    linkFont.setColor(IndexedColors.BLUE.getIndex());
+    linkFont.setUnderline(Font.U_SINGLE);
+
+    CellStyle linkStyle = workbook.createCellStyle();
+    linkStyle.setFont(linkFont);
+
+    linkCell.setCellStyle(linkStyle);
 
     CellStyle headerStyle = createTableHeaderStyle(workbook);
     CellStyle cellStyle = createTableCellStyle(workbook);
@@ -109,7 +149,7 @@ private void createProjectScheduleSheet(
             "Status"
     };
 
-    int rowIndex = 0;
+    int rowIndex = 1;
 
     Row header = sheet.createRow(rowIndex++);
 
@@ -329,14 +369,14 @@ private void createProjectScheduleSheet(
 
     if (rowIndex > 1) {
 
-        sheet.setAutoFilter(
-                new CellRangeAddress(
-                        0,
-                        rowIndex - 1,
-                        0,
-                        columns.length - 1
-                )
-        );
+    	sheet.setAutoFilter(
+    	        new CellRangeAddress(
+    	                0,
+    	                rowIndex - 1,
+    	                0,
+    	                columns.length - 1
+    	        )
+    	);
     }
 }
    private void createHiddenGanttDataSheet(
@@ -363,7 +403,7 @@ private void createProjectScheduleSheet(
         return;
     }
 
-    int rowIndex = 1;
+    int rowIndex = 0;
 
     for (SaveProjectScheduleTaskRequest task : request.getTasks()) {
 

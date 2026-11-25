@@ -190,7 +190,7 @@ try {
             convertToSaveProjectScheduleRequest(response);
 
     byte[] excelBytes =
-            projectScheduleExcelExporter.export(excelRequest);
+            projectScheduleExcelExporter.export(excelRequest, opportunityId);
 
     String fileName = opportunity.getOpportunityName()
             .replaceAll("[\\\\/:*?\"<>|]", "_")
@@ -382,13 +382,41 @@ return response;
 			projectScheduleTaskRepository.deleteAll(orphanTasks);
 			existingTasks.removeAll(orphanTasks);
 		}
+		
+		// Calculate completed parent tasks from their breakdown statuses.
+		int completedTasks = (int) existingTasks.stream()
+		        .filter(task -> {
+		            List<ProjectScheduleTaskBreakdown> breakdowns =
+		                    task.getTaskBreakdowns();
+
+		            if (breakdowns != null && !breakdowns.isEmpty()) {
+		                return breakdowns.stream()
+		                        .allMatch(breakdown ->
+		                                "Completed".equalsIgnoreCase(
+		                                        breakdown.getStatus() == null
+		                                                ? ""
+		                                                : breakdown.getStatus().trim()
+		                                )
+		                        );
+		            }
+
+		            return "Completed".equalsIgnoreCase(
+		                    task.getStatus() == null
+		                            ? ""
+		                            : task.getStatus().trim()
+		            );
+		        })
+		        .count();
+
+		schedule.setCompletedTasks(completedTasks);
+		projectScheduleRepository.save(schedule);
 
 		// Schedule persistence is the PSR trigger. The PSR service derives the
 		// period from projectStartDate and refreshes its one report for that period.
 		projectScheduleRepository.flush();
 
 		try {
-			byte[] excelBytes = projectScheduleExcelExporter.export(request);
+			byte[] excelBytes = projectScheduleExcelExporter.export(request, opportunityId);
 			Opportunity opp = opportunityRepository.findById(opportunityId).orElse(null);
 			if (opp != null) {
 				String fileName = opp.getOpportunityName()
@@ -442,7 +470,7 @@ return response;
         log.warn("Failed reading physical schedule file: {}", ex.getMessage());
     }
 
-    byte[] excel = projectScheduleExcelExporter.export(request);
+    byte[] excel = projectScheduleExcelExporter.export(request, opportunityId);
     try {
         documentStorageService.saveFile(opportunityId, "Baseline/PMP", fileName, excel);
     } catch (Exception ignored) {}
@@ -494,7 +522,31 @@ return response;
 
 		response.setDurationDays(schedule.getDurationDays());
 		response.setTotalTasks(schedule.getTotalTasks());
-		response.setCompletedTasks(schedule.getCompletedTasks());
+		response.setCompletedTasks(
+		        (int) schedule.getTasks().stream()
+		                .filter(task -> {
+		                    List<ProjectScheduleTaskBreakdown> breakdowns =
+		                            task.getTaskBreakdowns();
+
+		                    if (breakdowns != null && !breakdowns.isEmpty()) {
+		                        return breakdowns.stream()
+		                                .allMatch(breakdown ->
+		                                        "Completed".equalsIgnoreCase(
+		                                                breakdown.getStatus() == null
+		                                                        ? ""
+		                                                        : breakdown.getStatus().trim()
+		                                        )
+		                                );
+		                    }
+
+		                    return "Completed".equalsIgnoreCase(
+		                            task.getStatus() == null
+		                                    ? ""
+		                                    : task.getStatus().trim()
+		                    );
+		                })
+		                .count()
+		);
 		response.setCriticalTasks(schedule.getCriticalTasks());
 		response.setEstimatedHours(schedule.getEstimatedHours());
 		response.setBufferPercentage(schedule.getBufferPercentage());
