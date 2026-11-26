@@ -1,24 +1,25 @@
 package com.projectestimation.backend.dar.review.ai;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.projectestimation.backend.common.ai.GeminiClient;
-import com.projectestimation.backend.dar.dto.DarResponseDto;
-import com.projectestimation.backend.dar.review.dto.DarReviewDto;
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
+import com.projectestimation.backend.dar.dto.DarResponseDto;
+import com.projectestimation.backend.dar.review.dto.DarReviewDto;
 
 @Component
 public class GeminiDarReviewOrchestrator {
 
-    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
     private final ObjectMapper objectMapper;
 
     public GeminiDarReviewOrchestrator(
-            GeminiClient geminiClient,
+    		AiGateway aiGateway,
             ObjectMapper objectMapper
     ) {
-        this.geminiClient = geminiClient;
+        this.aiGateway = aiGateway;
         this.objectMapper = objectMapper;
     }
 
@@ -88,7 +89,7 @@ public class GeminiDarReviewOrchestrator {
                     %s
                     """.formatted(opportunityId, darJson);
 
-            String response = geminiClient.generateJsonContent(prompt, 5000);
+            String response = aiGateway.generateJsonContent(prompt, 5000);
 
             DarReviewDto generated =
                     objectMapper.readValue(response, DarReviewDto.class);
