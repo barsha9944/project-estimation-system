@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,7 +40,7 @@ public class DarReviewService {
     private final DarService darService;
     private final ObjectMapper objectMapper;
     private final OpportunityDocumentStorageService documentStorageService;
-    private final boolean allowImmediateAccess;
+   
 
     public DarReviewService(
             DarReviewRepository reviewRepository,
@@ -48,9 +49,7 @@ public class DarReviewService {
             GeminiDarReviewOrchestrator geminiOrchestrator,
             DarService darService,
             ObjectMapper objectMapper,
-            OpportunityDocumentStorageService documentStorageService,
-            @Value("${dar.review.allow-immediate-access:false}")
-            boolean allowImmediateAccess
+            OpportunityDocumentStorageService documentStorageService
     ) {
         this.reviewRepository = reviewRepository;
         this.darRepository = darRepository;
@@ -59,9 +58,7 @@ public class DarReviewService {
         this.darService = darService;
         this.objectMapper = objectMapper;
         this.documentStorageService = documentStorageService;
-        this.allowImmediateAccess = allowImmediateAccess;
     }
-
     @Transactional
     public DarReviewDto generateReview(Long opportunityId) {
         Dar dar = getDarAndCheckEligibility(opportunityId);
@@ -82,11 +79,16 @@ public class DarReviewService {
 
         List<DarReviewDto.ParticipantDto> decisionParticipants =
                 buildDecisionParticipants(team);
+        
+        String reviewDate = dar.getCreatedAt()
+                .toLocalDate()
+                .plusDays(1)
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
         DarReviewDto review = new DarReviewDto(
                 opportunityId,
                 generated.issueTitle(),
-                generated.meetingDateTime(),
+                reviewDate,
                 "Beas Office",
                 generated.darEventTrigger(),
                 team.getProjectManager(),
@@ -403,13 +405,6 @@ public class DarReviewService {
         if (dar.getCreatedAt() == null) {
             throw new IllegalStateException(
                     "The original DAR has no creation timestamp."
-            );
-        }
-
-        if (!allowImmediateAccess
-                && LocalDateTime.now().isBefore(dar.getCreatedAt().plusHours(24))) {
-            throw new IllegalStateException(
-                    "DAR Review will be available 24 hours after the original DAR was generated."
             );
         }
 
