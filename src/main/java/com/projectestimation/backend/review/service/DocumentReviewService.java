@@ -77,20 +77,20 @@ public class DocumentReviewService {
 
         review.setOriginalGeneratedAt(genTime);
 
-        // Schedule Cycle 1 for +1 day
-        review.setCycle1ScheduledAt(genTime.plusDays(1));
+     // Schedule Cycle 1 on the same day as the original document
+        review.setCycle1ScheduledAt(genTime);
         review.setCycle1Status(ReviewStatus.PENDING);
         review.setCycle1GeneratedAt(null);
         review.setCycle1FilePath(null);
 
-        // Schedule Cycle 2 for +2 days
-        review.setCycle2ScheduledAt(genTime.plusDays(2));
+        // Schedule Cycle 2 on the same day as the original document
+        review.setCycle2ScheduledAt(genTime);
         review.setCycle2Status(ReviewStatus.PENDING);
         review.setCycle2GeneratedAt(null);
         review.setCycle2FilePath(null);
 
-        // Shared Data Sheet is scheduled for Day 1
-        review.setDataSheetScheduledAt(genTime.plusDays(1));
+        // Schedule Review Data Sheet on the same day
+        review.setDataSheetScheduledAt(genTime);
         review.setDataSheetStatus(ReviewStatus.PENDING);
         review.setDataSheetGeneratedAt(null);
         review.setDataSheetFilePath(null);
@@ -105,12 +105,12 @@ public class DocumentReviewService {
     }
 
     public List<DocumentReview> findDueCycle1Reviews(LocalDateTime now) {
-        return documentReviewRepository.findByCycle1StatusAndCycle1ScheduledAtLessThanEqual(
-                ReviewStatus.PENDING,
-                now
-        );
+        return documentReviewRepository
+                .findByCycle1StatusAndCycle1ScheduledAtLessThanEqual(
+                        ReviewStatus.PENDING,
+                        now
+                );
     }
-
     public List<DocumentReview> findDueCycle2Reviews(LocalDateTime now) {
         return documentReviewRepository.findByCycle2StatusAndCycle2ScheduledAtLessThanEqual(
                 ReviewStatus.PENDING,
@@ -174,12 +174,13 @@ public class DocumentReviewService {
                     projectManager,
                     teamLead,
                     review.getOriginalGeneratedAt(),
-                    review.getCycle1ScheduledAt(),
-                    review.getCycle2ScheduledAt(),
+                    review.getOriginalGeneratedAt().plusDays(1),
+                    review.getOriginalGeneratedAt().plusDays(1),
                     mainDocName,
                     "1.0",
                     findings
             );
+            
             String dataSheetPath = saveFile(opportunity.getId(), dataSheetFileName, dataSheetBytes);
             
             // 3. Generate and save Review Note 1 DOCX
@@ -189,8 +190,8 @@ public class DocumentReviewService {
                     oppName,
                     teamLead,
                     review.getOriginalGeneratedAt(),
-                    review.getCycle1ScheduledAt(),
-                    review.getCycle2ScheduledAt(),
+                    review.getOriginalGeneratedAt().plusDays(1),
+                    review.getOriginalGeneratedAt().plusDays(1),
                     dataSheetFileName,
                     mainDocName,
                     "1.0",
@@ -293,8 +294,8 @@ public class DocumentReviewService {
                     projectManager,
                     teamLead,
                     review.getOriginalGeneratedAt(),
-                    review.getCycle1ScheduledAt(),
-                    review.getCycle2ScheduledAt(),
+                    review.getOriginalGeneratedAt().plusDays(1),
+                    review.getOriginalGeneratedAt().plusDays(1),
                     mainDocName,
                     "1.0",
                     updatedFindings
@@ -308,8 +309,8 @@ public class DocumentReviewService {
                     oppName,
                     teamLead,
                     review.getOriginalGeneratedAt(),
-                    review.getCycle1ScheduledAt(),
-                    review.getCycle2ScheduledAt(),
+                    review.getOriginalGeneratedAt().plusDays(1),
+                    review.getOriginalGeneratedAt().plusDays(1),
                     dataSheetFileName,
                     mainDocName,
                     "1.0",

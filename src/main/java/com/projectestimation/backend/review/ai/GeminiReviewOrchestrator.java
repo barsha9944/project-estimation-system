@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projectestimation.backend.common.ai.GeminiClient;
+import com.projectestimation.backend.common.ai.gateway.AiGateway;
 import com.projectestimation.backend.common.exception.AiGenerationFailedException;
 import com.projectestimation.backend.review.dto.ReviewFindingDto;
 import com.projectestimation.backend.review.dto.ReviewFindingsResponseDto;
@@ -24,7 +25,7 @@ public class GeminiReviewOrchestrator {
 
     private static final Logger log = LogManager.getLogger(GeminiReviewOrchestrator.class);
 
-    private final GeminiClient geminiClient;
+    private final AiGateway aiGateway;
     private final ObjectMapper objectMapper;
 
     public ReviewFindingsResponseDto reviewSrsCycle1(SrsDto srsDto, String opportunityName) {
@@ -33,7 +34,7 @@ public class GeminiReviewOrchestrator {
             String srsJson = objectMapper.writeValueAsString(srsDto);
             String prompt = buildSrsCycle1Prompt(opportunityName, srsJson);
 
-            String response = geminiClient.generateJsonContent(prompt, 4096);
+            String response = aiGateway.generateJsonContent(prompt, 4096);
             ReviewFindingsResponseDto findingsResponse = parseResponse(response);
 
             validateFindings(findingsResponse);
@@ -51,7 +52,7 @@ public class GeminiReviewOrchestrator {
             String sddJson = objectMapper.writeValueAsString(sddDto);
             String prompt = buildSddCycle1Prompt(opportunityName, sddJson);
 
-            String response = geminiClient.generateJsonContent(prompt, 4096);
+            String response = aiGateway.generateJsonContent(prompt, 4096);
             ReviewFindingsResponseDto findingsResponse = parseResponse(response);
 
             validateFindings(findingsResponse);
@@ -74,7 +75,7 @@ public class GeminiReviewOrchestrator {
             String findingsJson = objectMapper.writeValueAsString(cycle1Findings);
             String prompt = buildCycle2Prompt(docType, opportunityName, docJson, findingsJson);
 
-            String response = geminiClient.generateJsonContent(prompt, 4096);
+            String response = aiGateway.generateJsonContent(prompt, 4096);
             ReviewFindingsResponseDto findingsResponse = parseResponse(response);
 
             if (findingsResponse == null || findingsResponse.findings() == null || findingsResponse.findings().isEmpty()) {

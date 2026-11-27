@@ -22,7 +22,7 @@ public interface DocumentReviewRepository extends JpaRepository<DocumentReview, 
     );
 
     @EntityGraph(attributePaths = {"opportunity"})
-    List<DocumentReview> findByCycle1StatusAndCycle1ScheduledAtLessThanEqual(
+    List<DocumentReview> findByCycle1StatusAndOriginalGeneratedAtLessThanEqual(
             ReviewStatus cycle1Status,
             LocalDateTime currentTime
     );
@@ -30,6 +30,12 @@ public interface DocumentReviewRepository extends JpaRepository<DocumentReview, 
     @EntityGraph(attributePaths = {"opportunity"})
     List<DocumentReview> findByCycle2StatusAndCycle2ScheduledAtLessThanEqual(
             ReviewStatus cycle2Status,
+            LocalDateTime currentTime
+    );
+    
+    @EntityGraph(attributePaths = {"opportunity"})
+    List<DocumentReview> findByCycle1StatusAndCycle1ScheduledAtLessThanEqual(
+            ReviewStatus cycle1Status,
             LocalDateTime currentTime
     );
 
