@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +28,8 @@ import com.projectestimation.backend.estimation.model.EstimationUseCase;
 import com.projectestimation.backend.estimation.repository.EstimationActorRepository;
 import com.projectestimation.backend.estimation.repository.EstimationAnalysisRepository;
 import com.projectestimation.backend.estimation.repository.EstimationUseCaseRepository;
+import com.projectestimation.backend.mom.model.Mom;
+import com.projectestimation.backend.mom.repository.MomRepository;
 import com.projectestimation.backend.opportunity.model.Opportunity;
 import com.projectestimation.backend.opportunity.repository.OpportunityRepository;
 import com.projectestimation.backend.projectmetrics.model.ProjectMetrics;
@@ -93,6 +94,8 @@ public class ProjectScheduleService {
 	private final ProjectStatusReportRepository projectStatusReportRepository;
 
 	private final ProjectScheduleTaskBreakdownRepository projectScheduleTaskBreakdownRepository;
+	
+	private final MomRepository momRepository;
 
 	private final PsrService psrService;
 
@@ -101,6 +104,7 @@ public class ProjectScheduleService {
 	private final OpportunityDocumentStorageService documentStorageService;
 	private final ProjectScheduleExcelParser projectScheduleExcelParser;
 
+	@Transactional
 	public ProjectScheduleResponse generateProjectSchedule(
 
 			Long opportunityId,
@@ -146,6 +150,23 @@ public class ProjectScheduleService {
 		    );
 		}
 
+		// Remove the previous schedule tasks before regenerating.
+		ProjectSchedule existingSchedule = projectScheduleRepository
+		        .findByOpportunityIdWithTasks(opportunityId)
+		        .orElse(null);
+
+		if (existingSchedule != null && existingSchedule.getTasks() != null) {
+		    existingSchedule.getTasks().clear();
+		    projectScheduleRepository.save(existingSchedule);
+		    projectScheduleRepository.flush();
+
+		    log.info("Deleted existing schedule tasks for opportunity {}",
+		            opportunityId);
+		}
+
+		// Remove previous PSR and MOM data before regeneration.
+		deleteExistingPsrAndMomData(opportunityId);
+		
 		int durationDays = 0;
 
 		LocalDate currentDate = projectStartDate;
@@ -171,6 +192,22 @@ public class ProjectScheduleService {
 
 
 ProjectScheduleResponse response = result.schedule();
+
+//Every regenerated schedule must start with fresh progress.
+response.setCompletedTasks(0);
+
+if (response.getTasks() != null) {
+ response.getTasks().forEach(task -> {
+     task.setStatus("Not Started");
+
+     if (task.getTaskBreakdowns() != null) {
+         task.getTaskBreakdowns().forEach(breakdown -> {
+             breakdown.setStatus("Not Started");
+             breakdown.setProgress(0);
+         });
+     }
+ });
+}
 
 response.setDurationDays(durationDays);
 response.setProjectStartDate(projectStartDate);
@@ -286,101 +323,73 @@ return response;
 
 		projectScheduleRepository.flush();
 
+		// Delete all existing schedule tasks and their breakdowns.
+		// orphanRemoval = true handles the child breakdown records.
 		List<ProjectScheduleTask> existingTasks = schedule.getTasks();
+
 		if (existingTasks == null) {
-			existingTasks = new ArrayList<>();
-			schedule.setTasks(existingTasks);
+		    existingTasks = new ArrayList<>();
+		    schedule.setTasks(existingTasks);
+		} else {
+		    existingTasks.clear();
 		}
 
-		Map<Long, ProjectScheduleTask> existingById = existingTasks.stream()
-				.filter(t -> t.getId() != null)
-				.collect(Collectors.toMap(ProjectScheduleTask::getId, t -> t, (a, b) -> a));
+		// Flush deletion before inserting the newly generated schedule.
+		projectScheduleRepository.save(schedule);
+		projectScheduleRepository.flush();
 
-		Map<String, ProjectScheduleTask> existingByName = existingTasks.stream()
-				.filter(t -> t.getTaskName() != null && !t.getTaskName().isBlank())
-				.collect(Collectors.toMap(t -> t.getTaskName().trim().toLowerCase(), t -> t, (a, b) -> a));
-
-		Set<Long> savedTaskIds = new HashSet<>();
+		// Insert all tasks from the new schedule request.
 		Set<String> processedTaskNames = new HashSet<>();
 
 		for (SaveProjectScheduleTaskRequest taskRequest : request.getTasks()) {
-			if (taskRequest.getTaskName() == null || taskRequest.getTaskName().isBlank()) {
-				continue;
-			}
 
-			String canonicalName = taskRequest.getTaskName().trim();
-			String nameKey = canonicalName.toLowerCase();
+		    if (taskRequest.getTaskName() == null
+		            || taskRequest.getTaskName().isBlank()) {
+		        continue;
+		    }
 
-			ProjectScheduleTask task = null;
+		    String taskName = taskRequest.getTaskName().trim();
+		    String nameKey = taskName.toLowerCase();
 
-			// 1. Try matching by ID first
-			if (taskRequest.getId() != null) {
-				task = existingById.get(taskRequest.getId());
-				if (task == null) {
-					task = projectScheduleTaskRepository.findById(taskRequest.getId()).orElse(null);
-				}
-			}
+		    // Avoid duplicate parent tasks in the same request.
+		    if (!processedTaskNames.add(nameKey)) {
+		        log.warn("Duplicate task '{}' skipped.", taskName);
+		        continue;
+		    }
 
-			// 2. If not matched by ID, try matching by canonical task name
-			if (task == null) {
-				task = existingByName.get(nameKey);
-			}
+		    ProjectScheduleTask task = new ProjectScheduleTask();
 
-			// 3. If duplicate task name appears again within the same request, merge into previously matched/created task
-			if (processedTaskNames.contains(nameKey)) {
-				log.warn("Duplicate task name '{}' detected in request. Merging into existing task.", canonicalName);
-				if (task != null && taskRequest.getTaskBreakdowns() != null) {
-					saveOrMergeBreakdowns(task, taskRequest.getTaskBreakdowns());
-				}
-				continue;
-			}
-			processedTaskNames.add(nameKey);
+		    task.setProjectSchedule(schedule);
+		    task.setSequence(taskRequest.getSequence());
+		    task.setSprintNumber(taskRequest.getSprintNumber());
+		    task.setTaskName(taskName);
+		    task.setDuration(taskRequest.getDuration());
+		    task.setPlannedStartDate(taskRequest.getPlannedStartDate());
+		    task.setPlannedEndDate(taskRequest.getPlannedEndDate());
+		    task.setActualStartDate(
+		            taskRequest.getActualStartDate() != null
+		                    ? taskRequest.getActualStartDate()
+		                    : taskRequest.getPlannedStartDate()
+		    );
+		    task.setActualEndDate(
+		            taskRequest.getActualEndDate() != null
+		                    ? taskRequest.getActualEndDate()
+		                    : taskRequest.getPlannedEndDate()
+		    );
+		    task.setPredecessor(taskRequest.getPredecessor());
+		    task.setStatus(taskRequest.getStatus());
 
-			if (task == null) {
-				task = new ProjectScheduleTask();
-				task.setProjectSchedule(schedule);
-				existingTasks.add(task);
-			}
+		    existingTasks.add(task);
 
-			task.setSequence(taskRequest.getSequence());
-			task.setSprintNumber(taskRequest.getSprintNumber());
-			task.setTaskName(canonicalName);
-			task.setDuration(taskRequest.getDuration());
-			task.setPlannedStartDate(taskRequest.getPlannedStartDate());
-			task.setPlannedEndDate(taskRequest.getPlannedEndDate());
-			task.setActualStartDate(taskRequest.getActualStartDate() != null ? taskRequest.getActualStartDate()
-					: taskRequest.getPlannedStartDate());
-			task.setActualEndDate(taskRequest.getActualEndDate() != null ? taskRequest.getActualEndDate()
-					: taskRequest.getPlannedEndDate());
-			task.setPredecessor(taskRequest.getPredecessor());
-			task.setStatus(taskRequest.getStatus());
+		    ProjectScheduleTask savedTask =
+		            projectScheduleTaskRepository.save(task);
 
-			ProjectScheduleTask savedTask = projectScheduleTaskRepository.save(task);
-			if (savedTask.getId() != null) {
-				savedTaskIds.add(savedTask.getId());
-				existingById.put(savedTask.getId(), savedTask);
-				existingByName.put(nameKey, savedTask);
-			}
-
-			if (taskRequest.getTaskBreakdowns() != null) {
-				saveOrMergeBreakdowns(savedTask, taskRequest.getTaskBreakdowns());
-			}
-		}
-
-		// Clean up orphan tasks in DB that were deleted by user or duplicates from previous saves
-		List<ProjectScheduleTask> orphanTasks = existingTasks.stream()
-				.filter(t -> t.getId() != null && !savedTaskIds.contains(t.getId()))
-				.toList();
-
-		if (!orphanTasks.isEmpty()) {
-			log.info("Removing {} orphan tasks for schedule {}", orphanTasks.size(), schedule.getId());
-			for (ProjectScheduleTask orphan : orphanTasks) {
-				if (orphan.getTaskBreakdowns() != null) {
-					projectScheduleTaskBreakdownRepository.deleteAll(orphan.getTaskBreakdowns());
-				}
-			}
-			projectScheduleTaskRepository.deleteAll(orphanTasks);
-			existingTasks.removeAll(orphanTasks);
+		    if (taskRequest.getTaskBreakdowns() != null) {
+		        saveOrMergeBreakdowns(
+		                savedTask,
+		                taskRequest.getTaskBreakdowns()
+		        );
+		    }
 		}
 		
 		// Calculate completed parent tasks from their breakdown statuses.
@@ -1000,6 +1009,72 @@ return response;
 		return !end.isBefore(periodStart) && !start.isAfter(periodEnd);
 	}
 
+	private void deleteExistingPsrAndMomData(Long opportunityId) {
+
+	    // Back up existing PSR documents before deleting their database records.
+	    List<ProjectStatusReport> existingPsrs =
+	            projectStatusReportRepository.findByOpportunityId(opportunityId);
+
+	    for (ProjectStatusReport psr : existingPsrs) {
+	        String relativePath = psr.getFilePath();
+
+	        if (relativePath == null || relativePath.isBlank()) {
+	            relativePath = psr.getFileLocation();
+	        }
+
+	        if (relativePath != null && !relativePath.isBlank()
+	                && documentStorageService.exists(opportunityId, relativePath)) {
+	            try {
+	                documentStorageService.backupExistingFile(
+	                        opportunityId,
+	                        documentStorageService.resolveStoredFilePath(
+	                                opportunityId, relativePath
+	                        )
+	                );
+	            } catch (IOException ex) {
+	                throw new RuntimeException(
+	                        "Failed to back up PSR document: " + relativePath, ex
+	                );
+	            }
+	        }
+	    }
+
+	    // Back up existing MOM documents before deleting their database records.
+	    List<Mom> existingMoms =
+	            momRepository.findByOpportunityIdOrderByMeetingSequenceAsc(opportunityId);
+
+	    for (Mom mom : existingMoms) {
+	        String relativePath = mom.getFilePath();
+
+	        if (relativePath != null && !relativePath.isBlank()
+	                && documentStorageService.exists(opportunityId, relativePath)) {
+	            try {
+	                documentStorageService.backupExistingFile(
+	                        opportunityId,
+	                        documentStorageService.resolveStoredFilePath(
+	                                opportunityId, relativePath
+	                        )
+	                );
+	            } catch (IOException ex) {
+	                throw new RuntimeException(
+	                        "Failed to back up MOM document: " + relativePath, ex
+	                );
+	            }
+	        }
+	    }
+
+	    // Delete the old database records after backing up their files.
+	    projectStatusReportRepository.deleteAll(existingPsrs);
+	    momRepository.deleteAll(existingMoms);
+
+	    log.info(
+	            "Deleted {} PSR records and {} MOM records for opportunity {}",
+	            existingPsrs.size(),
+	            existingMoms.size(),
+	            opportunityId
+	    );
+	}
+	
 	private void deleteExistingProjectMetrics(Long opportunityId) {
 
 		ProjectMetrics metrics = projectMetricsRepository.findByOpportunityId(opportunityId).orElse(null);
